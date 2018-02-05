@@ -17,7 +17,6 @@ import java.util.*;
  *
  * The agents move towards things with the "best value" and shoots when it gets close to enemy ships.
  * If it's low on energy then it goes to the nearest beacon or friendly base.
- * Kinda avoids obstacles, but not very well.
  * @author Bryan Capps
  *
  */
