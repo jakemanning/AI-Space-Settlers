@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <TeamClientConfig>
     <!-- The name of the client class (this is used to construct the client so it needs to be the full class name) -->
-    <classname>capp7507.BryanTeamClient</classname>
+    <classname>capp7507.JakeTeamClient</classname>
 
     <!-- You can choose the color your team's ships will be on the screen.  Specify the red, green, and blue components -->
-    <teamColorRed>83</teamColorRed>
-    <teamColorGreen>127</teamColorGreen>
-    <teamColorBlue>183</teamColorBlue>
+    <teamColorRed>0</teamColorRed>
+    <teamColorGreen>0</teamColorGreen>
+    <teamColorBlue>255</teamColorBlue>
 
     <!-- The name that shows up in the ladder -->
-    <ladderName>Bryan Capps's Random Team</ladderName>
+    <ladderName>Bryan and Jake's Super Team</ladderName>
 
     <!-- The number of ships in the team.  Note, if this is bigger than the maximum number of allowable ships per team, it is ignored -->
     <numberInitialShipsInTeam>2</numberInitialShipsInTeam>
