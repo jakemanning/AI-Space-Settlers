@@ -93,7 +93,7 @@ public class BryanTeamClient extends TeamClient {
 			boolean onCourse = angleDifference < Math.PI / 8;
 			if (onCourse) {
 				double distance = obstacleVector.getMagnitude();
-				double stoppingDistance = ship.getPosition().getTranslationalVelocity().getMagnitude();
+				double stoppingDistance = shipVelocity.getMagnitude();
 				if (distance < stoppingDistance * 3) {
 					return true;
 				}

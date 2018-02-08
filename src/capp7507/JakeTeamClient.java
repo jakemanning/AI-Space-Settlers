@@ -74,21 +74,27 @@ public class JakeTeamClient extends TeamClient {
 		for (AbstractObject object : objects) {
 			double rawDistance = space.findShortestDistance(ship.getPosition(), object.getPosition());
 			double scaledDistance = Math.log1p(rawDistance);
+			scaledDistance = scaledDistance + angleValue(space, ship, object);
 			double value = 0;
+			if (obstacleInWay(space, ship, object)) {
+				continue;
+			}
 			if (object instanceof Asteroid) {
 				Asteroid asteroid = (Asteroid) object;
 				if (asteroid.isMineable()) {
-					value = Math.log1p(asteroid.getMass());
+					value = asteroid.getMass();
 				}
 			} else if (object instanceof AbstractActionableObject) {
 				AbstractActionableObject actionableObject = (AbstractActionableObject) object;
 				if (isEnemyTarget(actionableObject)) {
-					value = Math.log1p(5 * energyValue(actionableObject));
+					value = energyValue(actionableObject);
 				} else if (isOurBase(actionableObject)) {
-					value = Math.log1p(5 * energyValue(ship) + cargoValue(ship));
+					value = energyValue(ship) + cargoValue(ship);
+				} else if (actionableObject.getId() == ship.getId()) {
+					continue;
 				}
 			} else if (object instanceof Beacon) {
-				value = Math.log1p(5 * energyValue(ship));
+				value = energyValue(ship);
 			}
 			double score = value / scaledDistance;
 			if (score > maximum) {
@@ -97,6 +103,37 @@ public class JakeTeamClient extends TeamClient {
 			}
 		}
 		return best;
+	}
+
+	private boolean obstacleInWay(Toroidal2DPhysics space, Ship ship, AbstractObject target) {
+		for (Asteroid obstacle : space.getAsteroids()) {
+			if (obstacle.isMineable()) {
+				continue;
+			}
+			Vector2D obstaclePath = space.findShortestDistanceVector(ship.getPosition(), obstacle.getPosition());
+			double obstacleAngle = obstaclePath.getAngle();
+			Vector2D targetPath = space.findShortestDistanceVector(ship.getPosition(), target.getPosition());
+			double targetAngle = targetPath.getAngle();
+			if (Math.abs(targetAngle - obstacleAngle) < Math.PI / 12) {
+				double distance = obstaclePath.getMagnitude();
+				double stoppingDistance = ship.getPosition().getTranslationalVelocity().getMagnitude();
+				if (distance < stoppingDistance * 3) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private double angleValue(Toroidal2DPhysics space, Ship ship, AbstractObject target) {
+		Position currentPosition = ship.getPosition();
+		Position targetPosition = target.getPosition();
+		Vector2D currentDirection = currentPosition.getTranslationalVelocity();
+		double currentAngle = currentDirection.getAngle();
+		Vector2D targetDirection = space.findShortestDistanceVector(currentPosition, targetPosition);
+		double targetAngle = targetDirection.getAngle();
+		double angleDifference = Math.abs(currentAngle - targetAngle);
+		return angleDifference;
 	}
 
 	private boolean isEnemyTarget(AbstractActionableObject actionableObject) {
@@ -115,13 +152,7 @@ public class JakeTeamClient extends TeamClient {
 
 	private double energyValue(AbstractActionableObject ship) {
 		double percentEnergy = ship.getEnergy() / ship.getMaxEnergy();
-		if (percentEnergy > 0.8) {
-			return 10;
-		} else if (percentEnergy < 0.3) {
-			return 50000;
-		} else {
-			return percentEnergy * 1000;
-		}
+		return 600 / (percentEnergy + 0.001 /* add a bit to avoid dividing by zero */);
 	}
 
 	private double cargoValue(Ship ship) {

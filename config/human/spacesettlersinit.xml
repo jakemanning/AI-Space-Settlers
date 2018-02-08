@@ -9,7 +9,7 @@
     <teamColorBlue>255</teamColorBlue>
 
     <!-- The name that shows up in the ladder -->
-    <ladderName>Bryan and Jake's Super Team</ladderName>
+    <ladderName>Spacejam</ladderName>
 
     <!-- The number of ships in the team.  Note, if this is bigger than the maximum number of allowable ships per team, it is ignored -->
     <numberInitialShipsInTeam>2</numberInitialShipsInTeam>
