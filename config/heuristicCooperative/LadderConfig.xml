@@ -41,8 +41,12 @@
 		 each other and the static teams. -->
 	<variableTeams>
 		<HighLevelTeamConfig>
-			<teamName>GATeam</teamName>
-			<configFile>example-ga-clientinit.xml</configFile>
+            <teamName>Jake</teamName>
+            <configFile>jakeinit.xml</configFile>
+        </HighLevelTeamConfig>
+        <HighLevelTeamConfig>
+            <teamName>Bryan</teamName>
+            <configFile>bryaninit.xml</configFile>
 		</HighLevelTeamConfig>
 	</variableTeams>
 
