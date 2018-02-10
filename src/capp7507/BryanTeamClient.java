@@ -87,7 +87,7 @@ public class BryanTeamClient extends TeamClient {
 		Set<AbstractObject> obstacles = new HashSet<>();
 		obstacles.addAll(enemies);
 		obstacles.addAll(asteroids);
-		obstacles.addAll(friendlyShips);
+//		obstacles.addAll(friendlyShips);
 
 		return obstacles;
 	}
@@ -97,11 +97,14 @@ public class BryanTeamClient extends TeamClient {
 		Vector2D currentVector = new Vector2D(currentPosition);
 		Vector2D obstacleVector = space.findShortestDistanceVector(currentPosition, obstacle.getPosition());
 		double newAngle = obstacleVector.getAngle() + COLLISION_AVOIDANCE_ANGLE;
-		Vector2D newTargetVector = currentVector.add(Vector2D.fromAngle(newAngle, obstacle.getRadius() * 3));
+		Vector2D avoidanceVector = Vector2D.fromAngle(newAngle, obstacle.getRadius() * 3);
+		Vector2D newTargetVector = currentVector.add(avoidanceVector);
 		Position newTarget = new Position(newTargetVector);
 		System.out.println("Avoiding a crash  " + Instant.now().getNano());
 		graphics.add(new CircleGraphics(2, new Color(244, 241, 66), obstacle.getPosition()));
-		return new MoveAction(space, currentPosition, newTarget);
+		Vector2D distanceVector = space.findShortestDistanceVector(currentPosition, newTarget);
+		distanceVector = distanceVector.multiply(10);
+		return new MoveAction(space, currentPosition, newTarget, distanceVector);
 	}
 
 	private Set<Base> getTeamBases(Toroidal2DPhysics space, String teamName) {
