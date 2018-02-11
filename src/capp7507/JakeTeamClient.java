@@ -1,9 +1,10 @@
 package capp7507;
 
-import spacesettlers.actions.*;
+import spacesettlers.actions.AbstractAction;
+import spacesettlers.actions.DoNothingAction;
+import spacesettlers.actions.MoveAction;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.*;
-import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
 import spacesettlers.utilities.Vector2D;
@@ -21,15 +22,6 @@ import java.util.*;
 public class JakeTeamClient extends BryanTeamClient {
 	private HashSet<SpacewarGraphics> graphics;
 	private AbstractObject target;
-
-	@Override
-	public void initialize(Toroidal2DPhysics space) {
-		graphics = new HashSet<>();
-	}
-
-	@Override
-	public void shutDown(Toroidal2DPhysics space) {
-	}
 
 	@Override
 	public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space,
@@ -131,66 +123,5 @@ public class JakeTeamClient extends BryanTeamClient {
 
 	private double cargoValue(Ship ship) {
 		return ship.getResources().getTotal();
-	}
-
-	private Set<AbstractObject> getEnemyShips(Toroidal2DPhysics space, String teamName) {
-		Set<AbstractObject> enemies = new HashSet<>();
-		for (Ship ship : space.getShips()) {
-			if (!Objects.equals(ship.getTeamName(), teamName)) {
-				enemies.add(ship);
-			}
-		}
-		for (Base base : space.getBases()) {
-			if (!base.isHomeBase() && !Objects.equals(base.getTeamName(), teamName)) {
-				enemies.add(base);
-			}
-		}
-		return enemies;
-	}
-
-	@Override
-	public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
-	}
-
-	@Override
-	public Set<SpacewarGraphics> getGraphics() {
-		HashSet<SpacewarGraphics> newGraphics = new HashSet<>(graphics);
-		graphics.clear();
-		return newGraphics;
-	}
-
-	/**
-	 * This is the new way to shoot (and use any other power up once they exist)
-	 */
-	public Map<UUID, SpaceSettlersPowerupEnum> getPowerups(Toroidal2DPhysics space,
-														   Set<AbstractActionableObject> actionableObjects) {
-
-		HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap = new HashMap<>();
-
-		for (AbstractObject actionable :  actionableObjects) {
-			if (actionable instanceof Ship) {
-				Ship ship = (Ship) actionable;
-				Collection<AbstractObject> enemyShips = getEnemyShips(space, getTeamName());
-				AbstractObject closestEnemyShip = closest(space, ship.getPosition(), enemyShips);
-				if (inPositionToShoot(space, ship.getPosition(), closestEnemyShip) && !shipNeedsEnergy(ship)) {
-					shoot(powerupMap, ship);
-				}
-			}
-		}
-		return powerupMap;
-	}
-
-	private boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition,
-									  AbstractObject target) {
-		Position targetPosition = target.getPosition();
-		boolean close = space.findShortestDistance(currentPosition, targetPosition) < 100;
-		if (!close) {
-			return false;
-		}
-		Vector2D targetVector = space.findShortestDistanceVector(currentPosition, targetPosition);
-		double targetAngle = targetVector.getAngle();
-		double currentAngle = currentPosition.getOrientation();
-		double angleDifference = Math.abs(targetAngle - currentAngle);
-		return angleDifference < Math.PI / 12;
 	}
 }
