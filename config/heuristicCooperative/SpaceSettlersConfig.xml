@@ -32,7 +32,7 @@
 		     which bound where the ships and the base will be created. -->
 		<HighLevelTeamConfig>
 			<teamName>Spacejam</teamName>
-			<configFile>bryaninit.xml</configFile>
+			<configFile>jakeinit.xml</configFile>
 		</HighLevelTeamConfig>
 		<HighLevelTeamConfig>
 			<teamName>BeaconCollectorTeam</teamName>

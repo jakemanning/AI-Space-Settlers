@@ -19,6 +19,7 @@ import java.util.*;
  *
  */
 public class JakeTeamClient extends BryanTeamClient {
+	private static final int SHIP_ENERGY_WEIGHT = 600;
 	private HashSet<SpacewarGraphics> graphics;
 	private AbstractObject target;
 
@@ -126,7 +127,7 @@ public class JakeTeamClient extends BryanTeamClient {
 
 	private double energyValue(AbstractActionableObject ship) {
 		double percentEnergy = ship.getEnergy() / ship.getMaxEnergy();
-		return 600 / (percentEnergy + 0.001 /* add a bit to avoid dividing by zero */);
+		return SHIP_ENERGY_WEIGHT / (percentEnergy + 0.001 /* add a bit to avoid dividing by zero */);
 	}
 
 	private double cargoValue(Ship ship) {

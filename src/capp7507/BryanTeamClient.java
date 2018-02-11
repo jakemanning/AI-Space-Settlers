@@ -31,9 +31,6 @@ public class BryanTeamClient extends TeamClient {
     protected static final double RANDOM_SHOOT_THRESHOLD = 0.35;
     protected static final double MIN_SHOOT_DISTANCE = 0.35;
 	private static final int BASE_MIN_ENERGY_THRESHOLD = 1000;
-	private static final double STOPPING_DISTANCE_MULTIPLIER = 2;
-	private static final double COLLISION_DETECTION_ANGLE = Math.PI / 2;
-
 
     protected HashSet<SpacewarGraphics> graphics;
 
@@ -194,7 +191,6 @@ public class BryanTeamClient extends TeamClient {
 
     private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, AbstractObject target, Color color) {
         Position targetPosition = target.getPosition();
-        Vector2D targetVelocity = targetPosition.getTranslationalVelocity();
         Position adjustedTargetPosition = interceptPosition(targetPosition, currentPosition);
         double goalAngle = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition).getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, TARGET_SHIP_SPEED);
@@ -346,29 +342,25 @@ public class BryanTeamClient extends TeamClient {
 													 PurchaseCosts purchaseCosts) {
 
 		HashMap<UUID, PurchaseTypes> purchases = new HashMap<>();
-		double BASE_BUYING_DISTANCE = 200;
-		boolean bought_base = false;
+		double baseBuyingDistance = 200;
 
 		if (purchaseCosts.canAfford(PurchaseTypes.BASE, resourcesAvailable)) {
 			for (AbstractActionableObject actionableObject : actionableObjects) {
 				if (actionableObject instanceof Ship) {
 					Ship ship = (Ship) actionableObject;
-					Set<Base> bases = space.getBases();
+					Set<Base> bases = getTeamBases(space, getTeamName());
 
 					// how far away is this ship to a base of my team?
 					double maxDistance = Double.MIN_VALUE;
 					for (Base base : bases) {
-						if (base.getTeamName().equalsIgnoreCase(getTeamName())) {
-							double distance = space.findShortestDistance(ship.getPosition(), base.getPosition());
-							if (distance > maxDistance) {
-								maxDistance = distance;
-							}
+						double distance = space.findShortestDistance(ship.getPosition(), base.getPosition());
+						if (distance > maxDistance) {
+							maxDistance = distance;
 						}
 					}
 
-					if (maxDistance > BASE_BUYING_DISTANCE) {
+					if (maxDistance > baseBuyingDistance) {
 						purchases.put(ship.getId(), PurchaseTypes.BASE);
-						bought_base = true;
 						break;
 					}
 				}
