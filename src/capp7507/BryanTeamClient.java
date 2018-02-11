@@ -25,12 +25,19 @@ import java.util.*;
  *
  */
 public class BryanTeamClient extends TeamClient {
-	private static final double TARGET_SHIP_SPEED = 25;
+    private static final double TARGET_SHIP_SPEED = 25;
+	private static final double COLLISION_AVOIDANCE_ANGLE = Math.PI / 2;
+	private static final int BASE_RETURN_THRESHOLD = 2000;
+    protected static final double RANDOM_SHOOT_THRESHOLD = 0.35;
+    protected static final double MIN_SHOOT_DISTANCE = 0.35;
+	private static final int BASE_MIN_ENERGY_THRESHOLD = 1000;
 	private static final double STOPPING_DISTANCE_MULTIPLIER = 2;
 	private static final double COLLISION_DETECTION_ANGLE = Math.PI / 2;
-	private static final double COLLISION_AVOIDANCE_ANGLE = Math.PI / 2;
-	private HashSet<SpacewarGraphics> graphics;
 
+
+    protected HashSet<SpacewarGraphics> graphics;
+
+	// region Boilerplate
 	@Override
 	public void initialize(Toroidal2DPhysics space) {
 		graphics = new HashSet<>();
@@ -39,6 +46,18 @@ public class BryanTeamClient extends TeamClient {
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
 	}
+
+    @Override
+    public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
+    }
+
+    @Override
+    public Set<SpacewarGraphics> getGraphics() {
+        HashSet<SpacewarGraphics> newGraphics = new HashSet<>(graphics);
+        graphics.clear();
+        return newGraphics;
+    }
+    // endregion
 
 	@Override
 	public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space,
@@ -53,24 +72,23 @@ public class BryanTeamClient extends TeamClient {
 				Collection<AbstractObject> targets = new HashSet<>();
 				if (shipNeedsEnergy(ship)) {
 					targets.addAll(getEnergySources(space, getTeamName()));
-				} else if (ship.getResources().getTotal() > 2000) {
+				} else if (shipShouldDumpResources(ship) || space.getCurrentTimestep() > space.getMaxTime() * 0.99) {
 					targets.addAll(getTeamBases(space, getTeamName()));
 				} else {
-					targets.addAll(getEnemyTargets(space, getTeamName()));
-					Set<Asteroid> asteroids = getMineableAsteroids(space);
-					targets.addAll(asteroids);
+					targets.addAll(getAsteroidsAndEnemies(space));
 				}
-				AbstractObject target = closest(space, currentPosition, targets);
-				Set<AbstractObject> obstructions = obstructions(space, ship, target);
-				AbstractObject obstruction = obstructionInPath(space, ship.getPosition(), target.getPosition(),
-						obstructions, ship.getRadius());
-				if (obstruction != null) {
-					AbstractAction action = avoidCrashAction(space, currentPosition, obstruction);
+				AbstractObject closestTarget = closest(space, currentPosition, targets);
+				Set<AbstractObject> obstructions = getObstructions(space, ship);
+				AbstractObject obstruction = obstructionInPath(space, currentPosition, closestTarget.getPosition(),  obstructions, ship.getRadius());
+
+				// Avoiding targets is an expensive action, only do so if have enough energy
+				if (obstruction != null && !shipNeedsEnergy(ship)) {
+					AbstractAction action = avoidCrashAction(space, currentPosition, obstruction, ship);
 					actions.put(ship.getId(), action);
 					return actions;
 				}
-				MoveAction action = getMoveAction(space, currentPosition, target);
-				actions.put(ship.getId(), action);
+				MoveAction closeAction = getMoveAction(space, currentPosition, closestTarget, Color.RED);
+				actions.put(ship.getId(), closeAction);
 			} else if (actionable instanceof Base) {
 				Base base = (Base) actionable;
 				actions.put(base.getId(), new DoNothingAction());
@@ -80,83 +98,110 @@ public class BryanTeamClient extends TeamClient {
 		return actions;
 	}
 
-	private Set<AbstractObject> obstructions(Toroidal2DPhysics space, Ship ship, AbstractObject target) {
-		Set<AbstractActionableObject> enemies = getEnemyTargets(space, getTeamName());
-		Set<Asteroid> asteroids = getNonMineableAsteroids(space);
-		Set<Ship> friendlyShips = getFriendlyShips(space, ship);
-		Set<AbstractObject> obstacles = new HashSet<>();
-		obstacles.addAll(enemies);
-		obstacles.addAll(asteroids);
-//		obstacles.addAll(friendlyShips);
-
-		return obstacles;
+	protected <T extends AbstractObject> T closest(Toroidal2DPhysics space, Position currentPosition,
+												   Collection<T> objects) {
+		T closest = null;
+		double minimum = Double.MAX_VALUE;
+		for (T object : objects) {
+			double distance = space.findShortestDistance(currentPosition, object.getPosition());
+			if (object instanceof Asteroid) {
+				Asteroid asteroid = (Asteroid) object;
+				distance = distance / asteroid.getMass();
+			}
+			if (distance < minimum) {
+				minimum = distance;
+				closest = object;
+			}
+		}
+		return closest;
 	}
 
+	// region Obstacle Avoidance
+    protected Set<AbstractObject> getObstructions(Toroidal2DPhysics space, Ship ship) {
+        Set<AbstractActionableObject> enemies = getEnemyTargets(space, getTeamName());
+        Set<Asteroid> asteroids = getNonMineableAsteroids(space);
+        Set<Ship> friendlyShips = getFriendlyShips(space, ship);
+        Set<AbstractObject> obstacles = new HashSet<>();
+        obstacles.addAll(enemies);
+        obstacles.addAll(asteroids);
+        return obstacles;
+    }
+
+    /**
+     * Check to see if following a straight line path between two given locations would result in a collision with a provided set of obstructions
+     *
+     * @param startPosition the starting location of the straight line path
+     * @param goalPosition  the ending location of the straight line path
+     * @param obstructions  an Set of AbstractObject obstructions (i.e., if you don't wish to consider mineable asteroids or beacons obstructions)
+     * @param freeRadius    used to determine free space buffer size
+     * @return The closest obstacle between a start and goal position, if exists
+     * @author Andrew and Thibault
+     */
+    protected AbstractObject obstructionInPath(Toroidal2DPhysics space, Position startPosition, Position goalPosition, Set<AbstractObject> obstructions, int freeRadius) {
+        Vector2D pathToGoal = space.findShortestDistanceVector(startPosition, goalPosition);    // Shortest straight line path from startPosition to goalPosition
+        double distanceToGoal = pathToGoal.getMagnitude();                                        // Distance of straight line path
+
+        AbstractObject closestObstacle = null; // Closest obstacle in the path
+        double distanceToObstacle = Double.MAX_VALUE;
+
+        // Calculate distance between obstruction center and path (including buffer for ship movement)
+        // Uses hypotenuse * sin(theta) = opposite (on a right hand triangle)
+        Vector2D pathToObstruction; // Vector from start position to obstruction
+        double angleBetween;        // Angle between vector from start position to obstruction
+
+        // Loop through obstructions
+        for (AbstractObject obstruction : obstructions) {
+            // If the distance to the obstruction is greater than the distance to the end goal, ignore the obstruction
+            pathToObstruction = space.findShortestDistanceVector(startPosition, obstruction.getPosition());
+            if (pathToObstruction.getMagnitude() > distanceToGoal) {
+                continue;
+            }
+
+            // Ignore angles > 90 degrees
+            angleBetween = Math.abs(pathToObstruction.angleBetween(pathToGoal));
+            if (angleBetween > Math.PI / 2) {
+                continue;
+            }
+
+            // Compare distance between obstruction and path with buffer distance
+            if (pathToObstruction.getMagnitude() * Math.sin(angleBetween) < obstruction.getRadius() + freeRadius * 1.5) {
+                double distance = space.findShortestDistance(startPosition, obstruction.getPosition());
+                if (distance < distanceToObstacle) {
+                    distanceToObstacle = distance;
+                    closestObstacle = obstruction;
+                }
+            }
+        }
+
+        return closestObstacle;
+    }
+
 	private AbstractAction avoidCrashAction(Toroidal2DPhysics space, Position currentPosition,
-											AbstractObject obstacle) {
+											AbstractObject obstacle, Ship ship) {
 		Vector2D currentVector = new Vector2D(currentPosition);
 		Vector2D obstacleVector = space.findShortestDistanceVector(currentPosition, obstacle.getPosition());
 		double newAngle = obstacleVector.getAngle() + COLLISION_AVOIDANCE_ANGLE;
-		Vector2D avoidanceVector = Vector2D.fromAngle(newAngle, obstacle.getRadius() * 3);
+		Vector2D avoidanceVector = Vector2D.fromAngle(newAngle, obstacle.getRadius() + ship.getRadius()); // A smaller angle works much better
 		Vector2D newTargetVector = currentVector.add(avoidanceVector);
 		Position newTarget = new Position(newTargetVector);
 		System.out.println("Avoiding a crash  " + Instant.now().getNano());
-		graphics.add(new CircleGraphics(2, new Color(244, 241, 66), obstacle.getPosition()));
+		graphics.add(new CircleGraphics(2, Color.YELLOW, obstacle.getPosition()));
 		Vector2D distanceVector = space.findShortestDistanceVector(currentPosition, newTarget);
-		distanceVector = distanceVector.multiply(10);
+		distanceVector = distanceVector.multiply(3);
 		return new MoveAction(space, currentPosition, newTarget, distanceVector);
 	}
+	// endregion
 
-	private Set<Base> getTeamBases(Toroidal2DPhysics space, String teamName) {
-		Set<Base> results = new HashSet<>();
-		for (Base base : space.getBases()) {
-			if (base.getTeamName().equals(teamName)) {
-				results.add(base);
-			}
-		}
-		return results;
-	}
-
-	private Set<Ship> getFriendlyShips(Toroidal2DPhysics space, Ship ship) {
-		Set<Ship> results = new HashSet<>();
-		for (Ship otherShip : space.getShips()) {
-			if (otherShip.getTeamName().equals(ship.getTeamName()) && !otherShip.getId().equals(ship.getId())) {
-				results.add(ship);
-			}
-		}
-		return results;
-	}
-
-	private Set<Asteroid> getNonMineableAsteroids(Toroidal2DPhysics space) {
-		Set<Asteroid> results = new HashSet<>();
-		for (Asteroid asteroid : space.getAsteroids()) {
-			if (!asteroid.isMineable()) {
-				results.add(asteroid);
-			}
-		}
-		return results;
-	}
-
-	private Set<Asteroid> getMineableAsteroids(Toroidal2DPhysics space) {
-		Set<Asteroid> results = new HashSet<>();
-		for (Asteroid asteroid : space.getAsteroids()) {
-			if (asteroid.isMineable()) {
-				results.add(asteroid);
-			}
-		}
-		return results;
-	}
-
-	private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, AbstractObject target) {
-		Position targetPosition = target.getPosition();
-		Vector2D targetVelocity = targetPosition.getTranslationalVelocity();
-		Position adjustedTargetPosition = interceptPosition(targetPosition, currentPosition);
-		double goalAngle = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition).getAngle();
-		Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, TARGET_SHIP_SPEED);
-		graphics.add(new CircleGraphics(2, Color.PINK, adjustedTargetPosition));
-		graphics.add(new CircleGraphics(2, Color.PINK, targetPosition));
-		return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
-	}
+    private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, AbstractObject target, Color color) {
+        Position targetPosition = target.getPosition();
+        Vector2D targetVelocity = targetPosition.getTranslationalVelocity();
+        Position adjustedTargetPosition = interceptPosition(targetPosition, currentPosition);
+        double goalAngle = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition).getAngle();
+        Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, TARGET_SHIP_SPEED);
+        graphics.add(new CircleGraphics(2, color, adjustedTargetPosition));
+        graphics.add(new CircleGraphics(2, color, targetPosition));
+        return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
+    }
 
 	/**
 	 * Figure out where the moving target and the cannon will meet when the cannon is fired in that direction
@@ -194,55 +239,90 @@ public class BryanTeamClient extends TeamClient {
 		return new Position(aimX, aimY);
 	}
 
-	private Set<AbstractObject> getEnergySources(Toroidal2DPhysics space, String teamName) {
-		Set<AbstractObject> energySources = new HashSet<>();
-		energySources.addAll(space.getBeacons());
-		Set<Base> ourBases = new HashSet<>();
-		for (Base base : space.getBases()) {
-			if (Objects.equals(base.getTeamName(), teamName) && base.getHealingEnergy() > 1000) {
-				ourBases.add(base);
-			}
-		}
-		energySources.addAll(ourBases);
-		return energySources;
-	}
-
-	private boolean shipNeedsEnergy(Ship ship) {
+	protected boolean shipNeedsEnergy(Ship ship) {
 		return ship.getEnergy() < ship.getMaxEnergy() * 0.2;
 	}
 
-	private <T extends AbstractObject> T closest(Toroidal2DPhysics space, Position currentPosition,
-												 Collection<T> objects) {
-		T closest = null;
-		double minimum = Double.MAX_VALUE;
-		for (T object : objects) {
-			double distance = space.findShortestDistance(currentPosition, object.getPosition());
-			if (object instanceof Asteroid) {
-				Asteroid asteroid = (Asteroid) object;
-				distance = distance / asteroid.getMass();
-			}
-			if (distance < minimum) {
-				minimum = distance;
-				closest = object;
-			}
-		}
-		return closest;
-	}
+	// region Objects in Space
+    private Set<AbstractObject> getEnergySources(Toroidal2DPhysics space, String teamName) {
+        Set<AbstractObject> energySources = new HashSet<>();
+        energySources.addAll(space.getBeacons());
+        Set<Base> ourBases = new HashSet<>();
+        for (Base base : space.getBases()) {
+            if (Objects.equals(base.getTeamName(), teamName) && base.getHealingEnergy() > BASE_MIN_ENERGY_THRESHOLD) {
+                ourBases.add(base);
+            }
+        }
+        energySources.addAll(ourBases);
+        return energySources;
+    }
 
-	private Set<AbstractActionableObject> getEnemyTargets(Toroidal2DPhysics space, String teamName) {
-		Set<AbstractActionableObject> enemies = new HashSet<>();
-		for (Ship ship : space.getShips()) {
-			if (!Objects.equals(ship.getTeamName(), teamName)) {
-				enemies.add(ship);
-			}
-		}
-		for (Base base : space.getBases()) {
-			if (!base.isHomeBase() && !Objects.equals(base.getTeamName(), teamName)) {
-				enemies.add(base);
-			}
-		}
-		return enemies;
-	}
+    private boolean shipShouldDumpResources(Ship ship) {
+        return ship.getResources().getTotal() > BASE_RETURN_THRESHOLD;
+    }
+
+    private Collection<AbstractObject> getAsteroidsAndEnemies(Toroidal2DPhysics space) {
+        Collection<AbstractObject> targets = new HashSet<>();
+        targets.addAll(getEnemyTargets(space, getTeamName()));
+        Set<Asteroid> asteroids = getMineableAsteroids(space);
+        targets.addAll(asteroids);
+        return targets;
+    }
+
+    private Set<Base> getTeamBases(Toroidal2DPhysics space, String teamName) {
+        Set<Base> results = new HashSet<>();
+        for (Base base : space.getBases()) {
+            if (base.getTeamName().equals(teamName)) {
+                results.add(base);
+            }
+        }
+        return results;
+    }
+
+    private Set<AbstractActionableObject> getEnemyTargets(Toroidal2DPhysics space, String teamName) {
+        Set<AbstractActionableObject> enemies = new HashSet<>();
+        for (Ship ship : space.getShips()) {
+            if (!Objects.equals(ship.getTeamName(), teamName)) {
+                enemies.add(ship);
+            }
+        }
+        for (Base base : space.getBases()) {
+            if (!base.isHomeBase() && !Objects.equals(base.getTeamName(), teamName)) {
+                enemies.add(base);
+            }
+        }
+        return enemies;
+    }
+
+    private Set<Asteroid> getMineableAsteroids(Toroidal2DPhysics space) {
+        Set<Asteroid> results = new HashSet<>();
+        for (Asteroid asteroid : space.getAsteroids()) {
+            if (asteroid.isMineable()) {
+                results.add(asteroid);
+            }
+        }
+        return results;
+    }
+
+    private Set<Asteroid> getNonMineableAsteroids(Toroidal2DPhysics space) {
+        Set<Asteroid> results = new HashSet<>();
+        for (Asteroid asteroid : space.getAsteroids()) {
+            if (!asteroid.isMineable()) {
+                results.add(asteroid);
+            }
+        }
+        return results;
+    }
+
+    private Set<Ship> getFriendlyShips(Toroidal2DPhysics space, Ship ship) {
+        Set<Ship> results = new HashSet<>();
+        for (Ship otherShip : space.getShips()) {
+            if (otherShip.getTeamName().equals(ship.getTeamName()) && !otherShip.getId().equals(ship.getId())) {
+                results.add(otherShip); // Should it be otherShip instead of ship?
+            }
+        }
+        return results;
+    }
 
 	private Set<AbstractActionableObject> getOtherShips(Toroidal2DPhysics space, UUID id) {
 		Set<AbstractActionableObject> ships = new HashSet<>();
@@ -253,30 +333,19 @@ public class BryanTeamClient extends TeamClient {
 		}
 		return ships;
 	}
+    // endregion
 
-
-	@Override
-	public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
-	}
-
-	@Override
-	public Set<SpacewarGraphics> getGraphics() {
-		HashSet<SpacewarGraphics> newGraphics = new HashSet<>(graphics);
-		graphics.clear();
-		return newGraphics;
-	}
-
+	// region Powerups and Purchases
 	/**
 	 * If there is enough resourcesAvailable, buy a base.  Place it by finding a ship that is sufficiently
 	 * far away from the existing bases
-	 * Yeah boiiiiiiiii
 	 */
 	public Map<UUID, PurchaseTypes> getTeamPurchases(Toroidal2DPhysics space,
 													 Set<AbstractActionableObject> actionableObjects,
 													 ResourcePile resourcesAvailable,
 													 PurchaseCosts purchaseCosts) {
 
-		HashMap<UUID, PurchaseTypes> purchases = new HashMap<UUID, PurchaseTypes>();
+		HashMap<UUID, PurchaseTypes> purchases = new HashMap<>();
 		double BASE_BUYING_DISTANCE = 200;
 		boolean bought_base = false;
 
@@ -300,41 +369,37 @@ public class BryanTeamClient extends TeamClient {
 					if (maxDistance > BASE_BUYING_DISTANCE) {
 						purchases.put(ship.getId(), PurchaseTypes.BASE);
 						bought_base = true;
-						//System.out.println("Buying a base!!");
 						break;
 					}
 				}
 			}
 		}
 
-		// see if you can buy EMPs
-		if (purchaseCosts.canAfford(PurchaseTypes.POWERUP_EMP_LAUNCHER, resourcesAvailable)) {
-			for (AbstractActionableObject actionableObject : actionableObjects) {
-				if (actionableObject instanceof Ship) {
-					Ship ship = (Ship) actionableObject;
-
-					if (!ship.isValidPowerup(PurchaseTypes.POWERUP_EMP_LAUNCHER.getPowerupMap())) {
-						purchases.put(ship.getId(), PurchaseTypes.POWERUP_EMP_LAUNCHER);
-					}
-				}
-			}
-		}
-
-
-		// can I buy a ship?
-		if (purchaseCosts.canAfford(PurchaseTypes.SHIP, resourcesAvailable) && !bought_base) {
-			for (AbstractActionableObject actionableObject : actionableObjects) {
-				if (actionableObject instanceof Base) {
-					Base base = (Base) actionableObject;
-
-					purchases.put(base.getId(), PurchaseTypes.SHIP);
-					break;
-				}
-
-			}
-
-		}
-
+//        // can I purchase double max energy?
+//        if (purchaseCosts.canAfford(PurchaseTypes.POWERUP_DOUBLE_MAX_ENERGY, resourcesAvailable)) {
+//            for (AbstractActionableObject actionableObject : actionableObjects) {
+//                if (actionableObject instanceof Ship) {
+//                    Ship ship = (Ship) actionableObject;
+//
+//                    if (!ship.isValidPowerup(PurchaseTypes.POWERUP_DOUBLE_MAX_ENERGY.getPowerupMap())) {
+//                        purchases.put(ship.getId(), PurchaseTypes.POWERUP_DOUBLE_MAX_ENERGY);
+//                    }
+//                }
+//            }
+//        }
+//
+//        // can I purchase double healing base energy?
+//        if (purchaseCosts.canAfford(PurchaseTypes.POWERUP_DOUBLE_BASE_HEALING_SPEED, resourcesAvailable)) {
+//            for (AbstractActionableObject actionableObject : actionableObjects) {
+//                if (actionableObject instanceof Base) {
+//                    Base base = (Base) actionableObject;
+//
+//                    if (!base.isValidPowerup(PurchaseTypes.POWERUP_DOUBLE_BASE_HEALING_SPEED.getPowerupMap())) {
+//                        purchases.put(base.getId(), PurchaseTypes.POWERUP_DOUBLE_BASE_HEALING_SPEED);
+//                    }
+//                }
+//            }
+//        }
 
 		return purchases;
 	}
@@ -349,88 +414,43 @@ public class BryanTeamClient extends TeamClient {
 
 		for (AbstractObject actionable :  actionableObjects) {
 			if (actionable instanceof Ship) {
-				Ship ship = (Ship) actionable;
-				if (inPositionToShoot(space, ship.getPosition()) && !shipNeedsEnergy(ship)) {
-					shoot(powerupMap, ship);
-				}
-			}
+                Ship ship = (Ship) actionable;
+                if (inPositionToShoot(space, ship.getPosition()) && !shipNeedsEnergy(ship)) {
+                    shoot(powerupMap, ship);
+                }
+            }
+//			} else if (actionable instanceof Base) {
+//                Base base = (Base) actionable;
+//                powerupMap.put(base.getId(), SpaceSettlersPowerupEnum.DOUBLE_BASE_HEALING_SPEED);
+//            }
+//            powerupMap.put(actionable.getId(), SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY);
 		}
 		return powerupMap;
 	}
 
-	private void shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Ship ship) {
-		if (random.nextDouble() < 0.35) {
+    private boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition) {
+        Set<AbstractActionableObject> enemyShips = getEnemyTargets(space, getTeamName());
+        for (AbstractActionableObject target : enemyShips) {
+            Position targetPosition = target.getPosition();
+            boolean close = space.findShortestDistance(currentPosition, targetPosition) < MIN_SHOOT_DISTANCE;
+            if (!close) {
+                continue;
+            }
+            Vector2D targetVector = space.findShortestDistanceVector(currentPosition, targetPosition);
+            double targetAngle = targetVector.getAngle();
+            double currentAngle = currentPosition.getOrientation();
+            double angleDifference = Math.abs(targetAngle - currentAngle);
+            if (angleDifference < Math.PI / 12) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+	protected void shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Ship ship) {
+		if (random.nextDouble() < RANDOM_SHOOT_THRESHOLD) {
 			powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.FIRE_MISSILE);
 		}
 	}
-
-	private boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition) {
-		Set<AbstractActionableObject> enemyShips = getEnemyTargets(space, getTeamName());
-		for (AbstractActionableObject target : enemyShips) {
-			Position targetPosition = target.getPosition();
-			boolean close = space.findShortestDistance(currentPosition, targetPosition) < 100;
-			if (!close) {
-				continue;
-			}
-			Vector2D targetVector = space.findShortestDistanceVector(currentPosition, targetPosition);
-			double targetAngle = targetVector.getAngle();
-			double currentAngle = currentPosition.getOrientation();
-			double angleDifference = Math.abs(targetAngle - currentAngle);
-			if (angleDifference < Math.PI / 12) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Check to see if following a straight line path between two given locations would result in a collision with a provided set of obstructions
-	 *
-	 * @param startPosition the starting location of the straight line path
-	 * @param goalPosition  the ending location of the straight line path
-	 * @param obstructions  an Set of AbstractObject obstructions (i.e., if you don't wish to consider mineable asteroids or beacons obstructions)
-	 * @param freeRadius    used to determine free space buffer size
-	 * @return Whether or not a straight line path between two positions contains obstructions from a given set
-	 * @author Andrew and Thibault
-	 */
-	public AbstractObject obstructionInPath(Toroidal2DPhysics space, Position startPosition, Position goalPosition, Set<AbstractObject> obstructions, int freeRadius) {
-		Vector2D pathToGoal = space.findShortestDistanceVector(startPosition, goalPosition);    // Shortest straight line path from startPosition to goalPosition
-		double distanceToGoal = pathToGoal.getMagnitude();                                        // Distance of straight line path
-
-		AbstractObject closestObstacle = null; // Closest obstacle in the path
-		double distanceToObstacle = Double.MAX_VALUE;
-
-		// Calculate distance between obstruction center and path (including buffer for ship movement)
-		// Uses hypotenuse * sin(theta) = opposite (on a right hand triangle)
-		Vector2D pathToObstruction; // Vector from start position to obstruction
-		double angleBetween;        // Angle between vector from start position to obstruction
-
-		// Loop through obstructions
-		for (AbstractObject obstruction : obstructions) {
-			// If the distance to the obstruction is greater than the distance to the end goal, ignore the obstruction
-			pathToObstruction = space.findShortestDistanceVector(startPosition, obstruction.getPosition());
-			if (pathToObstruction.getMagnitude() > distanceToGoal) {
-				continue;
-			}
-
-			// Ignore angles > 90 degrees
-			angleBetween = Math.abs(pathToObstruction.angleBetween(pathToGoal));
-			if (angleBetween > Math.PI / 2) {
-				continue;
-			}
-
-			// Compare distance between obstruction and path with buffer distance
-			if (pathToObstruction.getMagnitude() * Math.sin(angleBetween) < obstruction.getRadius() + freeRadius * 1.5) {
-				double distance = space.findShortestDistance(startPosition, obstruction.getPosition());
-				if (distance < distanceToObstacle) {
-					distanceToObstacle = distance;
-					closestObstacle = obstruction;
-				}
-			}
-		}
-
-		return closestObstacle;
-
-	}
-
+	// endregion
 }

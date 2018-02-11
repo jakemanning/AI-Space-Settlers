@@ -25,3 +25,6 @@ hs_err_pid*
 # IDE
 .idea/
 *.iml
+out/
+**/self-ladder.html
+dist/

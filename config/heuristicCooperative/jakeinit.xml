@@ -4,9 +4,9 @@
     <classname>capp7507.JakeTeamClient</classname>
 
     <!-- You can choose the color your team's ships will be on the screen.  Specify the red, green, and blue components -->
-    <teamColorRed>0</teamColorRed>
-    <teamColorGreen>0</teamColorGreen>
-    <teamColorBlue>255</teamColorBlue>
+    <teamColorRed>245</teamColorRed>
+    <teamColorGreen>166</teamColorGreen>
+    <teamColorBlue>35</teamColorBlue>
 
     <!-- The name that shows up in the ladder -->
     <ladderName>Spacejam - Jake</ladderName>
