@@ -30,6 +30,8 @@ public class BryanTeamClient extends TeamClient {
     private static final int BASE_RETURN_THRESHOLD = 2000;
     protected static final double TARGET_SHIP_SPEED = 25;
     private static final int BASE_MIN_ENERGY_THRESHOLD = 1000;
+    private static final double MAX_SHOT_ANGLE = Math.PI / 12;
+    private static final int MAX_SHOT_DISTANCE = 100;
     protected HashSet<SpacewarGraphics> graphics;
 
     // region Boilerplate
@@ -78,11 +80,11 @@ public class BryanTeamClient extends TeamClient {
 
                 // Avoiding targets is an expensive action, only do so if have enough energy
                 if (obstruction != null && !shipNeedsEnergy(ship)) {
-                    AbstractAction action = avoidCrashAction(space, currentPosition, obstruction, ship);
+                    AbstractAction action = avoidCrashAction(space, obstruction, ship);
                     actions.put(ship.getId(), action);
                     return actions;
                 }
-                MoveAction closeAction = getMoveAction(space, currentPosition, closestTarget, Color.RED);
+                MoveAction closeAction = getMoveAction(space, currentPosition, closestTarget);
                 actions.put(ship.getId(), closeAction);
             } else if (actionable instanceof Base) {
                 Base base = (Base) actionable;
@@ -93,8 +95,8 @@ public class BryanTeamClient extends TeamClient {
         return actions;
     }
 
-    protected <T extends AbstractObject> T closest(Toroidal2DPhysics space, Position currentPosition,
-                                                   Collection<T> objects) {
+    private <T extends AbstractObject> T closest(Toroidal2DPhysics space, Position currentPosition,
+                                                 Collection<T> objects) {
         T closest = null;
         double minimum = Double.MAX_VALUE;
         for (T object : objects) {
@@ -112,7 +114,7 @@ public class BryanTeamClient extends TeamClient {
     }
 
     // region Obstacle Avoidance
-    protected Set<AbstractObject> getObstructions(Toroidal2DPhysics space, Ship ship) {
+    Set<AbstractObject> getObstructions(Toroidal2DPhysics space, Ship ship) {
         Set<AbstractActionableObject> enemies = getEnemyTargets(space, getTeamName());
         Set<Asteroid> asteroids = getNonMineableAsteroids(space);
         Set<Ship> friendlyShips = getFriendlyShips(space, ship);
@@ -172,8 +174,8 @@ public class BryanTeamClient extends TeamClient {
         return closestObstacle;
     }
 
-    private AbstractAction avoidCrashAction(Toroidal2DPhysics space, Position currentPosition,
-                                            AbstractObject obstacle, Ship ship) {
+    AvoidAction avoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, Ship ship) {
+        Position currentPosition = ship.getPosition();
         Vector2D currentVector = new Vector2D(currentPosition);
         Vector2D obstacleVector = space.findShortestDistanceVector(currentPosition, obstacle.getPosition());
         double newAngle = obstacleVector.getAngle() + COLLISION_AVOIDANCE_ANGLE;
@@ -184,17 +186,17 @@ public class BryanTeamClient extends TeamClient {
         graphics.add(new CircleGraphics(2, Color.YELLOW, obstacle.getPosition()));
         Vector2D distanceVector = space.findShortestDistanceVector(currentPosition, newTarget);
         distanceVector = distanceVector.multiply(3);
-        return new MoveAction(space, currentPosition, newTarget, distanceVector);
+        return new AvoidAction(space, currentPosition, newTarget, distanceVector);
     }
     // endregion
 
-    private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, AbstractObject target, Color color) {
+    MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, AbstractObject target) {
         Position targetPosition = target.getPosition();
         Position adjustedTargetPosition = interceptPosition(targetPosition, currentPosition);
         double goalAngle = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition).getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, TARGET_SHIP_SPEED);
-        graphics.add(new CircleGraphics(2, color, adjustedTargetPosition));
-        graphics.add(new CircleGraphics(2, color, targetPosition));
+        graphics.add(new CircleGraphics(2, Color.RED, adjustedTargetPosition));
+        graphics.add(new CircleGraphics(2, Color.RED, targetPosition));
         return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
     }
 
@@ -408,7 +410,7 @@ public class BryanTeamClient extends TeamClient {
     private boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition,
                                       AbstractObject target) {
         Position targetPosition = target.getPosition();
-        boolean close = space.findShortestDistance(currentPosition, targetPosition) < 100;
+        boolean close = space.findShortestDistance(currentPosition, targetPosition) < MAX_SHOT_DISTANCE;
         if (!close) {
             return false;
         }
@@ -416,7 +418,7 @@ public class BryanTeamClient extends TeamClient {
         double targetAngle = targetVector.getAngle();
         double currentAngle = currentPosition.getOrientation();
         double angleDifference = Math.abs(targetAngle - currentAngle);
-        return angleDifference < Math.PI / 12;
+        return angleDifference < MAX_SHOT_ANGLE;
     }
 
     private void shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Ship ship) {

@@ -2,8 +2,6 @@ package capp7507;
 
 import spacesettlers.actions.AbstractAction;
 import spacesettlers.actions.DoNothingAction;
-import spacesettlers.actions.MoveAction;
-import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.*;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
@@ -21,8 +19,8 @@ import java.util.*;
  */
 public class JakeTeamClient extends BryanTeamClient {
     private static final int SHIP_ENERGY_WEIGHT = 600;
-    private HashSet<SpacewarGraphics> graphics;
-    private AbstractObject target;
+    private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
+    private Map<UUID, AbstractObject> currentTargets = new HashMap<>();
 
     @Override
     public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space,
@@ -31,23 +29,38 @@ public class JakeTeamClient extends BryanTeamClient {
 
         for (AbstractActionableObject actionable :  actionableObjects) {
 
-            Position currentPosition = actionable.getPosition();
+            Position shipPos = actionable.getPosition();
 
             if (actionable instanceof Ship) {
                 Ship ship = (Ship) actionable;
-                AbstractObject target = bestValue(space, ship, space.getAllObjects());
-                Position targetPosition = target.getPosition();
-                Vector2D targetVelocity = targetPosition.getTranslationalVelocity();
-                if (!(target instanceof Ship)) {
-                    Vector2D toTarget = space.findShortestDistanceVector(currentPosition, targetPosition);
-                    double angle = toTarget.getAngle();
-                    targetVelocity = Vector2D.fromAngle(angle, TARGET_SHIP_SPEED);
+                AbstractAction currentAction = ship.getCurrentAction();
+                if (currentAction != null && !currentAction.isMovementFinished(space)) {
+                    if (!(currentAction instanceof AvoidAction)) {
+                        currentTargets.remove(ship.getId());
+                    }
+                    actions.put(ship.getId(), currentAction);
+                    continue;
                 }
-                MoveAction action = new MoveAction(space, currentPosition, targetPosition, targetVelocity);
+                // We need a new action
+                // Use the current target or get a new one
+                AbstractObject target = currentTargets.get(ship.getId());
+                if (target == null) {
+                    target = bestValue(space, ship, space.getAllObjects());
+                    currentTargets.put(ship.getId(), target);
+                }
+                Position targetPos = target.getPosition();
+                Set<AbstractObject> obstructions = getObstructions(space, ship);
+                int shipRadius = ship.getRadius();
+                AbstractObject obstruction = obstructionInPath(space, shipPos, targetPos, obstructions, shipRadius);
+                AbstractAction action;
+                if (obstruction != null) {
+                    action = avoidCrashAction(space, obstruction, ship);
+                } else {
+                    action = getMoveAction(space, shipPos, target);
+                }
                 actions.put(ship.getId(), action);
             } else if (actionable instanceof Base) {
                 Base base = (Base) actionable;
-                this.target = base;
                 actions.put(base.getId(), new DoNothingAction());
             }
         }
@@ -65,10 +78,6 @@ public class JakeTeamClient extends BryanTeamClient {
             double scaledDistance = Math.log1p(rawDistance);
             scaledDistance = scaledDistance + angleValue(space, ship, object);
             double value = 0;
-            Set<AbstractObject> obstructions = getObstructions(space, ship);
-            if (!space.isPathClearOfObstructions(ship.getPosition(), object.getPosition(), obstructions, ship.getRadius())) {
-                continue;
-            }
             if (object instanceof Asteroid) {
                 Asteroid asteroid = (Asteroid) object;
                 if (asteroid.isMineable()) {
@@ -85,6 +94,10 @@ public class JakeTeamClient extends BryanTeamClient {
                 }
             } else if (object instanceof Beacon) {
                 value = energyValue(ship);
+            }
+            Set<AbstractObject> obstructions = getObstructions(space, ship);
+            if (!space.isPathClearOfObstructions(ship.getPosition(), object.getPosition(), obstructions, ship.getRadius())) {
+                value = value * OBSTRUCTED_PATH_PENALTY;
             }
             double score = value / scaledDistance;
             if (score > maximum) {
