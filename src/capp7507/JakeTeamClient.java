@@ -41,7 +41,7 @@ public class JakeTeamClient extends BryanTeamClient {
                 if (!(target instanceof Ship)) {
                     Vector2D toTarget = space.findShortestDistanceVector(currentPosition, targetPosition);
                     double angle = toTarget.getAngle();
-                    targetVelocity = Vector2D.fromAngle(angle, 30);
+                    targetVelocity = Vector2D.fromAngle(angle, TARGET_SHIP_SPEED);
                 }
                 MoveAction action = new MoveAction(space, currentPosition, targetPosition, targetVelocity);
                 actions.put(ship.getId(), action);
@@ -61,6 +61,7 @@ public class JakeTeamClient extends BryanTeamClient {
         double maximum = Double.MIN_VALUE;
         for (AbstractObject object : objects) {
             double rawDistance = space.findShortestDistance(ship.getPosition(), object.getPosition());
+
             double scaledDistance = Math.log1p(rawDistance);
             scaledDistance = scaledDistance + angleValue(space, ship, object);
             double value = 0;
@@ -102,6 +103,53 @@ public class JakeTeamClient extends BryanTeamClient {
         Vector2D targetDirection = space.findShortestDistanceVector(currentPosition, targetPosition);
         double targetAngle = targetDirection.getAngle();
         return Math.abs(currentAngle - targetAngle);
+    }
+
+    /**
+     * Converts from a linear scale from x1 to x2 to logarithmic scale from y1 to y2
+     *
+     * For example, if the linear scale is from 0 to 90, and the logarithmic scale is 0 to 1,
+     * then an input will be converted from the linear scale to the logarithmic scale
+     * @param oldMin Linear scale start
+     * @param newMin Logarithmic scale start
+     * @param oldMax Linear scale end
+     * @param newMax Logarithmic scale end
+     * @param input What we want to convert
+     * @return Logarithmic integer from y1 to y2
+     */
+    private static double logNormalize(double oldMin, double newMin, double oldMax, double newMax, double input) {
+        if(input < oldMin) { input = oldMin; }
+        else if(input > newMax) { input = newMin; }
+
+        double b = Math.log1p(newMin / newMax) / (oldMin - oldMax);
+        double a = newMin / Math.exp(b * oldMin);
+
+        return a * Math.exp(b * input);
+    }
+
+    /**
+     * Converts from a linear scale from x1 to x2 to linear scale from y1 to y2
+     *
+     * For example, if the first linear scale is from 0 to 1, and the linear scale is 1 to 90,
+     * then an input will be converted from the first linear scale to the second linear scale (adhering to the original ratio)
+     * @param oldMin Original Linear scale start
+     * @param newMin New linear scale start
+     * @param oldMax Original scale end
+     * @param newMax New linear scale end
+     * @param input What we want to convert
+     * @return Linearly scaled integer from old range to new range
+     */
+    private static double linearNormalize(double oldMin, double newMin, double oldMax, double newMax, double input) {
+        if(input < oldMin) { input = oldMin; }
+        else if(input > newMax) { input = newMin; }
+
+        double oldRange = oldMax - oldMin;
+        if (oldRange == 0) {
+            return newMin;
+        } else {
+            double newRange = newMax - newMin;
+            return (((input - oldMin) * newRange) / oldRange) + newMin;
+        }
     }
 
     private boolean isEnemyTarget(AbstractActionableObject actionableObject) {

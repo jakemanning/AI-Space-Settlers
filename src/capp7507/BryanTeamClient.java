@@ -28,8 +28,7 @@ public class BryanTeamClient extends TeamClient {
     private static final double RANDOM_SHOOT_THRESHOLD = 0.35;
     private static final double COLLISION_AVOIDANCE_ANGLE = Math.PI / 2;
     private static final int BASE_RETURN_THRESHOLD = 2000;
-    protected static final double MIN_SHOOT_DISTANCE = 0.35;
-    private static final double TARGET_SHIP_SPEED = 25;
+    protected static final double TARGET_SHIP_SPEED = 25;
     private static final int BASE_MIN_ENERGY_THRESHOLD = 1000;
     protected HashSet<SpacewarGraphics> graphics;
 
@@ -120,6 +119,7 @@ public class BryanTeamClient extends TeamClient {
         Set<AbstractObject> obstacles = new HashSet<>();
         obstacles.addAll(enemies);
         obstacles.addAll(asteroids);
+        obstacles.addAll(friendlyShips);
         return obstacles;
     }
 
@@ -304,20 +304,16 @@ public class BryanTeamClient extends TeamClient {
     }
 
     private Set<Asteroid> getNonMineableAsteroids(Toroidal2DPhysics space) {
-        Set<Asteroid> results = new HashSet<>();
-        for (Asteroid asteroid : space.getAsteroids()) {
-            if (!asteroid.isMineable()) {
-                results.add(asteroid);
-            }
-        }
-        return results;
+        Set<Asteroid> asteroids = new HashSet<>(space.getAsteroids());
+        asteroids.removeAll(getMineableAsteroids(space));
+        return asteroids;
     }
 
     private Set<Ship> getFriendlyShips(Toroidal2DPhysics space, Ship ship) {
         Set<Ship> results = new HashSet<>();
         for (Ship otherShip : space.getShips()) {
             if (otherShip.getTeamName().equals(ship.getTeamName()) && !otherShip.getId().equals(ship.getId())) {
-                results.add(otherShip); // Should it be otherShip instead of ship?
+                results.add(otherShip);
             }
         }
         return results;
