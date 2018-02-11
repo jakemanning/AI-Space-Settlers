@@ -25,7 +25,7 @@ import java.util.*;
  *
  */
 public class BryanTeamClient extends TeamClient {
-    protected static final double RANDOM_SHOOT_THRESHOLD = 0.35;
+    private static final double RANDOM_SHOOT_THRESHOLD = 0.35;
     private static final double COLLISION_AVOIDANCE_ANGLE = Math.PI / 2;
     private static final int BASE_RETURN_THRESHOLD = 2000;
     protected static final double MIN_SHOOT_DISTANCE = 0.35;
@@ -423,7 +423,7 @@ public class BryanTeamClient extends TeamClient {
         return angleDifference < Math.PI / 12;
     }
 
-    void shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Ship ship) {
+    private void shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Ship ship) {
         if (random.nextDouble() < RANDOM_SHOOT_THRESHOLD) {
             powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.FIRE_MISSILE);
         }
