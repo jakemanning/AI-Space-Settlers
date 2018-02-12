@@ -135,7 +135,7 @@ public class BryanTeamClient extends TeamClient {
      * @return The closest obstacle between a start and goal position, if exists
      * @author Andrew and Thibault
      */
-    protected AbstractObject obstructionInPath(Toroidal2DPhysics space, Position startPosition, Position goalPosition, Set<AbstractObject> obstructions, int freeRadius) {
+    AbstractObject obstructionInPath(Toroidal2DPhysics space, Position startPosition, Position goalPosition, Set<AbstractObject> obstructions, int freeRadius) {
         Vector2D pathToGoal = space.findShortestDistanceVector(startPosition, goalPosition);    // Shortest straight line path from startPosition to goalPosition
         double distanceToGoal = pathToGoal.getMagnitude();                                        // Distance of straight line path
 
@@ -150,7 +150,8 @@ public class BryanTeamClient extends TeamClient {
         // Loop through obstructions
         for (AbstractObject obstruction : obstructions) {
             // If the distance to the obstruction is greater than the distance to the end goal, ignore the obstruction
-            pathToObstruction = space.findShortestDistanceVector(startPosition, obstruction.getPosition());
+            Position interceptPosition = interceptPosition(obstruction.getPosition(), startPosition);
+            pathToObstruction = space.findShortestDistanceVector(startPosition, interceptPosition);
             if (pathToObstruction.getMagnitude() > distanceToGoal) {
                 continue;
             }
@@ -215,7 +216,8 @@ public class BryanTeamClient extends TeamClient {
         double targetY = targetPosition.getY();
         double cannonX = cannonPosition.getX();
         double cannonY = cannonPosition.getY();
-        double a = Math.pow(targetVelX, 2) + Math.pow(targetVelY, 2) - Math.pow(TARGET_SHIP_SPEED, 2);
+        double cannonSpeed = Math.max(TARGET_SHIP_SPEED, cannonPosition.getTranslationalVelocity().getMagnitude());
+        double a = Math.pow(targetVelX, 2) + Math.pow(targetVelY, 2) - Math.pow(cannonSpeed, 2);
         double b = 2 * (targetVelX * (targetX - cannonX) + targetVelY * (targetY - cannonY));
         double c = Math.pow(targetX - cannonX, 2) + Math.pow(targetY - cannonY, 2);
         double disc = Math.pow(b, 2) - 4 * a * c;
@@ -258,7 +260,7 @@ public class BryanTeamClient extends TeamClient {
         return ship.getResources().getTotal() > BASE_RETURN_THRESHOLD;
     }
 
-    private boolean gameIsEnding(Toroidal2DPhysics space) {
+    boolean gameIsEnding(Toroidal2DPhysics space) {
         return space.getCurrentTimestep() > space.getMaxTime() * 0.99;
     }
 
