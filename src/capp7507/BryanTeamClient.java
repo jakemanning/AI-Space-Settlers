@@ -12,7 +12,6 @@ import spacesettlers.utilities.Position;
 import spacesettlers.utilities.Vector2D;
 
 import java.awt.*;
-import java.time.Instant;
 import java.util.*;
 
 /**
@@ -80,7 +79,7 @@ public class BryanTeamClient extends TeamClient {
 
                 // Avoiding targets is an expensive action, only do so if have enough energy
                 if (obstruction != null && !shipNeedsEnergy(ship)) {
-                    AbstractAction action = avoidCrashAction(space, obstruction, ship);
+                    AbstractAction action = avoidCrashAction(space, obstruction, closestTarget, ship);
                     actions.put(ship.getId(), action);
                     return actions;
                 }
@@ -150,7 +149,7 @@ public class BryanTeamClient extends TeamClient {
         // Loop through obstructions
         for (AbstractObject obstruction : obstructions) {
             // If the distance to the obstruction is greater than the distance to the end goal, ignore the obstruction
-            Position interceptPosition = interceptPosition(obstruction.getPosition(), startPosition);
+            Position interceptPosition = interceptPosition(space, obstruction.getPosition(), startPosition);
             pathToObstruction = space.findShortestDistanceVector(startPosition, interceptPosition);
             if (pathToObstruction.getMagnitude() > distanceToGoal) {
                 continue;
@@ -175,15 +174,23 @@ public class BryanTeamClient extends TeamClient {
         return closestObstacle;
     }
 
-    AvoidAction avoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, Ship ship) {
+    AvoidAction avoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, AbstractObject target, Ship ship) {
         Position currentPosition = ship.getPosition();
         Vector2D currentVector = new Vector2D(currentPosition);
         Vector2D obstacleVector = space.findShortestDistanceVector(currentPosition, obstacle.getPosition());
-        double newAngle = obstacleVector.getAngle() + COLLISION_AVOIDANCE_ANGLE;
-        Vector2D avoidanceVector = Vector2D.fromAngle(newAngle, obstacle.getRadius() + ship.getRadius()); // A smaller angle works much better
+        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, target.getPosition());
+        double angleDifference = targetVector.angleBetween(obstacleVector);
+        double newAngle;
+        if (angleDifference < 0) {
+            newAngle = obstacleVector.getAngle() + COLLISION_AVOIDANCE_ANGLE;
+        } else {
+            newAngle = obstacleVector.getAngle() - COLLISION_AVOIDANCE_ANGLE;
+        }
+        int avoidanceMagnitude = obstacle.getRadius() + ship.getRadius();
+        Vector2D avoidanceVector = Vector2D.fromAngle(newAngle, avoidanceMagnitude); // A smaller angle works much better
         Vector2D newTargetVector = currentVector.add(avoidanceVector);
         Position newTarget = new Position(newTargetVector);
-        System.out.println("Avoiding a crash  " + Instant.now().getNano());
+
         graphics.add(new CircleGraphics(2, Color.YELLOW, obstacle.getPosition()));
         Vector2D distanceVector = space.findShortestDistanceVector(currentPosition, newTarget);
         distanceVector = distanceVector.multiply(3);
@@ -193,7 +200,7 @@ public class BryanTeamClient extends TeamClient {
 
     MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, AbstractObject target) {
         Position targetPosition = target.getPosition();
-        Position adjustedTargetPosition = interceptPosition(targetPosition, currentPosition);
+        Position adjustedTargetPosition = interceptPosition(space, targetPosition, currentPosition);
         double goalAngle = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition).getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, TARGET_SHIP_SPEED);
         graphics.add(new CircleGraphics(2, Color.RED, adjustedTargetPosition));
@@ -205,18 +212,43 @@ public class BryanTeamClient extends TeamClient {
      * Figure out where the moving target and the cannon will meet when the cannon is fired in that direction
      * https://stackoverflow.com/questions/2248876/2d-game-fire-at-a-moving-target-by-predicting-intersection-of-projectile-and-u
      *
+     * @param space The Toroidal2DPhysics for the game
      * @param targetPosition Position of the target at this instant
      * @param cannonPosition Position of the cannon at this instant
      * @return Position to aim the cannon in order to collide with the target
      */
-    private Position interceptPosition(Position targetPosition, Position cannonPosition) {
+    private Position interceptPosition(Toroidal2DPhysics space, Position targetPosition, Position cannonPosition) {
         double targetVelX = targetPosition.getTranslationalVelocityX();
+        if (Math.abs(targetVelX) < 1) {
+            targetVelX = 0;
+        }
         double targetVelY = targetPosition.getTranslationalVelocityY();
+        if (Math.abs(targetVelY) < 1) {
+            targetVelY = 0;
+        }
         double targetX = targetPosition.getX();
         double targetY = targetPosition.getY();
         double cannonX = cannonPosition.getX();
         double cannonY = cannonPosition.getY();
-        double cannonSpeed = Math.max(TARGET_SHIP_SPEED, cannonPosition.getTranslationalVelocity().getMagnitude());
+
+        double negativeTargetX = targetX - space.getWidth();
+        if (Math.abs(negativeTargetX - cannonX) < Math.abs(targetX - cannonX)) {
+            targetX = negativeTargetX;
+        }
+        double extraTargetX = targetX + space.getWidth();
+        if (Math.abs(extraTargetX - cannonX) < Math.abs(targetX - cannonX)) {
+            targetX = extraTargetX;
+        }
+        double negativeTargetY = targetY - space.getHeight();
+        if (Math.abs(negativeTargetY - cannonY) < Math.abs(targetY - cannonY)) {
+            targetY = negativeTargetY;
+        }
+        double extraTargetY = targetY + space.getHeight();
+        if (Math.abs(extraTargetY - cannonY) < Math.abs(targetY - cannonY)) {
+            targetY = extraTargetY;
+        }
+
+        double cannonSpeed = Math.max(TARGET_SHIP_SPEED, cannonPosition.getTotalTranslationalVelocity());
         double a = Math.pow(targetVelX, 2) + Math.pow(targetVelY, 2) - Math.pow(cannonSpeed, 2);
         double b = 2 * (targetVelX * (targetX - cannonX) + targetVelY * (targetY - cannonY));
         double c = Math.pow(targetX - cannonX, 2) + Math.pow(targetY - cannonY, 2);
@@ -290,7 +322,7 @@ public class BryanTeamClient extends TeamClient {
             }
         }
         for (Base base : space.getBases()) {
-            if (!base.isHomeBase() && !Objects.equals(base.getTeamName(), teamName)) {
+            if (!Objects.equals(base.getTeamName(), teamName)) {
                 enemies.add(base);
             }
         }
@@ -345,7 +377,10 @@ public class BryanTeamClient extends TeamClient {
                                                      PurchaseCosts purchaseCosts) {
 
         HashMap<UUID, PurchaseTypes> purchases = new HashMap<>();
-        final double baseBuyingDistance = 1_000;
+        long baseCount = actionableObjects.stream()
+                .filter(o -> o instanceof Base)
+                .count();
+        final double baseBuyingDistance = (space.getWidth() * 2) / (5 * baseCount);
 
         if (purchaseCosts.canAfford(PurchaseTypes.BASE, resourcesAvailable)) {
             for (AbstractActionableObject actionableObject : actionableObjects) {
@@ -354,20 +389,27 @@ public class BryanTeamClient extends TeamClient {
                     Set<Base> bases = getTeamBases(space, getTeamName());
 
                     // how far away is this ship to a base of my team?
-                    double maxDistance = Double.MIN_VALUE;
+                    double minDistance = Double.MAX_VALUE;
                     for (Base base : bases) {
                         double distance = space.findShortestDistance(ship.getPosition(), base.getPosition());
-                        if (distance > maxDistance) {
-                            maxDistance = distance;
+                        if (distance < minDistance) {
+                            minDistance = distance;
                         }
                     }
 
-                    if (maxDistance > baseBuyingDistance) {
+                    if (minDistance > baseBuyingDistance) {
                         purchases.put(ship.getId(), PurchaseTypes.BASE);
                         break;
                     }
                 }
             }
+        }
+
+        if (purchaseCosts.canAfford(PurchaseTypes.POWERUP_DOUBLE_MAX_ENERGY, resourcesAvailable)) {
+            actionableObjects.stream()
+                    .filter(actionableObject -> actionableObject instanceof Ship)
+                    .min(Comparator.comparingInt(AbstractActionableObject::getMaxEnergy))
+                    .ifPresent(ship -> purchases.put(ship.getId(), PurchaseTypes.POWERUP_DOUBLE_MAX_ENERGY));
         }
 
         return purchases;
