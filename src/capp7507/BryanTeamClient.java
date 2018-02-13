@@ -24,10 +24,11 @@ import java.util.*;
  *
  */
 public class BryanTeamClient extends TeamClient {
+    static final boolean DEBUG = false;
     private static final double RANDOM_SHOOT_THRESHOLD = 0.35;
     private static final double COLLISION_AVOIDANCE_ANGLE = Math.PI / 2;
     private static final int BASE_RETURN_THRESHOLD = 2000;
-    protected static final double TARGET_SHIP_SPEED = 25;
+    private static final double TARGET_SHIP_SPEED = 25;
     private static final int BASE_MIN_ENERGY_THRESHOLD = 1000;
     private static final double MAX_SHOT_ANGLE = Math.PI / 12;
     private static final int MAX_SHOT_DISTANCE = 100;
@@ -191,7 +192,9 @@ public class BryanTeamClient extends TeamClient {
         Vector2D newTargetVector = currentVector.add(avoidanceVector);
         Position newTarget = new Position(newTargetVector);
 
-        graphics.add(new CircleGraphics(2, Color.YELLOW, obstacle.getPosition()));
+        if(DEBUG) {
+			graphics.add(new CircleGraphics(2, Color.YELLOW, obstacle.getPosition()));
+		}
         Vector2D distanceVector = space.findShortestDistanceVector(currentPosition, newTarget);
         distanceVector = distanceVector.multiply(3);
         return new AvoidAction(space, currentPosition, newTarget, distanceVector);
@@ -203,8 +206,10 @@ public class BryanTeamClient extends TeamClient {
         Position adjustedTargetPosition = interceptPosition(space, targetPosition, currentPosition);
         double goalAngle = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition).getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, TARGET_SHIP_SPEED);
-        graphics.add(new CircleGraphics(2, Color.RED, adjustedTargetPosition));
-        graphics.add(new CircleGraphics(2, Color.RED, targetPosition));
+        if(DEBUG) {
+			graphics.add(new CircleGraphics(2, Color.RED, adjustedTargetPosition));
+			graphics.add(new CircleGraphics(2, Color.RED, targetPosition));
+		}
         return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
     }
 
@@ -293,7 +298,7 @@ public class BryanTeamClient extends TeamClient {
     }
 
     boolean gameIsEnding(Toroidal2DPhysics space) {
-        return space.getCurrentTimestep() > space.getMaxTime() * 0.99;
+        return space.getCurrentTimestep() > space.getMaxTime() * 0.98;
     }
 
     private Collection<AbstractObject> getAsteroidsAndEnemies(Toroidal2DPhysics space) {
