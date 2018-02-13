@@ -24,11 +24,13 @@ public class JakeTeamClient extends BryanTeamClient {
     private static final int SHIP_MAX_RESOURCES = 5000;
     private static final int MAX_ASTEROID_MASS = 2318;
     private static final int MIN_ASTEROID_MASS = 2000;
-	private static final double MAX_ANGLE = Math.PI / 2;
-	private static final int REALLY_BIG_NAV_WEIGHT = 100;
-	private static final int NEIGHBORHOOD_RADIUS = 100;
-	private static final int MAX_OBSTRUCTION_DETECTION = 100;
-	private Map<UUID, UUID> currentTargets = new HashMap<>();
+    private static final int SHIP_ENERGY_VALUE_WEIGHT = 6;
+    private static final int SHIP_CARGO_VALUE_WEIGHT = 6;
+    private static final double MAX_ANGLE = Math.PI / 2;
+    private static final int REALLY_BIG_NAV_WEIGHT = 100;
+    private static final int NEIGHBORHOOD_RADIUS = 100;
+    private static final int MAX_OBSTRUCTION_DETECTION = 100;
+    private Map<UUID, UUID> currentTargets = new HashMap<>();
     private Map<UUID, CircleGraphics> targetGraphics = new HashMap<>();
     private Map<UUID, CircleGraphics> obstacleGraphics = new HashMap<>();
 
@@ -97,8 +99,7 @@ public class JakeTeamClient extends BryanTeamClient {
 	 * @return normalized distance, preserving ratio from 0 to 1
 	 */
     private double scaleDistance(double rawDistance, Toroidal2DPhysics space) {
-        // Since the space wraps around, the furthest distance is from the center to a corner
-        double maxDistance = Math.sqrt(Math.pow(space.getHeight(), 2) + Math.pow(space.getWidth(), 2)) / 2;
+        double maxDistance = maxDistance(space);
         double scaledDistance = linearNormalize(0, 0, maxDistance, 1, maxDistance - rawDistance);
         return 1 - scaledDistance;
     }
@@ -221,7 +222,7 @@ public class JakeTeamClient extends BryanTeamClient {
 	 */
 	private double energyValue(AbstractActionableObject ship) {
         double missingEnergy = ship.getMaxEnergy() - ship.getEnergy();
-        return linearNormalize(0, 0, ship.getMaxEnergy(), 6, missingEnergy);
+        return linearNormalize(0, 0, ship.getMaxEnergy(), SHIP_ENERGY_VALUE_WEIGHT, missingEnergy);
     }
 
 	/**
@@ -253,7 +254,7 @@ public class JakeTeamClient extends BryanTeamClient {
 	 */
 	private double cargoValue(Ship ship) {
         double total = ship.getResources().getTotal();
-        return linearNormalize(0, 0, SHIP_MAX_RESOURCES, 6, total);
+        return linearNormalize(0, 0, SHIP_MAX_RESOURCES, SHIP_CARGO_VALUE_WEIGHT, total);
     }
 
 	/**
