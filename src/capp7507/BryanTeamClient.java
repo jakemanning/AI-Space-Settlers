@@ -430,6 +430,8 @@ public class BryanTeamClient extends TeamClient {
                 AbstractObject closestEnemyShip = closest(space, ship.getPosition(), enemyShips);
                 if (inPositionToShoot(space, ship.getPosition(), closestEnemyShip) && !shipNeedsEnergy(ship)) {
                     shoot(powerupMap, ship);
+                } else if(ship.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY)){
+                    powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY);
                 }
             }
         }
