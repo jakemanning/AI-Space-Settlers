@@ -12,12 +12,15 @@ import java.awt.*;
 import java.util.*;
 
 /**
- * A team of alright agents
+ * A model-based reflex agent for controlling a spacesettlers team client
  *
- * The agents move towards things with the "best value" and shoots when it gets close to enemy ships.
- * If it's low on energy then it goes to the nearest beacon or friendly base.
- * @author Bryan Capps
+ * The ships use the bestValue function while keeping track of targets between
+ * calls to getMovementStart. It assigns values based on distance from a ship to a target,
+ * angle between ship and target, asteroid resources, energy value, obstructions. It also
+ * factors in the target with the highest scoring neighbors around it. If an obstruction
+ * is found between the ship and the target, then the ship attempts to avoid it.
  *
+ * @author Jake Manning and Bryan Capps
  */
 public class JakeTeamClient extends BryanTeamClient {
 	private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
