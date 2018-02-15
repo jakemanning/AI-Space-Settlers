@@ -29,7 +29,7 @@ import java.util.*;
  *
  */
 public class BryanTeamClient extends TeamClient {
-    static final boolean DEBUG = false;
+    static final boolean DEBUG = true;
     private static final double RANDOM_SHOOT_THRESHOLD = 0.35;
     private static final double COLLISION_AVOIDANCE_ANGLE = Math.PI / 2;
     private static final int BASE_RETURN_THRESHOLD = 2000;
@@ -59,7 +59,11 @@ public class BryanTeamClient extends TeamClient {
     public Set<SpacewarGraphics> getGraphics() {
         HashSet<SpacewarGraphics> newGraphics = new HashSet<>(graphics);
         graphics.clear();
-        return newGraphics;
+        if(DEBUG) {
+            return newGraphics;
+        } else {
+            return new HashSet<>();
+        }
     }
     // endregion
 
@@ -95,7 +99,7 @@ public class BryanTeamClient extends TeamClient {
                 if (shipNeedsEnergy(ship)) {
                     // head towards a base or beacon
                     targets.addAll(getEnergySources(space, getTeamName()));
-                } else if (shipShouldDumpResources(ship) || gameIsEnding(space)) {
+                } else if (shipShouldDumpResources(ship) || gameIsEnding(space, ship)) {
                     // head towards a base
                     targets.addAll(getTeamBases(space, getTeamName()));
                 } else {
@@ -258,14 +262,12 @@ public class BryanTeamClient extends TeamClient {
             newAngle = obstacleVector.getAngle() - COLLISION_AVOIDANCE_ANGLE;
         }
         // aim for a spot that is just outside the obstacle's radius
-        int avoidanceMagnitude = obstacle.getRadius() + ship.getRadius();
+        double avoidanceMagnitude = obstacle.getRadius() + ship.getRadius();
         Vector2D avoidanceVector = Vector2D.fromAngle(newAngle, avoidanceMagnitude); // A smaller angle works much better
         Vector2D newTargetVector = currentVector.add(avoidanceVector);
         Position newTarget = new Position(newTargetVector);
 
-        if(DEBUG) {
-            graphics.add(new CircleGraphics(2, Color.YELLOW, obstacle.getPosition()));
-        }
+        graphics.add(new CircleGraphics(2, Color.YELLOW, obstacle.getPosition()));
         Vector2D speedVector = space.findShortestDistanceVector(currentPosition, newTarget);
         // speed up when avoiding to alleviate some bumps from the obstacle moving mid avoidance
         speedVector = speedVector.multiply(3);
@@ -294,10 +296,8 @@ public class BryanTeamClient extends TeamClient {
         // aim to be going the target speed and at the most direct angle
         double goalAngle = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition).getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, TARGET_SHIP_SPEED);
-        if(DEBUG) {
-            graphics.add(new CircleGraphics(2, Color.RED, adjustedTargetPosition));
-            graphics.add(new CircleGraphics(2, Color.RED, targetPosition));
-        }
+        graphics.add(new CircleGraphics(2, Color.RED, adjustedTargetPosition));
+        graphics.add(new CircleGraphics(2, Color.RED, targetPosition));
         return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
     }
 
@@ -311,7 +311,7 @@ public class BryanTeamClient extends TeamClient {
      * @param shipLocation Position of the ship at this instant
      * @return Position to aim the ship in order to collide with the target
      */
-    private Position interceptPosition(Toroidal2DPhysics space, Position targetPosition, Position shipLocation) {
+    protected Position interceptPosition(Toroidal2DPhysics space, Position targetPosition, Position shipLocation) {
         // component velocities of the target
         double targetVelX = targetPosition.getTranslationalVelocityX();
         double targetVelY = targetPosition.getTranslationalVelocityY();
@@ -408,9 +408,10 @@ public class BryanTeamClient extends TeamClient {
     /**
      * Whether the game is ending soon or not. Ships should return any resources before the game is over.
      * @param space The Toroidal2DPhysics for the game
+     * @param ship The ship
      * @return True if the game is nearly over, false otherwise
      */
-    boolean gameIsEnding(Toroidal2DPhysics space) {
+    boolean gameIsEnding(Toroidal2DPhysics space, Ship ship) {
         return space.getCurrentTimestep() > space.getMaxTime() * GAME_IS_ENDING_FACTOR;
     }
 

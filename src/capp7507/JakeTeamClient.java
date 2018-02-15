@@ -57,8 +57,8 @@ public class JakeTeamClient extends BryanTeamClient {
                 Ship ship = (Ship) actionable;
                 CircleGraphics targetGraphic = targetGraphics.get(ship.getId());
                 CircleGraphics obstacleGraphic = obstacleGraphics.get(ship.getId());
-                if (DEBUG && targetGraphic != null) graphics.add(targetGraphic);
-                if (DEBUG && obstacleGraphic != null) graphics.add(obstacleGraphic);
+                if (targetGraphic != null) graphics.add(targetGraphic);
+                if (obstacleGraphic != null) graphics.add(obstacleGraphic);
 
                 AbstractObject target = space.getObjectById(currentTargets.get(ship.getId()));
                 if (target == null || !target.isAlive()) {
@@ -66,22 +66,15 @@ public class JakeTeamClient extends BryanTeamClient {
                     currentTargets.put(ship.getId(), target.getId());
                 }
                 Position targetPos = target.getPosition();
-                if(DEBUG) {
-					targetGraphics.put(ship.getId(), new CircleGraphics(2, Color.RED, targetPos));
-				}
+                targetGraphics.put(ship.getId(), new CircleGraphics(2, Color.RED, targetPos));
                 Set<AbstractObject> obstructions = getObstructions(space, ship);
-                int shipRadius = ship.getRadius();
-                AbstractObject obstruction = obstructionInPath(space, shipPos, targetPos, obstructions, shipRadius);
+                AbstractObject obstruction = obstructionInPath(space, shipPos, targetPos, obstructions, ship.getRadius());
                 AbstractAction action;
-                if (obstruction != null) {
+                if (obstruction != null) { // There is an obstacle to avoid
                     action = avoidCrashAction(space, obstruction, target, ship);
-                    if(DEBUG) {
-						obstacleGraphics.put(ship.getId(), new CircleGraphics(2, Color.YELLOW, obstruction.getPosition()));
-					}
-                } else {
-                	if(DEBUG) {
-						obstacleGraphics.remove(ship.getId());
-					}
+                    obstacleGraphics.put(ship.getId(), new CircleGraphics(2, Color.YELLOW, obstruction.getPosition()));
+                } else { // We can just go straight to the object
+                    obstacleGraphics.remove(ship.getId());
                     action = getMoveAction(space, shipPos, target);
                 }
                 actions.put(ship.getId(), action);
@@ -95,49 +88,7 @@ public class JakeTeamClient extends BryanTeamClient {
     }
 
 	/**
-	 * Linearly normalizes the distance from 0 to 1
-	 *
-	 * @param rawDistance Input distance to convert
-	 * @param space physics
-	 * @return normalized distance, preserving ratio from 0 to 1
-	 */
-    private double scaleDistance(double rawDistance, Toroidal2DPhysics space) {
-        double maxDistance = maxDistance(space);
-        double scaledDistance = linearNormalize(0, 0, maxDistance, 1, maxDistance - rawDistance);
-        return 1 - scaledDistance;
-    }
-
-	/**
-	 * Value for an angle between your ship and a provided object
-	 *
-	 * @param space physics
-	 * @param ship ship the angle is from
-	 * @param target object the angle is to
-	 * @return Linear normalized value from 0 to 1 based a target
-	 */
-    private double angleValue(Toroidal2DPhysics space, Ship ship, AbstractObject target) {
-        Position currentPosition = ship.getPosition();
-        Position targetPosition = target.getPosition();
-        Vector2D currentDirection = currentPosition.getTranslationalVelocity();
-        double currentAngle = currentDirection.getAngle();
-        Vector2D targetDirection = space.findShortestDistanceVector(currentPosition, targetPosition);
-        double targetAngle = targetDirection.getAngle();
-        double angleDiff = Math.abs(currentAngle - targetAngle);
-        return linearNormalize(0, 0, MAX_ANGLE, 1, angleDiff);
-    }
-
-	/**
-	 * Determines whether a given actionableObject is on your team
-	 *
-	 * @param actionableObject object to check
-	 * @return Whether the object is a base on your team
-	 */
-	private boolean isOurBase(AbstractActionableObject actionableObject) {
-        return actionableObject instanceof Base && actionableObject.getTeamName().equals(getTeamName());
-    }
-
-	/**
-	 * Determine the best object to navigate towards based on score.
+	 * Determine the best object to navigate towards based on highest score.
 	 * Scored on:
 	 * - Distance: Distance between target (which is closest?)
 	 * - Ships resources/energy: Cargo value and energy value to choose between bases/beacons
@@ -147,39 +98,41 @@ public class JakeTeamClient extends BryanTeamClient {
 	 * @param space physics
 	 * @param ship current ship
 	 * @param objects from which we determine which object to head to
-	 * @return best object based on our heuristics
+	 * @return best object based on our heuristics (highest total score)
 	 */
     private AbstractObject bestValue(Toroidal2DPhysics space, Ship ship,
                                      Collection<AbstractObject> objects) {
         Map<UUID, Double> scores = new HashMap<>();
         for (AbstractObject object : objects) {
-            double rawDistance = space.findShortestDistance(ship.getPosition(), object.getPosition());
-
-            double scaledDistance = scaleDistance(rawDistance, space);
-            scaledDistance = scaledDistance + angleValue(space, ship, object);
             double value = 0;
             if (object instanceof Asteroid) {
                 Asteroid asteroid = (Asteroid) object;
                 if (asteroid.isMineable()) {
-                    value = linearNormalize(MIN_ASTEROID_MASS, 0, MAX_ASTEROID_MASS, 1, asteroid.getMass());
+                    value += linearNormalize(MIN_ASTEROID_MASS, 0, MAX_ASTEROID_MASS, 1, asteroid.getMass());
                 }
             } else if (object instanceof AbstractActionableObject) {
                 AbstractActionableObject actionableObject = (AbstractActionableObject) object;
                 if (isOurBase(actionableObject)) {
-                    value = energyValue(ship) + cargoValue(ship);
-                    if (gameIsEnding(space)) {
-                        value = value + REALLY_BIG_NAV_WEIGHT; // We really want to go back to a base and deposit resources
+                    value += energyValue(ship) + cargoValue(ship);
+                    if (gameIsEnding(space, ship)) {
+                        value += REALLY_BIG_NAV_WEIGHT; // We really want to go back to a base and deposit resources
                     }
                 } else if (actionableObject.getId() == ship.getId()) {
                     continue; // Don't ever set the target to our current ship
                 }
             } else if (object instanceof Beacon) {
-                value = energyValue(ship);
+                value += energyValue(ship);
             }
             Set<AbstractObject> obstructions = getObstructions(space, ship);
             if (!space.isPathClearOfObstructions(ship.getPosition(), object.getPosition(), obstructions, ship.getRadius())) {
-                value = value * OBSTRUCTED_PATH_PENALTY;
+                value *= OBSTRUCTED_PATH_PENALTY; // We should be less likely to go towards objects with obstacles in the way
             }
+
+            Position adjustedObjectPosition = interceptPosition(space, object.getPosition(), ship.getPosition());
+            double rawDistance = space.findShortestDistance(ship.getPosition(), adjustedObjectPosition);
+            double scaledDistance = scaleDistance(space, rawDistance);
+            scaledDistance += angleValue(space, ship, object);
+
             double score = value / scaledDistance;
             scores.put(object.getId(), score);
         }
@@ -189,11 +142,78 @@ public class JakeTeamClient extends BryanTeamClient {
                 continue;
             }
             double score = scores.getOrDefault(object.getId(), 0.0);
-            scores.put(object.getId(), score + neighborScores(space, scores, object));
+            score += neighborScores(space, scores, object);
+            scores.put(object.getId(), score);
         }
-        // Find the object with the most nearby neighbors
+        // Find the object with the highest score
         Map.Entry<UUID, Double> maxEntry = Collections.max(scores.entrySet(), Comparator.comparing(Map.Entry::getValue));
         return space.getObjectById(maxEntry.getKey());
+    }
+
+    /**
+     * Linearly normalizes the distance from 0 to 1
+     *
+     * @param space physics
+     * @param rawDistance Input distance to convert
+     * @return normalized distance, preserving ratio from 0 to 1
+     */
+    private double scaleDistance(Toroidal2DPhysics space, double rawDistance) {
+        double maxDistance = maxDistance(space);
+        double scaledDistance = linearNormalize(0, 0, maxDistance, 1, maxDistance - rawDistance);
+        return 1 - scaledDistance;
+    }
+
+    /**
+     * Value for an angle between your ship and a provided object
+     *
+     * @param space physics
+     * @param ship ship the angle is from
+     * @param target object the angle is to
+     * @return Linear normalized value from 0 to 1 based a target
+     */
+    private double angleValue(Toroidal2DPhysics space, Ship ship, AbstractObject target) {
+        Position currentPosition = ship.getPosition();
+        Position targetPosition = target.getPosition();
+        Vector2D currentDirection = currentPosition.getTranslationalVelocity();
+        double currentAngle = currentDirection.getAngle();
+        Position adjustedTargetPosition = interceptPosition(space, target.getPosition(), ship.getPosition());
+        Vector2D targetDirection = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
+        double targetAngle = targetDirection.getAngle();
+        double angleDiff = Math.abs(currentAngle - targetAngle);
+        return linearNormalize(0, 0, MAX_ANGLE, 1, angleDiff);
+    }
+
+    /**
+     * Determines whether a given actionableObject is on your team
+     *
+     * @param actionableObject object to check
+     * @return Whether the object is a base on your team
+     */
+    private boolean isOurBase(AbstractActionableObject actionableObject) {
+        return actionableObject instanceof Base && actionableObject.getTeamName().equals(getTeamName());
+    }
+
+    /**
+     * Determines the ship's energyValue based on how low the ship's energy is
+     * Linear normalizes the value of your energy from 0 to a constant
+     *
+     * @param ship ship to calculate energyValue
+     * @return Higher value if ship's energy level is low
+     */
+    private double energyValue(AbstractActionableObject ship) {
+        double missingEnergy = ship.getMaxEnergy() - ship.getEnergy();
+        return linearNormalize(0, 0, ship.getMaxEnergy(), SHIP_ENERGY_VALUE_WEIGHT, missingEnergy);
+    }
+
+    /**
+     * Determines the ship's cargoValue based on how many resources the ship has
+     *
+     * @param ship ship to fetch cargo value
+     * @return Higher value if ship has a lot of resources
+     */
+    private double cargoValue(Ship ship) {
+        double total = ship.getResources().getTotal();
+        return linearNormalize(0, 0, SHIP_MAX_RESOURCES, 1, total);
     }
 
 	/**
@@ -218,17 +238,6 @@ public class JakeTeamClient extends BryanTeamClient {
     }
 
 	/**
-	 * Linear normalizes the value of your energy from 0 to a constant
-	 *
-	 * @param ship ship to calculate energyValue
-	 * @return linear normalized energy value
-	 */
-	private double energyValue(AbstractActionableObject ship) {
-        double missingEnergy = ship.getMaxEnergy() - ship.getEnergy();
-        return linearNormalize(0, 0, ship.getMaxEnergy(), SHIP_ENERGY_VALUE_WEIGHT, missingEnergy);
-    }
-
-	/**
 	 * Remove inconsistent objects from our space if died or if objects were removed
 	 *
 	 * @param space physics
@@ -247,17 +256,6 @@ public class JakeTeamClient extends BryanTeamClient {
                 currentTargets.remove(shipId);
             }
         }
-    }
-
-	/**
-	 * Linearly normalized value of cargo from input ship
-	 *
-	 * @param ship ship to fetch cargo value
-	 * @return linear normalized from 0 to a constant
-	 */
-	private double cargoValue(Ship ship) {
-        double total = ship.getResources().getTotal();
-        return linearNormalize(0, 0, SHIP_MAX_RESOURCES, SHIP_CARGO_VALUE_WEIGHT, total);
     }
 
 	/**
