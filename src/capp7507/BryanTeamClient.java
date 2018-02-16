@@ -33,7 +33,7 @@ public class BryanTeamClient extends TeamClient {
     private static final double RANDOM_SHOOT_THRESHOLD = 0.35;
     private static final double COLLISION_AVOIDANCE_ANGLE = Math.PI / 2;
     private static final int BASE_RETURN_THRESHOLD = 2000;
-    private static final double TARGET_SHIP_SPEED = 25;
+    private static final double TARGET_SHIP_SPEED = 60;
     private static final int BASE_MIN_ENERGY_THRESHOLD = 1000;
     private static final double MAX_SHOT_ANGLE = Math.PI / 12;
     private static final int MAX_SHOT_DISTANCE = 100;
