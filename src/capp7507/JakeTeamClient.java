@@ -3,6 +3,7 @@ package capp7507;
 import spacesettlers.actions.AbstractAction;
 import spacesettlers.actions.DoNothingAction;
 import spacesettlers.graphics.CircleGraphics;
+import spacesettlers.graphics.TargetGraphics;
 import spacesettlers.objects.*;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
@@ -34,7 +35,7 @@ public class JakeTeamClient extends BryanTeamClient {
     private static final int NEIGHBORHOOD_RADIUS = 100;
     private static final int MAX_OBSTRUCTION_DETECTION = 100;
     private Map<UUID, UUID> currentTargets = new HashMap<>();
-    private Map<UUID, CircleGraphics> targetGraphics = new HashMap<>();
+    private Map<UUID, TargetGraphics> targetGraphics = new HashMap<>();
     private Map<UUID, CircleGraphics> obstacleGraphics = new HashMap<>();
 
 	/**
@@ -55,7 +56,7 @@ public class JakeTeamClient extends BryanTeamClient {
 
             if (actionable instanceof Ship) {
                 Ship ship = (Ship) actionable;
-                CircleGraphics targetGraphic = targetGraphics.get(ship.getId());
+                TargetGraphics targetGraphic = targetGraphics.get(ship.getId());
                 CircleGraphics obstacleGraphic = obstacleGraphics.get(ship.getId());
                 if (targetGraphic != null) graphics.add(targetGraphic);
                 if (obstacleGraphic != null) graphics.add(obstacleGraphic);
@@ -66,7 +67,7 @@ public class JakeTeamClient extends BryanTeamClient {
                     currentTargets.put(ship.getId(), target.getId());
                 }
                 Position targetPos = target.getPosition();
-                targetGraphics.put(ship.getId(), new CircleGraphics(2, Color.RED, targetPos));
+                targetGraphics.put(ship.getId(), new TargetGraphics(8, targetPos));
                 Set<AbstractObject> obstructions = getObstructions(space, ship);
                 AbstractObject obstruction = obstructionInPath(space, shipPos, targetPos, obstructions, ship.getRadius());
                 AbstractAction action;
@@ -114,7 +115,7 @@ public class JakeTeamClient extends BryanTeamClient {
                 AbstractActionableObject actionableObject = (AbstractActionableObject) object;
                 if (isOurBase(actionableObject)) {
                     value += energyValue(ship) + cargoValue(ship);
-                    if (gameIsEnding(space, ship)) {
+                    if (gameIsEnding(space)) {
                         value += REALLY_BIG_NAV_WEIGHT; // We really want to go back to a base and deposit resources
                     }
                 } else if (actionableObject.getId() == ship.getId()) {
@@ -176,7 +177,7 @@ public class JakeTeamClient extends BryanTeamClient {
         Position targetPosition = target.getPosition();
         Vector2D currentDirection = currentPosition.getTranslationalVelocity();
         double currentAngle = currentDirection.getAngle();
-        Position adjustedTargetPosition = interceptPosition(space, target.getPosition(), ship.getPosition());
+        Position adjustedTargetPosition = interceptPosition(space, targetPosition, currentPosition);
         Vector2D targetDirection = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
         double targetAngle = targetDirection.getAngle();
         double angleDiff = Math.abs(currentAngle - targetAngle);
@@ -213,7 +214,7 @@ public class JakeTeamClient extends BryanTeamClient {
      */
     private double cargoValue(Ship ship) {
         double total = ship.getResources().getTotal();
-        return linearNormalize(0, 0, SHIP_MAX_RESOURCES, 1, total);
+        return linearNormalize(0, 0, SHIP_MAX_RESOURCES, SHIP_CARGO_VALUE_WEIGHT, total);
     }
 
 	/**
@@ -228,6 +229,7 @@ public class JakeTeamClient extends BryanTeamClient {
         double total = 0;
         for (UUID uuid : scores.keySet()) {
             AbstractObject neighbor = space.getObjectById(uuid);
+            // TODO: Eventually ensure the angle to turn is accounted (should be more likely to go towards objects in a line)
             if (space.findShortestDistance(object.getPosition(), neighbor.getPosition()) > NEIGHBORHOOD_RADIUS) {
                 continue;
             }

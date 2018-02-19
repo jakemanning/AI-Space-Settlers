@@ -4,6 +4,7 @@ import spacesettlers.actions.*;
 import spacesettlers.clients.TeamClient;
 import spacesettlers.graphics.CircleGraphics;
 import spacesettlers.graphics.SpacewarGraphics;
+import spacesettlers.graphics.TargetGraphics;
 import spacesettlers.objects.*;
 import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
 import spacesettlers.objects.resources.ResourcePile;
@@ -99,7 +100,7 @@ public class BryanTeamClient extends TeamClient {
                 if (shipNeedsEnergy(ship)) {
                     // head towards a base or beacon
                     targets.addAll(getEnergySources(space, getTeamName()));
-                } else if (shipShouldDumpResources(ship) || gameIsEnding(space, ship)) {
+                } else if (shipShouldDumpResources(ship) || gameIsEnding(space)) {
                     // head towards a base
                     targets.addAll(getTeamBases(space, getTeamName()));
                 } else {
@@ -142,7 +143,8 @@ public class BryanTeamClient extends TeamClient {
         T closest = null;
         double minimum = Double.MAX_VALUE;
         for (T object : objects) {
-            double distance = space.findShortestDistance(currentPosition, object.getPosition());
+            Position interceptPosition = interceptPosition(space, object.getPosition(), currentPosition);
+            double distance = space.findShortestDistance(currentPosition, interceptPosition);
             if (object instanceof Asteroid) {
                 // More heavily weigh asteroids with more resources
                 Asteroid asteroid = (Asteroid) object;
@@ -262,7 +264,7 @@ public class BryanTeamClient extends TeamClient {
             newAngle = obstacleVector.getAngle() - COLLISION_AVOIDANCE_ANGLE;
         }
         // aim for a spot that is just outside the obstacle's radius
-        double avoidanceMagnitude = obstacle.getRadius() + ship.getRadius();
+        int avoidanceMagnitude = obstacle.getRadius() + ship.getRadius();
         Vector2D avoidanceVector = Vector2D.fromAngle(newAngle, avoidanceMagnitude); // A smaller angle works much better
         Vector2D newTargetVector = currentVector.add(avoidanceVector);
         Position newTarget = new Position(newTargetVector);
@@ -296,7 +298,7 @@ public class BryanTeamClient extends TeamClient {
         // aim to be going the target speed and at the most direct angle
         double goalAngle = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition).getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, TARGET_SHIP_SPEED);
-        graphics.add(new CircleGraphics(2, Color.RED, adjustedTargetPosition));
+        graphics.add(new TargetGraphics(8, adjustedTargetPosition));
         graphics.add(new CircleGraphics(2, Color.RED, targetPosition));
         return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
     }
@@ -311,7 +313,7 @@ public class BryanTeamClient extends TeamClient {
      * @param shipLocation Position of the ship at this instant
      * @return Position to aim the ship in order to collide with the target
      */
-    protected Position interceptPosition(Toroidal2DPhysics space, Position targetPosition, Position shipLocation) {
+    Position interceptPosition(Toroidal2DPhysics space, Position targetPosition, Position shipLocation) {
         // component velocities of the target
         double targetVelX = targetPosition.getTranslationalVelocityX();
         double targetVelY = targetPosition.getTranslationalVelocityY();
@@ -408,10 +410,9 @@ public class BryanTeamClient extends TeamClient {
     /**
      * Whether the game is ending soon or not. Ships should return any resources before the game is over.
      * @param space The Toroidal2DPhysics for the game
-     * @param ship The ship
      * @return True if the game is nearly over, false otherwise
      */
-    boolean gameIsEnding(Toroidal2DPhysics space, Ship ship) {
+    boolean gameIsEnding(Toroidal2DPhysics space) {
         return space.getCurrentTimestep() > space.getMaxTime() * GAME_IS_ENDING_FACTOR;
     }
 
