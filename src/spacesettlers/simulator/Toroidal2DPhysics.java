@@ -343,12 +343,12 @@ public class Toroidal2DPhysics {
 	 * Return the timestep duration
 	 * @return
 	 */
-	public double getTimestep() {
+	public double getTimestepDuration() {
 		return timeStep;
 	}
 	
 	/**
-	 * Return the timestep duration
+	 * Return the timestep 
 	 * @return
 	 */
 	public int getCurrentTimestep() {
@@ -878,7 +878,7 @@ public class Toroidal2DPhysics {
 	 *  
 	 * @param position
 	 */
-	void toroidalWrap(Position position) {
+	public void toroidalWrap(Position position) {
 		while (position.getX() < 0) {
 			position.setX(position.getX() + width);
 		}
