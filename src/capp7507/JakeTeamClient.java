@@ -5,6 +5,8 @@ import spacesettlers.actions.DoNothingAction;
 import spacesettlers.graphics.CircleGraphics;
 import spacesettlers.graphics.TargetGraphics;
 import spacesettlers.objects.*;
+import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
+import spacesettlers.objects.weapons.AbstractWeapon;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
 import spacesettlers.utilities.Vector2D;
@@ -34,6 +36,7 @@ public class JakeTeamClient extends BryanTeamClient {
     private static final int REALLY_BIG_NAV_WEIGHT = 100;
     private static final int NEIGHBORHOOD_RADIUS = 100;
     private static final int MAX_OBSTRUCTION_DETECTION = 100;
+    private static final int AVOID_RADIUS = 3;
     private Map<UUID, UUID> currentTargets = new HashMap<>();
     private Map<UUID, TargetGraphics> targetGraphics = new HashMap<>();
     private Map<UUID, CircleGraphics> obstacleGraphics = new HashMap<>();
@@ -62,8 +65,19 @@ public class JakeTeamClient extends BryanTeamClient {
                 if (obstacleGraphic != null) graphics.add(obstacleGraphic);
 
                 AbstractObject target = space.getObjectById(currentTargets.get(ship.getId()));
-                if (target == null || !target.isAlive()) {
-                    target = bestValue(space, ship, space.getAllObjects());
+                Set<AbstractObject> allObjects = space.getAllObjects();
+
+                ship.setShielded(true);
+
+                // Determine whether we should shield (only every 5 timesteps to reduce overhead maybe?)
+                if(shouldShield(space, ship, allObjects)) {
+                    shieldedShips.add(ship.getId());
+                } else if(ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) {
+                    shieldedShips.remove(ship.getId());
+                }
+
+                if (target == null || !target.isAlive() ) {
+                    target = bestValue(space, ship, allObjects);
                     currentTargets.put(ship.getId(), target.getId());
                 }
                 Position targetPos = target.getPosition();
@@ -109,12 +123,12 @@ public class JakeTeamClient extends BryanTeamClient {
             if (object instanceof Asteroid) {
                 Asteroid asteroid = (Asteroid) object;
                 if (asteroid.isMineable()) {
-                    value += linearNormalize(MIN_ASTEROID_MASS, 0, MAX_ASTEROID_MASS, 1, asteroid.getMass());
+                    value = linearNormalize(MIN_ASTEROID_MASS, 0, MAX_ASTEROID_MASS, 1, asteroid.getMass());
                 }
             } else if (object instanceof AbstractActionableObject) {
                 AbstractActionableObject actionableObject = (AbstractActionableObject) object;
                 if (isOurBase(actionableObject)) {
-                    value += energyValue(ship) + cargoValue(ship);
+                    value = energyValue(ship) + cargoValue(ship);
                     if (gameIsEnding(space)) {
                         value += REALLY_BIG_NAV_WEIGHT; // We really want to go back to a base and deposit resources
                     }
@@ -122,8 +136,9 @@ public class JakeTeamClient extends BryanTeamClient {
                     continue; // Don't ever set the target to our current ship
                 }
             } else if (object instanceof Beacon) {
-                value += energyValue(ship);
+                value = energyValue(ship);
             }
+
             Set<AbstractObject> obstructions = getObstructions(space, ship);
             if (!space.isPathClearOfObstructions(ship.getPosition(), object.getPosition(), obstructions, ship.getRadius())) {
                 value *= OBSTRUCTED_PATH_PENALTY; // We should be less likely to go towards objects with obstacles in the way
@@ -131,9 +146,7 @@ public class JakeTeamClient extends BryanTeamClient {
 
             Position adjustedObjectPosition = interceptPosition(space, object.getPosition(), ship.getPosition());
             double rawDistance = space.findShortestDistance(ship.getPosition(), adjustedObjectPosition);
-            double scaledDistance = scaleDistance(space, rawDistance);
-            scaledDistance += angleValue(space, ship, object);
-
+            double scaledDistance = scaleDistance(space, rawDistance) + angleValue(space, ship, object);
             double score = value / scaledDistance;
             scores.put(object.getId(), score);
         }
@@ -247,6 +260,8 @@ public class JakeTeamClient extends BryanTeamClient {
 	 */
 	@Override
     public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
+	    Map<UUID, UUID> targets = new HashMap<>();
+
         for (Map.Entry<UUID, UUID> entry : currentTargets.entrySet()) {
             UUID shipId = entry.getKey();
             AbstractObject target = space.getObjectById(entry.getValue());
@@ -255,8 +270,12 @@ public class JakeTeamClient extends BryanTeamClient {
             int targetRadius = target.getRadius();
             boolean closeEnough = distance < targetRadius * 3;
             if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
-                currentTargets.remove(shipId);
+                targets.put(shipId, entry.getValue());
             }
+        }
+
+        for(UUID key : targets.keySet()) {
+            currentTargets.remove(key);
         }
     }
 
@@ -311,5 +330,36 @@ public class JakeTeamClient extends BryanTeamClient {
             double newRange = newMax - newMin;
             return (((input - oldMin) * newRange) / oldRange) + newMin;
         }
+    }
+
+    private boolean shouldShield(Toroidal2DPhysics space, Ship ship, Set<AbstractObject> objects) {
+        if(!ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) {
+            return false;
+        }
+
+        boolean weaponIsClose = false;
+        for(AbstractObject object : objects) {
+            if (!(object instanceof AbstractWeapon)) {
+                continue;
+            }
+
+            AbstractWeapon weapon = (AbstractWeapon) object;
+            double weaponDistance = space.findShortestDistance(ship.getPosition(), weapon.getPosition());
+            if (isEnemyWeapon(weapon) && weaponDistance < ship.getRadius() * AVOID_RADIUS) {
+                weaponIsClose = true;
+                break;
+            }
+        }
+        return weaponIsClose;
+    }
+
+    /**
+     * Determines whether a given actionableObject is an enemy weapon
+     *
+     * @param weapon object to check
+     * @return Whether the object is an enemy weapon
+     */
+    private boolean isEnemyWeapon(AbstractWeapon weapon) {
+        return !weapon.getFiringShip().getTeamName().equals(getTeamName());
     }
 }
