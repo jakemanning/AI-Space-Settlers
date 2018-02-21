@@ -30,7 +30,7 @@ import java.util.*;
  *
  */
 public class BryanTeamClient extends TeamClient {
-    static final boolean DEBUG = true;
+    private static final boolean DEBUG = true;
     private static final double RANDOM_SHOOT_THRESHOLD = 0.35;
     private static final double COLLISION_AVOIDANCE_ANGLE = Math.PI / 2;
     private static final int BASE_RETURN_THRESHOLD = 2000;
@@ -41,6 +41,7 @@ public class BryanTeamClient extends TeamClient {
     private static final double SHIP_NEEDS_ENERGY_FACTOR = 0.2;
     private static final double GAME_IS_ENDING_FACTOR = 0.98;
     protected HashSet<SpacewarGraphics> graphics;
+    Set<UUID> shieldedShips = new HashSet<>();
 
     // region Boilerplate
     @Override
@@ -373,7 +374,7 @@ public class BryanTeamClient extends TeamClient {
      * @param ship The ship that may need more energy
      * @return True if the ship needs more energy, false otherwise
      */
-    protected boolean shipNeedsEnergy(Ship ship) {
+    private boolean shipNeedsEnergy(Ship ship) {
         return ship.getEnergy() < ship.getMaxEnergy() * SHIP_NEEDS_ENERGY_FACTOR;
     }
 
@@ -450,7 +451,7 @@ public class BryanTeamClient extends TeamClient {
      * Get all the ships and bases that belong to other teams
      * @param space physics
      * @param teamName The name of the team whose ships and bases are not enemy targets
-     * @return
+     * @return all enemies
      */
     private Set<AbstractActionableObject> getEnemyTargets(Toroidal2DPhysics space, String teamName) {
         Set<AbstractActionableObject> enemies = new HashSet<>();
@@ -584,6 +585,14 @@ public class BryanTeamClient extends TeamClient {
                     .ifPresent(ship -> purchases.put(ship.getId(), PurchaseTypes.POWERUP_DOUBLE_MAX_ENERGY));
         }
 
+        // buy shield powerup if we can afford to
+        if (purchaseCosts.canAfford(PurchaseTypes.POWERUP_SHIELD, resourcesAvailable)) {
+            actionableObjects.stream()
+                    .filter(actionableObject -> actionableObject instanceof Ship)
+                    .filter(ship -> !ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD))
+                    .forEach(ship -> purchases.put(ship.getId(), PurchaseTypes.POWERUP_SHIELD));
+        }
+
         return purchases;
     }
 
@@ -607,8 +616,11 @@ public class BryanTeamClient extends TeamClient {
                 Ship ship = (Ship) actionable;
                 Set<AbstractActionableObject> enemyShips = getEnemyTargets(space, getTeamName());
                 AbstractObject closestEnemyShip = closest(space, ship.getPosition(), enemyShips);
-                // shoot if we're in position and do not need energy
-                if (inPositionToShoot(space, ship.getPosition(), closestEnemyShip) && !shipNeedsEnergy(ship)) {
+                if(ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) { // protect ship if we're in position and do not need energy
+                    if(shieldedShips.contains(ship.getId()) != ship.isShielded()) { // Only if the status of the ship has changed
+                        powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.TOGGLE_SHIELD);
+                    }
+                } else if (inPositionToShoot(space, ship.getPosition(), closestEnemyShip) && !shipNeedsEnergy(ship)) { // shoot if we're in position and do not need energy
                     shoot(powerupMap, ship);
                 } else if(ship.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY)) {
                     // equip the double max energy powerup
