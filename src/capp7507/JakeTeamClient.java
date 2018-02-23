@@ -67,7 +67,7 @@ public class JakeTeamClient extends BryanTeamClient {
                 AbstractObject target = space.getObjectById(currentTargets.get(ship.getId()));
                 Set<AbstractObject> allObjects = space.getAllObjects();
 
-                // Determine whether we should shield (only every 5 timesteps to reduce overhead maybe?)
+                // Determine whether we should shield
                 if(shouldShield(space, ship, allObjects)) {
                     shieldedShips.add(ship.getId());
                 } else if(ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) {
