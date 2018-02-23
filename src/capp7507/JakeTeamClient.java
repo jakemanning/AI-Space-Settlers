@@ -67,8 +67,6 @@ public class JakeTeamClient extends BryanTeamClient {
                 AbstractObject target = space.getObjectById(currentTargets.get(ship.getId()));
                 Set<AbstractObject> allObjects = space.getAllObjects();
 
-                ship.setShielded(true);
-
                 // Determine whether we should shield (only every 5 timesteps to reduce overhead maybe?)
                 if(shouldShield(space, ship, allObjects)) {
                     shieldedShips.add(ship.getId());
