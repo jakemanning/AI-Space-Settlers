@@ -119,7 +119,7 @@ public class BryanTeamClient extends TeamClient {
                     actions.put(ship.getId(), action);
                     return actions;
                 }
-                MoveAction closeAction = getMoveAction(space, currentPosition, closestTarget);
+                MoveAction closeAction = getMoveAction(space, currentPosition, closestTarget.getPosition());
                 actions.put(ship.getId(), closeAction);
             } else if (actionable instanceof Base) {
                 // Bases do nothing
@@ -292,15 +292,14 @@ public class BryanTeamClient extends TeamClient {
      * @param target The target object the action should aim for
      * @return An action to get the ship to the target's location
      */
-    MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, AbstractObject target) {
-        Position targetPosition = target.getPosition();
-        Position adjustedTargetPosition = interceptPosition(space, targetPosition, currentPosition);
+    MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target) {
+        Position adjustedTargetPosition = interceptPosition(space, target, currentPosition);
 
         // aim to be going the target speed and at the most direct angle
         double goalAngle = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition).getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, TARGET_SHIP_SPEED);
         graphics.add(new TargetGraphics(8, adjustedTargetPosition));
-        graphics.add(new CircleGraphics(2, Color.RED, targetPosition));
+        graphics.add(new CircleGraphics(2, Color.RED, target));
         return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
     }
 
@@ -314,7 +313,7 @@ public class BryanTeamClient extends TeamClient {
      * @param shipLocation Position of the ship at this instant
      * @return Position to aim the ship in order to collide with the target
      */
-    Position interceptPosition(Toroidal2DPhysics space, Position targetPosition, Position shipLocation) {
+    static Position interceptPosition(Toroidal2DPhysics space, Position targetPosition, Position shipLocation) {
         // component velocities of the target
         double targetVelX = targetPosition.getTranslationalVelocityX();
         double targetVelY = targetPosition.getTranslationalVelocityY();
@@ -491,7 +490,7 @@ public class BryanTeamClient extends TeamClient {
      * @param space physics
      * @return A set of all the unmineable asteroids
      */
-    private Set<Asteroid> getUnmineableAsteroids(Toroidal2DPhysics space) {
+    Set<Asteroid> getUnmineableAsteroids(Toroidal2DPhysics space) {
         Set<Asteroid> asteroids = new HashSet<>(space.getAsteroids());
         asteroids.removeAll(getMineableAsteroids(space));
         return asteroids;

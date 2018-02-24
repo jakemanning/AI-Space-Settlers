@@ -2,7 +2,9 @@ package capp7507;
 
 import spacesettlers.actions.AbstractAction;
 import spacesettlers.actions.DoNothingAction;
+import spacesettlers.actions.MoveAction;
 import spacesettlers.graphics.CircleGraphics;
+import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.graphics.TargetGraphics;
 import spacesettlers.objects.*;
 import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
@@ -37,9 +39,8 @@ public class JakeTeamClient extends BryanTeamClient {
     private static final int NEIGHBORHOOD_RADIUS = 100;
     private static final int MAX_OBSTRUCTION_DETECTION = 100;
     private static final int AVOID_RADIUS = 3;
-    private Map<UUID, UUID> currentTargets = new HashMap<>();
-    private Map<UUID, TargetGraphics> targetGraphics = new HashMap<>();
-    private Map<UUID, CircleGraphics> obstacleGraphics = new HashMap<>();
+    private Map<UUID, Position> currentTargets = new HashMap<>();
+    private Map<UUID, Plan> plans = new HashMap<>();
 
 	/**
 	 * Called before movement begins. Fill a HashMap with actions depending on the bestValue
@@ -56,15 +57,26 @@ public class JakeTeamClient extends BryanTeamClient {
         for (AbstractActionableObject actionable :  actionableObjects) {
 
             Position shipPos = actionable.getPosition();
+            Plan currentPlan = plans.get(actionable.getId());
 
             if (actionable instanceof Ship) {
                 Ship ship = (Ship) actionable;
-                TargetGraphics targetGraphic = targetGraphics.get(ship.getId());
-                CircleGraphics obstacleGraphic = obstacleGraphics.get(ship.getId());
-                if (targetGraphic != null) graphics.add(targetGraphic);
-                if (obstacleGraphic != null) graphics.add(obstacleGraphic);
 
-                AbstractObject target = space.getObjectById(currentTargets.get(ship.getId()));
+                Position currentTarget = currentTargets.get(ship.getId());
+                if (currentTarget != null && space.findShortestDistance(shipPos, currentTarget) > ship.getRadius() * 2) {
+                    actions.put(ship.getId(), getMoveAction(space, shipPos, currentTarget));
+                    continue;
+                }
+                if (currentPlan == null || currentPlan.isDone()) {
+                    AbstractObject nextGoalObject = bestValue(space, ship, space.getAllObjects());
+                    currentPlan = Plan.forObject(nextGoalObject, ship, space);
+                    plans.put(ship.getId(), currentPlan);
+                }
+                currentTarget = currentPlan.nextStep();
+                currentTargets.put(ship.getId(), currentTarget);
+                MoveAction action = getMoveAction(space, shipPos, currentTarget);
+
+                ship.setShielded(true);
                 Set<AbstractObject> allObjects = space.getAllObjects();
 
                 // Determine whether we should shield
@@ -74,22 +86,6 @@ public class JakeTeamClient extends BryanTeamClient {
                     shieldedShips.remove(ship.getId());
                 }
 
-                if (target == null || !target.isAlive() ) {
-                    target = bestValue(space, ship, allObjects);
-                    currentTargets.put(ship.getId(), target.getId());
-                }
-                Position targetPos = target.getPosition();
-                targetGraphics.put(ship.getId(), new TargetGraphics(8, targetPos));
-                Set<AbstractObject> obstructions = getObstructions(space, ship);
-                AbstractObject obstruction = obstructionInPath(space, shipPos, targetPos, obstructions, ship.getRadius());
-                AbstractAction action;
-                if (obstruction != null) { // There is an obstacle to avoid
-                    action = avoidCrashAction(space, obstruction, target, ship);
-                    obstacleGraphics.put(ship.getId(), new CircleGraphics(2, Color.YELLOW, obstruction.getPosition()));
-                } else { // We can just go straight to the object
-                    obstacleGraphics.remove(ship.getId());
-                    action = getMoveAction(space, shipPos, target);
-                }
                 actions.put(ship.getId(), action);
             } else if (actionable instanceof Base) {
                 Base base = (Base) actionable;
@@ -100,7 +96,19 @@ public class JakeTeamClient extends BryanTeamClient {
         return actions;
     }
 
-	/**
+    @Override
+    public Set<SpacewarGraphics> getGraphics() {
+        Set<SpacewarGraphics> result = new HashSet<>();
+        for (Plan plan : plans.values()) {
+            result.add(new TargetGraphics(8, plan.getGoal().getPosition()));
+        }
+        for (Position position : currentTargets.values()) {
+            result.add(new CircleGraphics(4, Color.PINK, position));
+        }
+        return result;
+    }
+
+    /**
 	 * Determine the best object to navigate towards based on highest score.
 	 * Scored on:
 	 * - Distance: Distance between target (which is closest?)
@@ -260,20 +268,21 @@ public class JakeTeamClient extends BryanTeamClient {
     public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
 	    Map<UUID, UUID> targets = new HashMap<>();
 
-        for (Map.Entry<UUID, UUID> entry : currentTargets.entrySet()) {
+        for (Map.Entry<UUID, Plan> entry : plans.entrySet()) {
             UUID shipId = entry.getKey();
-            AbstractObject target = space.getObjectById(entry.getValue());
+            AbstractObject goal = entry.getValue().getGoal();
+            AbstractObject target = space.getObjectById(goal.getId());
             AbstractObject ship = space.getObjectById(shipId);
             double distance = space.findShortestDistance(ship.getPosition(), target.getPosition());
             int targetRadius = target.getRadius();
             boolean closeEnough = distance < targetRadius * 3;
             if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
-                targets.put(shipId, entry.getValue());
+                targets.put(shipId, goal.getId());
             }
         }
 
         for(UUID key : targets.keySet()) {
-            currentTargets.remove(key);
+            plans.remove(key);
         }
     }
 
