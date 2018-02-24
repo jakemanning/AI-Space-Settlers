@@ -5,12 +5,19 @@ import spacesettlers.utilities.Position;
 import java.util.Objects;
 
 public class Node {
+    private Node cameFrom;
     private Position position;
     private double currentPathCost;
     private double distanceToGoal;
     private boolean explored;
 
-    public Node(Position position, double currentPathCost, double distanceToGoal) {
+    Node(Position position) {
+        this.position = position;
+        this.currentPathCost = Double.MAX_VALUE;
+        this.distanceToGoal = Double.MAX_VALUE;
+    }
+
+    Node(Position position, double currentPathCost, double distanceToGoal) {
         this.position = position;
         this.currentPathCost = currentPathCost;
         this.distanceToGoal = distanceToGoal;
@@ -63,5 +70,13 @@ public class Node {
     @Override
     public int hashCode() {
         return Objects.hash(position);
+    }
+
+    public Node getPrevious() {
+        return cameFrom;
+    }
+
+    public void setPrevious(Node cameFrom) {
+        this.cameFrom = cameFrom;
     }
 }
