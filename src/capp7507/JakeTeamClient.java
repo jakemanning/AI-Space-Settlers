@@ -3,8 +3,8 @@ package capp7507;
 import spacesettlers.actions.AbstractAction;
 import spacesettlers.actions.DoNothingAction;
 import spacesettlers.actions.MoveAction;
-import spacesettlers.graphics.CircleGraphics;
 import spacesettlers.graphics.SpacewarGraphics;
+import spacesettlers.graphics.StarGraphics;
 import spacesettlers.graphics.TargetGraphics;
 import spacesettlers.objects.*;
 import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
@@ -61,6 +61,15 @@ public class JakeTeamClient extends BryanTeamClient {
 
             if (actionable instanceof Ship) {
                 Ship ship = (Ship) actionable;
+                Set<AbstractObject> allObjects = space.getAllObjects();
+
+                // TODO: Eventually make bases be able to shield
+                // Shield gotta be here otherwise won't work BRYAN
+                if(shouldShield(space, ship, allObjects)) {
+                    shieldedShips.add(ship.getId());
+                } else if(ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) {
+                    shieldedShips.remove(ship.getId());
+                }
 
                 Position currentTarget = currentTargets.get(ship.getId());
                 if (currentTarget != null && space.findShortestDistance(shipPos, currentTarget) > ship.getRadius() * 2) {
@@ -76,16 +85,6 @@ public class JakeTeamClient extends BryanTeamClient {
                 currentTargets.put(ship.getId(), currentTarget);
                 MoveAction action = getMoveAction(space, shipPos, currentTarget);
 
-                ship.setShielded(true);
-                Set<AbstractObject> allObjects = space.getAllObjects();
-
-                // Determine whether we should shield
-                if(shouldShield(space, ship, allObjects)) {
-                    shieldedShips.add(ship.getId());
-                } else if(ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) {
-                    shieldedShips.remove(ship.getId());
-                }
-
                 actions.put(ship.getId(), action);
             } else if (actionable instanceof Base) {
                 Base base = (Base) actionable;
@@ -100,10 +99,11 @@ public class JakeTeamClient extends BryanTeamClient {
     public Set<SpacewarGraphics> getGraphics() {
         Set<SpacewarGraphics> result = new HashSet<>();
         for (Plan plan : plans.values()) {
+            result.addAll(plan.getGraphics());
             result.add(new TargetGraphics(8, plan.getGoal().getPosition()));
         }
         for (Position position : currentTargets.values()) {
-            result.add(new CircleGraphics(4, Color.PINK, position));
+            result.add(new StarGraphics(4, Color.MAGENTA, position));
         }
         return result;
     }
