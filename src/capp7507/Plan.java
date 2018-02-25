@@ -3,6 +3,7 @@ package capp7507;
 import spacesettlers.graphics.LineGraphics;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.graphics.StarGraphics;
+import spacesettlers.graphics.TargetGraphics;
 import spacesettlers.objects.AbstractObject;
 import spacesettlers.objects.Asteroid;
 import spacesettlers.objects.Base;
@@ -36,13 +37,18 @@ public class Plan {
         return new Plan(goal, ship, space);
     }
 
-    public Position nextStep() {
+    public Position getStep() {
         if (steps == null) {
             return null;
         }
-        Position step = steps.get(nextStep);
-        nextStep++;
-        return step;
+        return steps.get(nextStep);
+    }
+
+    public void completeStep() {
+        if (steps == null) {
+            return;
+        }
+        nextStep += 1;
     }
 
     public boolean isDone() {
@@ -61,6 +67,8 @@ public class Plan {
         nodes.add(root);
         nodes.add(goal);
 
+        Set<AbstractObject> obstructions = obstructions();
+
         int nAngles = 11, nDistances = 10;
         for (int angleDiv = nAngles / -2; angleDiv < nAngles - 5; angleDiv++) {
             double angleDiff = angleDiv * Math.PI / (nAngles - 1);
@@ -73,11 +81,23 @@ public class Plan {
                 Vector2D rootVector = new Vector2D(root.getPosition());
                 Vector2D positionVector = rootVector.add(Vector2D.fromAngle(angle, distance));
                 Position position = new Position(positionVector);
-                Node node = new Node(position);
-                nodes.add(node);
+
+                boolean isObstructionNear = false;
+                for(AbstractObject obstruction : obstructions) {
+                    double obstructionDistance = space.findShortestDistance(position, obstruction.getPosition());
+                    if(obstructionDistance <= ship.getRadius() * 2) {
+                        isObstructionNear = true;
+                        break;
+                    }
+                }
+
+                if(!isObstructionNear) {
+                    Node node = new Node(position);
+                    nodes.add(node);
+                }
             }
         }
-        Set<AbstractObject> obstructions = obstructions();
+
 
         for (Node node1 : nodes) {
             HashSet<Node> neighbors = new HashSet<>();
@@ -174,21 +194,31 @@ public class Plan {
         return path;
     }
 
+
+
     protected double heuristicCostEstimate(Position start, Position end) {
         return space.findShortestDistance(start, end);
     }
 
     public Set<SpacewarGraphics> getGraphics() {
         Set<SpacewarGraphics> results = new HashSet<>();
-        if (steps == null || steps.size() == 0) {
+        if (isDone() || steps.isEmpty()) {
             return results;
         }
 
         Position previous = steps.get(0);
-        for (Position current : steps) {
-            results.add(new StarGraphics(4, Color.PINK, current)); // Seems to make sense for a-STAR ;)
-            LineGraphics line = new LineGraphics(previous, current, space.findShortestDistanceVector(previous, current));
-            previous = current;
+        Position goal = BryanTeamClient.interceptPosition(space, getGoal().getPosition(), ship.getPosition());
+        for (Position step : steps) {
+            if(step.equalsLocationOnly(goal)) {
+                results.add(new TargetGraphics(8, step));
+            } else if(step.equalsLocationOnly(getStep())) {
+                results.add(new StarGraphics(4, Color.MAGENTA, step)); // Seems to make sense for a-STAR ;)
+            } else {
+                results.add(new StarGraphics(4, Color.PINK, step)); // Seems to make sense for a-STAR ;)
+            }
+
+            LineGraphics line = new LineGraphics(previous, step, space.findShortestDistanceVector(previous, step));
+            previous = step;
             results.add(line);
         }
 

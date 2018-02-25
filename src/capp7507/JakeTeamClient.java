@@ -39,7 +39,6 @@ public class JakeTeamClient extends BryanTeamClient {
     private static final int NEIGHBORHOOD_RADIUS = 100;
     private static final int MAX_OBSTRUCTION_DETECTION = 100;
     private static final int AVOID_RADIUS = 3;
-    private Map<UUID, Position> currentTargets = new HashMap<>();
     private Map<UUID, Plan> plans = new HashMap<>();
 
 	/**
@@ -64,26 +63,25 @@ public class JakeTeamClient extends BryanTeamClient {
                 Set<AbstractObject> allObjects = space.getAllObjects();
 
                 // TODO: Eventually make bases be able to shield
-                // Shield gotta be here otherwise won't work BRYAN
                 if(shouldShield(space, ship, allObjects)) {
                     shieldedShips.add(ship.getId());
                 } else if(ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) {
                     shieldedShips.remove(ship.getId());
                 }
 
-                Position currentTarget = currentTargets.get(ship.getId());
-                if (currentTarget != null && space.findShortestDistance(shipPos, currentTarget) > ship.getRadius() * 2) {
-                    actions.put(ship.getId(), getMoveAction(space, shipPos, currentTarget));
-                    continue;
-                }
                 if (currentPlan == null || currentPlan.isDone()) {
                     AbstractObject nextGoalObject = bestValue(space, ship, space.getAllObjects());
                     currentPlan = Plan.forObject(nextGoalObject, ship, space);
                     plans.put(ship.getId(), currentPlan);
                 }
-                currentTarget = currentPlan.nextStep();
-                currentTargets.put(ship.getId(), currentTarget);
-                MoveAction action = getMoveAction(space, shipPos, currentTarget);
+
+                Position currentStep = currentPlan.getStep();
+                int closeEnough = ship.getRadius() * 2;
+                if (currentStep != null && space.findShortestDistance(shipPos, currentStep) > closeEnough) {
+                    actions.put(ship.getId(), getMoveAction(space, shipPos, currentStep));
+                    continue;
+                }
+                MoveAction action = getMoveAction(space, shipPos, currentStep);
 
                 actions.put(ship.getId(), action);
             } else if (actionable instanceof Base) {
@@ -100,10 +98,6 @@ public class JakeTeamClient extends BryanTeamClient {
         Set<SpacewarGraphics> result = new HashSet<>();
         for (Plan plan : plans.values()) {
             result.addAll(plan.getGraphics());
-            result.add(new TargetGraphics(8, plan.getGoal().getPosition()));
-        }
-        for (Position position : currentTargets.values()) {
-            result.add(new StarGraphics(4, Color.MAGENTA, position));
         }
         return result;
     }
@@ -270,14 +264,19 @@ public class JakeTeamClient extends BryanTeamClient {
 
         for (Map.Entry<UUID, Plan> entry : plans.entrySet()) {
             UUID shipId = entry.getKey();
-            AbstractObject goal = entry.getValue().getGoal();
-            AbstractObject target = space.getObjectById(goal.getId());
+            Plan plan = entry.getValue();
+            AbstractObject goal = plan.getGoal();
             AbstractObject ship = space.getObjectById(shipId);
-            double distance = space.findShortestDistance(ship.getPosition(), target.getPosition());
-            int targetRadius = target.getRadius();
-            boolean closeEnough = distance < targetRadius * 3;
-            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
-                targets.put(shipId, goal.getId());
+            Position currentStep = plan.getStep();
+            if(currentStep != null && !currentStep.equalsLocationOnly(goal.getPosition()) && space.findShortestDistance(ship.getPosition(), currentStep) <= ship.getRadius() * 2) {
+                plan.completeStep();
+            } else {
+                double distance = space.findShortestDistance(ship.getPosition(), goal.getPosition());
+                int targetRadius = goal.getRadius();
+                boolean closeEnough = distance < targetRadius * 3;
+                if (!goal.isAlive() || space.getObjectById(goal.getId()) == null || closeEnough) {
+                    targets.put(shipId, goal.getId());
+                }
             }
         }
 
