@@ -57,7 +57,7 @@ public class Plan {
 
     private Graph<Node> createSearchGraph() {
         Position shipPosition = ship.getPosition();
-        Position goalPosition = BryanTeamClient.interceptPosition(space, goal.getPosition(), shipPosition);
+        Position goalPosition = JakeTeamClient.interceptPosition(space, goal.getPosition(), shipPosition);
         Node root = new Node(shipPosition, 0, heuristicCostEstimate(shipPosition, goalPosition));
         Node goal = new Node(goalPosition);
 
@@ -137,7 +137,7 @@ public class Plan {
      */
     private List<Position> myAttempt(Graph<Node> searchGraph) {
         Position shipPos = ship.getPosition();
-        Position goalPos = BryanTeamClient.interceptPosition(space, goal.getPosition(), shipPos);
+        Position goalPos = JakeTeamClient.interceptPosition(space, goal.getPosition(), shipPos);
         Node root = new Node(shipPos, 0, heuristicCostEstimate(shipPos, goalPos));
         PriorityQueue<Node> frontier = new PriorityQueue<>(Comparator.comparingDouble(Node::getCost));
         frontier.add(root);
@@ -194,32 +194,32 @@ public class Plan {
         return path;
     }
 
-
-
-    protected double heuristicCostEstimate(Position start, Position end) {
+    private double heuristicCostEstimate(Position start, Position end) {
         return space.findShortestDistance(start, end);
     }
 
     public Set<SpacewarGraphics> getGraphics() {
         Set<SpacewarGraphics> results = new HashSet<>();
-        if (isDone() || steps.isEmpty()) {
+        if (isDone()) {
             return results;
         }
 
         Position previous = steps.get(0);
-        Position goal = BryanTeamClient.interceptPosition(space, getGoal().getPosition(), ship.getPosition());
-        for (Position step : steps) {
+        Position goal = JakeTeamClient.interceptPosition(space, getGoal().getPosition(), ship.getPosition());
+        results.add(new StarGraphics(4, Color.PINK, previous));
+        for(int i = 1; i < steps.size(); ++i) {
+            Position step = steps.get(i);
             if(step.equalsLocationOnly(goal)) {
                 results.add(new TargetGraphics(8, step));
             } else if(step.equalsLocationOnly(getStep())) {
-                results.add(new StarGraphics(4, Color.MAGENTA, step)); // Seems to make sense for a-STAR ;)
+                results.add(new StarGraphics(4, Color.MAGENTA, step));
             } else {
-                results.add(new StarGraphics(4, Color.PINK, step)); // Seems to make sense for a-STAR ;)
+                results.add(new StarGraphics(4, Color.PINK, step));
             }
 
             LineGraphics line = new LineGraphics(previous, step, space.findShortestDistanceVector(previous, step));
-            previous = step;
             results.add(line);
+            previous = step;
         }
 
         return results;
