@@ -17,25 +17,12 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class Plan {
-    private Ship ship;
-    private AbstractObject goal;
-    private Toroidal2DPhysics space;
-    private List<Position> steps;
+public abstract class Plan {
     private int nextStep = 0;
-
-    private Plan(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
-        this.goal = goal;
-        this.ship = ship;
-        this.space = space;
-
-        Graph<Node> searchGraph = createSearchGraph();
-        steps = myAttempt(searchGraph);
-    }
-
-    public static Plan forObject(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
-        return new Plan(goal, ship, space);
-    }
+    List<Position> steps;
+    Ship ship;
+    AbstractObject goal;
+    Toroidal2DPhysics space;
 
     public Position getStep() {
         if (steps == null) {
@@ -55,7 +42,7 @@ public class Plan {
         return steps == null || steps.size() <= nextStep;
     }
 
-    private Graph<Node> createSearchGraph() {
+    Graph<Node> createSearchGraph() {
         Position shipPosition = ship.getPosition();
         Position goalPosition = JakeTeamClient.interceptPosition(space, goal.getPosition(), shipPosition);
         Node root = new Node(shipPosition, 0, heuristicCostEstimate(shipPosition, goalPosition));
@@ -130,73 +117,14 @@ public class Plan {
     }
 
     /**
-     * A* search returns null for failure otherwise a list of positions to travel through
+     * Search returns null for failure otherwise a list of positions to travel through
      *
      * @param searchGraph The graph of positions to search through
      *
      */
-    private List<Position> myAttempt(Graph<Node> searchGraph) {
-        Position shipPos = ship.getPosition();
-        Position goalPos = JakeTeamClient.interceptPosition(space, goal.getPosition(), shipPos);
-        Node root = new Node(shipPos, 0, heuristicCostEstimate(shipPos, goalPos));
-        PriorityQueue<Node> frontier = new PriorityQueue<>(Comparator.comparingDouble(Node::getCost));
-        frontier.add(root);
-        Node node;
+    abstract List<Position> search(Graph<Node> searchGraph);
 
-        while(!frontier.isEmpty()) {
-            node = frontier.poll();
-            Position nodePosition = node.getPosition();
-            if(nodePosition.equalsLocationOnly(goalPos)) {
-                return reconstructPath(node);
-            }
-
-            node.setExplored(true);
-            for(Node neighbor : searchGraph.adjacentNodes(node)) {
-                if(neighbor.isExplored()) {
-                    continue;
-                }
-
-                if(!frontier.contains(neighbor)) {
-                    frontier.add(neighbor);
-                }
-
-                double distanceToNeighbor = space.findShortestDistance(nodePosition, neighbor.getPosition());
-                double tentativeGScore = node.getCurrentPathCost() + distanceToNeighbor;
-
-                if(tentativeGScore >= neighbor.getCurrentPathCost()) {
-                    continue;
-                }
-                double distanceToGoal = heuristicCostEstimate(neighbor.getPosition(), goalPos);
-                neighbor.setPrevious(node);
-                neighbor.setCurrentPathCost(tentativeGScore);
-                neighbor.setDistanceToGoal(distanceToGoal);
-            }
-
-
-        }
-        return null; // failure (maybe we should get a new target?)
-    }
-
-    /**
-     * Work backwards, adding the nodes to the path
-     * @param current The node to work backwards from
-     * @return The correctly ordered a* search path from start to current node
-     */
-    private List<Position> reconstructPath(Node current) {
-        List<Position> path = new ArrayList<>();
-        path.add(current.getPosition());
-        Node previous = current.getPrevious();
-        while(previous != null) {
-            path.add(previous.getPosition());
-            previous = previous.getPrevious();
-        }
-        Collections.reverse(path);
-        return path;
-    }
-
-    private double heuristicCostEstimate(Position start, Position end) {
-        return space.findShortestDistance(start, end);
-    }
+    abstract double heuristicCostEstimate(Position start, Position end);
 
     public Set<SpacewarGraphics> getGraphics() {
         Set<SpacewarGraphics> results = new HashSet<>();

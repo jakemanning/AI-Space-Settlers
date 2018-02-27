@@ -2,9 +2,7 @@ package capp7507;
 
 import spacesettlers.actions.*;
 import spacesettlers.clients.TeamClient;
-import spacesettlers.graphics.CircleGraphics;
 import spacesettlers.graphics.SpacewarGraphics;
-import spacesettlers.graphics.TargetGraphics;
 import spacesettlers.objects.*;
 import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
 import spacesettlers.objects.resources.ResourcePile;
@@ -13,7 +11,6 @@ import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
 import spacesettlers.utilities.Vector2D;
 
-import java.awt.*;
 import java.util.*;
 
 /**
@@ -64,7 +61,7 @@ public class JakeTeamClient extends TeamClient {
         for (AbstractActionableObject actionable :  actionableObjects) {
 
             Position shipPos = actionable.getPosition();
-            Plan currentPlan = plans.get(actionable.getId());
+            AStar currentPlan = (AStar) plans.get(actionable.getId());
 
             if (actionable instanceof Ship) {
                 Ship ship = (Ship) actionable;
@@ -79,7 +76,7 @@ public class JakeTeamClient extends TeamClient {
 
                 if (currentPlan == null || currentPlan.isDone()) {
                     AbstractObject nextGoalObject = bestValue(space, ship, space.getAllObjects());
-                    currentPlan = Plan.forObject(nextGoalObject, ship, space);
+                    currentPlan = AStar.forObject(nextGoalObject, ship, space);
                     plans.put(ship.getId(), currentPlan);
                 }
 
