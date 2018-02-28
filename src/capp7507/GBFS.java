@@ -16,10 +16,7 @@ public class GBFS extends Plan {
     }
 
     private GBFS(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
-        this.goal = goal;
-        this.ship = ship;
-        this.space = space;
-
+        super(goal, ship, space);
         Graph<Node> searchGraph = createSearchGraph();
         Position shipPos = ship.getPosition();
         Position goalPos = JakeTeamClient.interceptPosition(space, goal.getPosition(), shipPos);

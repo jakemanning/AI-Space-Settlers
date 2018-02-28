@@ -30,9 +30,6 @@ public abstract class Plan {
         this.goal = goal;
         this.space = space;
         this.initialShipPosition = ship.getPosition();
-
-        Graph<Node> searchGraph = createSearchGraph();
-        steps = search(searchGraph);
     }
 
     public Position getStep() {
@@ -53,7 +50,7 @@ public abstract class Plan {
         return getStep() == null;
     }
 
-    private Graph<Node> createSearchGraph() {
+    Graph<Node> createSearchGraph() {
         Position goalPosition = JakeTeamClient.interceptPosition(space, goal.getPosition(), initialShipPosition);
         Node root = new Node(initialShipPosition, 0, heuristicCostEstimate(initialShipPosition, goalPosition));
         Node goal = new Node(goalPosition);
