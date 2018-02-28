@@ -5,7 +5,7 @@ import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
 
-import java.util.*;
+import java.util.List;
 
 public class HillClimb extends Plan {
 
@@ -14,12 +14,7 @@ public class HillClimb extends Plan {
     }
 
     private HillClimb(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
-        this.goal = goal;
-        this.ship = ship;
-        this.space = space;
-
-        Graph<Node> searchGraph = createSearchGraph();
-        steps = search(searchGraph);
+        super(goal, ship, space);
     }
 
     /**

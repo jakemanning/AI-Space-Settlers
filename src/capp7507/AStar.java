@@ -14,12 +14,7 @@ public class AStar extends Plan {
     }
 
     private AStar(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
-        this.goal = goal;
-        this.ship = ship;
-        this.space = space;
-
-        Graph<Node> searchGraph = createSearchGraph();
-        steps = search(searchGraph);
+        super(goal, ship, space);
     }
 
     /**
