@@ -61,7 +61,7 @@ public class JakeTeamClient extends TeamClient {
         for (AbstractActionableObject actionable :  actionableObjects) {
 
             Position shipPos = actionable.getPosition();
-            AStar currentPlan = (AStar) plans.get(actionable.getId());
+            Plan currentPlan = plans.get(actionable.getId());
 
             if (actionable instanceof Ship) {
                 Ship ship = (Ship) actionable;
@@ -181,6 +181,7 @@ public class JakeTeamClient extends TeamClient {
         // aim to be going the target speed and at the most direct angle
         double goalAngle = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition).getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, TARGET_SHIP_SPEED);
+//        System.out.println(currentPosition + " " + adjustedTargetPosition + " " + goalVelocity);
         return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
     }
 

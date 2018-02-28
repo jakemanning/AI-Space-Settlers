@@ -5,15 +5,17 @@ import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
+import java.util.PriorityQueue;
 
-public class AStar extends Plan {
+public class GBFS extends Plan {
 
-    public static AStar forObject(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
-        return new AStar(goal, ship, space);
+    public static GBFS forObject(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
+        return new GBFS(goal, ship, space);
     }
 
-    private AStar(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
+    private GBFS(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
         this.goal = goal;
         this.ship = ship;
         this.space = space;
@@ -33,7 +35,7 @@ public class AStar extends Plan {
     @Override
     List<Position> search(Graph<Node> searchGraph, Position start, Position goal) {
         Node root = new Node(start, 0, heuristicCostEstimate(start, goal));
-        PriorityQueue<Node> frontier = new PriorityQueue<>(Comparator.comparingDouble(Node::getCost));
+        PriorityQueue<Node> frontier = new PriorityQueue<>(Comparator.comparingDouble(Node::getDistanceToGoal));
         frontier.add(root);
 
         while(!frontier.isEmpty()) {
@@ -53,19 +55,12 @@ public class AStar extends Plan {
                     frontier.add(neighbor);
                 }
 
-                double distanceToNeighbor = space.findShortestDistance(nodePosition, neighbor.getPosition());
-                double tentativeGScore = node.getCurrentPathCost() + distanceToNeighbor;
-
-                if(tentativeGScore >= neighbor.getCurrentPathCost()) {
-                    continue;
-                }
                 double distanceToGoal = heuristicCostEstimate(neighbor.getPosition(), goal);
                 neighbor.setPrevious(node);
-                neighbor.setCurrentPathCost(tentativeGScore);
                 neighbor.setDistanceToGoal(distanceToGoal);
             }
         }
-        return null; // failure (maybe we should getRadius a new target?)
+        return null; // failure (maybe we should getRadius a new target)
     }
 
     @Override

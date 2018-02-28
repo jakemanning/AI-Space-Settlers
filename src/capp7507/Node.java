@@ -69,7 +69,7 @@ public class Node {
 
     @Override
     public int hashCode() {
-        return Objects.hash(position);
+        return Objects.hash(position.getX(), position.getY());
     }
 
     public Node getPrevious() {

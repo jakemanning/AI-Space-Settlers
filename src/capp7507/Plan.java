@@ -108,7 +108,7 @@ public abstract class Plan {
                 .filter(asteroid -> !asteroid.isMineable())
                 .collect(Collectors.toSet());
         Set<Base> bases = space.getBases().stream()
-                .filter(base -> !base.equals(goal))
+                .filter(base -> !base.getPosition().equalsLocationOnly(goal.getPosition()))
                 .collect(Collectors.toSet());
         obstructions.addAll(otherShips);
         obstructions.addAll(badAsteroids);
@@ -122,9 +122,26 @@ public abstract class Plan {
      * @param searchGraph The graph of positions to search through
      *
      */
-    abstract List<Position> search(Graph<Node> searchGraph);
+    abstract List<Position> search(Graph<Node> searchGraph, Position start, Position goal);
 
     abstract double heuristicCostEstimate(Position start, Position end);
+
+    /**
+     * Work backwards, adding the nodes to the path
+     * @param current The node to work backwards from
+     * @return The correctly ordered a* search path from start to current node
+     */
+    List<Position> reconstructPath(Node current) {
+        List<Position> path = new ArrayList<>();
+        path.add(current.getPosition());
+        Node previous = current.getPrevious();
+        while(previous != null) {
+            path.add(previous.getPosition());
+            previous = previous.getPrevious();
+        }
+        Collections.reverse(path);
+        return path;
+    }
 
     public Set<SpacewarGraphics> getGraphics() {
         Set<SpacewarGraphics> results = new HashSet<>();
@@ -133,7 +150,7 @@ public abstract class Plan {
         }
 
         Position previous = steps.get(0);
-        Position goal = JakeTeamClient.interceptPosition(space, getGoal().getPosition(), ship.getPosition());
+        Position goal = JakeTeamClient.interceptPosition(space, this.goal.getPosition(), ship.getPosition());
         results.add(new StarGraphics(4, Color.PINK, previous));
         for(int i = 1; i < steps.size(); ++i) {
             Position step = steps.get(i);
