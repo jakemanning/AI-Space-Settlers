@@ -14,10 +14,7 @@ public class AStar extends Plan {
     }
 
     private AStar(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
-        this.goal = goal;
-        this.ship = ship;
-        this.space = space;
-
+        super(goal, ship, space);
         Graph<Node> searchGraph = createSearchGraph();
         Position shipPos = ship.getPosition();
         Position goalPos = JakeTeamClient.interceptPosition(space, goal.getPosition(), shipPos);
@@ -65,7 +62,7 @@ public class AStar extends Plan {
                 neighbor.setDistanceToGoal(distanceToGoal);
             }
         }
-        return null; // failure (maybe we should getRadius a new target?)
+        return null; // failure (maybe we should get a new target?)
     }
 
     @Override

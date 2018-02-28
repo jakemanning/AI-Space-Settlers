@@ -1,9 +1,6 @@
 package capp7507;
 
-import spacesettlers.graphics.LineGraphics;
-import spacesettlers.graphics.SpacewarGraphics;
-import spacesettlers.graphics.StarGraphics;
-import spacesettlers.graphics.TargetGraphics;
+import spacesettlers.graphics.*;
 import spacesettlers.objects.AbstractObject;
 import spacesettlers.objects.Asteroid;
 import spacesettlers.objects.Base;
@@ -19,13 +16,27 @@ import java.util.stream.Collectors;
 
 public abstract class Plan {
     private int nextStep = 0;
+    private Position initialShipPosition;
+    private static final int N_DISTANCES = 10;
+    private static final int N_ANGLES = 11;
+    private Set<CircleGraphics> searchGraphGraphics = new HashSet<>();
     List<Position> steps;
     Ship ship;
     AbstractObject goal;
     Toroidal2DPhysics space;
 
+    Plan(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
+        this.ship = ship;
+        this.goal = goal;
+        this.space = space;
+        this.initialShipPosition = ship.getPosition();
+
+        Graph<Node> searchGraph = createSearchGraph();
+        steps = search(searchGraph);
+    }
+
     public Position getStep() {
-        if (steps == null) {
+        if (steps == null || nextStep >= steps.size()) {
             return null;
         }
         return steps.get(nextStep);
@@ -39,13 +50,12 @@ public abstract class Plan {
     }
 
     public boolean isDone() {
-        return steps == null || steps.size() <= nextStep;
+        return getStep() == null;
     }
 
-    Graph<Node> createSearchGraph() {
-        Position shipPosition = ship.getPosition();
-        Position goalPosition = JakeTeamClient.interceptPosition(space, goal.getPosition(), shipPosition);
-        Node root = new Node(shipPosition, 0, heuristicCostEstimate(shipPosition, goalPosition));
+    private Graph<Node> createSearchGraph() {
+        Position goalPosition = JakeTeamClient.interceptPosition(space, goal.getPosition(), initialShipPosition);
+        Node root = new Node(initialShipPosition, 0, heuristicCostEstimate(initialShipPosition, goalPosition));
         Node goal = new Node(goalPosition);
 
         Set<Node> nodes = new HashSet<>();
@@ -56,13 +66,15 @@ public abstract class Plan {
 
         Set<AbstractObject> obstructions = obstructions();
 
-        int nAngles = 11, nDistances = 10;
-        for (int angleDiv = nAngles / -2; angleDiv < nAngles - 5; angleDiv++) {
-            double angleDiff = angleDiv * Math.PI / (nAngles - 1);
-            for (int distanceDiv = 1; distanceDiv <= nDistances; distanceDiv++) {
+        // loop over n different angles from -180 degrees to 180 degrees
+        // where 0 degrees is the angle from the ship to the target
+        // and n distances from
+        for (int angleDiv = N_ANGLES / -2; angleDiv < N_ANGLES - 5; angleDiv++) {
+            double angleDiff = angleDiv * Math.PI / (N_ANGLES - 1);
+            for (int distanceDiv = 1; distanceDiv <= N_DISTANCES; distanceDiv++) {
                 Vector2D goalVector = space.findShortestDistanceVector(root.getPosition(), goalPosition);
                 double totalDistance = goalVector.getMagnitude();
-                double distance = distanceDiv * totalDistance / nDistances;
+                double distance = distanceDiv * totalDistance / N_DISTANCES;
 
                 double angle = goalVector.getAngle() + angleDiff;
                 Vector2D rootVector = new Vector2D(root.getPosition());
@@ -89,12 +101,20 @@ public abstract class Plan {
         for (Node node1 : nodes) {
             HashSet<Node> neighbors = new HashSet<>();
             for (Node node2 : nodes) {
-                if (node1 != node2 && space.isPathClearOfObstructions(node1.getPosition(), node2.getPosition(), obstructions, ship.getRadius())) {
+                // only connect nodes if they are not equal, the path is clear between them,
+                // and they are a short distance apart
+                double shortDistance = space.findShortestDistance(initialShipPosition, goalPosition) / (N_DISTANCES / 2);
+                if (node1 != node2
+                        && space.isPathClearOfObstructions(node1.getPosition(),
+                        node2.getPosition(), obstructions, ship.getRadius())
+                        && space.findShortestDistance(node1.getPosition(), node2.getPosition()) < shortDistance) {
                     neighbors.add(node2);
                 }
             }
             edges.put(node1, neighbors);
         }
+
+        nodes.forEach(node -> searchGraphGraphics.add(new CircleGraphics(2, Color.GRAY, node.getPosition())));
 
         return new Graph<>(nodes, edges);
     }
@@ -167,6 +187,7 @@ public abstract class Plan {
             previous = step;
         }
 
+        results.addAll(searchGraphGraphics);
         return results;
     }
 

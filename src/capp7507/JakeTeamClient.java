@@ -27,7 +27,7 @@ import java.util.*;
 public class JakeTeamClient extends TeamClient {
     private static final boolean DEBUG = true;
     private static final double RANDOM_SHOOT_THRESHOLD = 0.35;
-	private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
+    private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
     private static final int SHIP_MAX_RESOURCES = 5000;
     private static final int MAX_ASTEROID_MASS = 2318;
     private static final int MIN_ASTEROID_MASS = 2000;
@@ -46,14 +46,14 @@ public class JakeTeamClient extends TeamClient {
     private Map<UUID, Plan> plans = new HashMap<>();
     private Set<UUID> shieldedShips = new HashSet<>();
 
-	/**
-	 * Called before movement begins. Fill a HashMap with actions depending on the bestValue
-	 *
-	 * @param space physics
-	 * @param actionableObjects objects that can perform an action
-	 * @return HashMap of actions to take per object id
-	 */
-	@Override
+    /**
+     * Called before movement begins. Fill a HashMap with actions depending on the bestValue
+     *
+     * @param space physics
+     * @param actionableObjects objects that can perform an action
+     * @return HashMap of actions to take per object id
+     */
+    @Override
     public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space,
                                                       Set<AbstractActionableObject> actionableObjects) {
         HashMap<UUID, AbstractAction> actions = new HashMap<>();
@@ -74,22 +74,31 @@ public class JakeTeamClient extends TeamClient {
                     shieldedShips.remove(ship.getId());
                 }
 
-                if (currentPlan == null || currentPlan.isDone()) {
+                // Make a new plan if currentPlan is null or done or there's an object in the way
+                if (currentPlan == null
+                        || currentPlan.isDone()
+                        || pathBlocked(space, ship, currentPlan.getStep())) {
                     AbstractObject nextGoalObject = bestValue(space, ship, space.getAllObjects());
                     currentPlan = AStar.forObject(nextGoalObject, ship, space);
                     plans.put(ship.getId(), currentPlan);
                 }
+                graphics.addAll(currentPlan.getGraphics());
 
                 Position currentStep = currentPlan.getStep();
-                int closeEnough = ship.getRadius() * 2;
-                if (currentStep != null && space.findShortestDistance(shipPos, currentStep) > closeEnough) {
-                    graphics.addAll(currentPlan.getGraphics());
-                    actions.put(ship.getId(), getMoveAction(space, shipPos, currentStep));
+                if (currentStep == null) {
+                    System.out.println(space.getCurrentTimestep()
+                            + ": The search failed - guess we better give up for this time step");
+                    actions.put(ship.getId(), new DoNothingAction());
                     continue;
                 }
+
                 MoveAction action = getMoveAction(space, shipPos, currentStep);
-                currentPlan.completeStep();
                 actions.put(ship.getId(), action);
+
+                int closeEnough = ship.getRadius() * 2;
+                if (space.findShortestDistance(shipPos, currentStep) < closeEnough) {
+                    currentPlan.completeStep();
+                }
             } else if (actionable instanceof Base) {
                 Base base = (Base) actionable;
                 actions.put(base.getId(), new DoNothingAction());
@@ -99,19 +108,24 @@ public class JakeTeamClient extends TeamClient {
         return actions;
     }
 
+    private boolean pathBlocked(Toroidal2DPhysics space, Ship ship, Position stepPosition) {
+        return !space.isPathClearOfObstructions(ship.getPosition(), stepPosition,
+                getObstructions(space, ship), ship.getRadius());
+    }
+
     /**
-	 * Determine the best object to navigate towards based on highest score.
-	 * Scored on:
-	 * - Distance: Distance between target (which is closest?)
-	 * - Ships resources/energy: Cargo value and energy value to choose between bases/beacons
-	 * - Asteroids: Asteroid mass and which has the highest scoring neighbors
-	 * - Obstacles: Score is halved if there are obstacles between it and target
-	 *
-	 * @param space physics
-	 * @param ship current ship
-	 * @param objects from which we determine which object to head to
-	 * @return best object based on our heuristics (highest total score)
-	 */
+     * Determine the best object to navigate towards based on highest score.
+     * Scored on:
+     * - Distance: Distance between target (which is closest?)
+     * - Ships resources/energy: Cargo value and energy value to choose between bases/beacons
+     * - Asteroids: Asteroid mass and which has the highest scoring neighbors
+     * - Obstacles: Score is halved if there are obstacles between it and target
+     *
+     * @param space physics
+     * @param ship current ship
+     * @param objects from which we determine which object to head to
+     * @return best object based on our heuristics (highest total score)
+     */
     private AbstractObject bestValue(Toroidal2DPhysics space, Ship ship,
                                      Collection<AbstractObject> objects) {
         Map<UUID, Double> scores = new HashMap<>();
@@ -176,24 +190,20 @@ public class JakeTeamClient extends TeamClient {
      * @return An action to get the ship to the target's location
      */
     private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target) {
-        Position adjustedTargetPosition = interceptPosition(space, target, currentPosition);
-
-        // aim to be going the target speed and at the most direct angle
-        double goalAngle = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition).getAngle();
+        double goalAngle = space.findShortestDistanceVector(currentPosition, target).getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, TARGET_SHIP_SPEED);
-//        System.out.println(currentPosition + " " + adjustedTargetPosition + " " + goalVelocity);
-        return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
+        return new MoveAction(space, currentPosition, target, goalVelocity);
     }
 
-	/**
-	 * Remove inconsistent objects from our space if died or if objects were removed
-	 *
-	 * @param space physics
-	 * @param actionableObjects current actionable objects we are working with
-	 */
-	@Override
+    /**
+     * Remove inconsistent objects from our space if died or if objects were removed
+     *
+     * @param space             physics
+     * @param actionableObjects current actionable objects we are working with
+     */
+    @Override
     public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
-	    Map<UUID, UUID> targets = new HashMap<>();
+        Map<UUID, UUID> targets = new HashMap<>();
 
         for (Map.Entry<UUID, Plan> entry : plans.entrySet()) {
             UUID shipId = entry.getKey();
@@ -218,8 +228,8 @@ public class JakeTeamClient extends TeamClient {
      * Converts from a linear scale from x1 to x2 to linear scale from y1 to y2
      * For example, if the first linear scale is from 0 to 1, and the linear scale is 1 to 90,
      * then an input will be converted from the first linear scale to the second linear scale (adhering to the original ratio)
-	 *
-	 * For example first range is (0.1 to 0.6), and second range is (0.7 to 1.2).
+     *
+     * For example first range is (0.1 to 0.6), and second range is (0.7 to 1.2).
      * Input of 0.3 will return 0.9, the ratio of the input between the first range, normalized to the second range
      *
      * @param oldMin Original Linear scale start
@@ -394,14 +404,14 @@ public class JakeTeamClient extends TeamClient {
         return linearNormalize(0, SHIP_MAX_RESOURCES, SHIP_CARGO_VALUE_WEIGHT, total);
     }
 
-	/**
-	 * Continually add scores to a map based on best neighborhood score
-	 *
-	 * @param space physics
-	 * @param scores scores map to fill
-	 * @param object object to compare neighbors
-	 * @return the best neighbor score for the given object
-	 */
+    /**
+     * Continually add scores to a map based on best neighborhood score
+     *
+     * @param space physics
+     * @param scores scores map to fill
+     * @param object object to compare neighbors
+     * @return the best neighbor score for the given object
+     */
     private double neighborScores(Toroidal2DPhysics space, Map<UUID, Double> scores, AbstractObject object) {
         double total = 0;
         for (UUID uuid : scores.keySet()) {
