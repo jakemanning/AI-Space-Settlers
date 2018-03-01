@@ -94,6 +94,9 @@ public class JakeTeamClient extends TeamClient {
                 }
 
                 Position nextStep = currentPlan.getNextStep();
+                if(currentPlan.currentStepIsGoal()) {
+                    nextStep = interceptPosition(space, currentPlan.getGoal().getPosition(), ship.getPosition());
+                }
                 MoveAction action = getMoveAction(space, shipPos, currentStep, nextStep);
                 action.setKvRotational(4);
                 action.setKpRotational(4);
@@ -204,8 +207,9 @@ public class JakeTeamClient extends TeamClient {
         } else {
             Vector2D nextTargetVector = space.findShortestDistanceVector(target, nextStep);
             double nextGoalAngle = Math.abs(targetVector.getAngle() - nextTargetVector.getAngle());
-            magnitude = linearNormalizeInverse(0.0, Math.PI, 35, 60, nextGoalAngle);
+            magnitude = linearNormalizeInverse(0.0, Math.PI, 15, TARGET_SHIP_SPEED, nextGoalAngle);
         }
+
 
         double goalAngle = targetVector.getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, magnitude);
@@ -241,6 +245,19 @@ public class JakeTeamClient extends TeamClient {
         }
     }
 
+    /*
+     *
+     * @param oldMin Original Linear scale start
+     * @param oldMax Original scale end
+     * @param newMin New linear scale start
+     * @param newMax New linear scale end
+     * @param input  What we want to convert
+     * @return Linearly scaled integer from old range to new range
+     */
+    private static double linearNormalizeInverse(double oldMin, double oldMax, double newMin, double newMax, double input) {
+        return newMax - linearNormalize(oldMin, oldMax, newMin, newMax, input) + newMin;
+    }
+
     /**
      * Converts from a linear scale from x1 to x2 to linear scale from y1 to y2
      * For example, if the first linear scale is from 0 to 1, and the linear scale is 1 to 90,
@@ -270,19 +287,6 @@ public class JakeTeamClient extends TeamClient {
             double newRange = newMax - newMin;
             return (((input - oldMin) * newRange) / oldRange) + newMin;
         }
-    }
-
-    /*
-     *
-     * @param oldMin Original Linear scale start
-     * @param oldMax Original scale end
-     * @param newMin New linear scale start
-     * @param newMax New linear scale end
-     * @param input  What we want to convert
-     * @return Linearly scaled integer from old range to new range
-     */
-    private static double linearNormalizeInverse(double oldMin, double oldMax, double newMin, double newMax, double input) {
-        return newMax - linearNormalize(oldMin, oldMax, newMin, newMax, input);
     }
 
     /**
