@@ -79,7 +79,12 @@ public class JakeTeamClient extends TeamClient {
                         || currentPlan.isDone()
                         || pathBlocked(space, ship, currentPlan.getStep())
                         || pathBlocked(space, ship, currentPlan.getNextStep())) {
-                    AbstractObject nextGoalObject = bestValue(space, ship, space.getAllObjects());
+                    AbstractObject oldGoal = currentPlan != null ? currentPlan.getGoal() : null;
+                    Set<AbstractObject> objectsToEvaluate = space.getAllObjects();
+                    if (oldGoal != null) {
+                        objectsToEvaluate.remove(oldGoal);
+                    }
+                    AbstractObject nextGoalObject = bestValue(space, ship, objectsToEvaluate);
                     currentPlan = AStar.forObject(nextGoalObject, ship, space);
                     plans.put(ship.getId(), currentPlan);
                 }
