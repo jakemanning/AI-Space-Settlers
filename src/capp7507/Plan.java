@@ -2,8 +2,6 @@ package capp7507;
 
 import spacesettlers.graphics.*;
 import spacesettlers.objects.AbstractObject;
-import spacesettlers.objects.Asteroid;
-import spacesettlers.objects.Base;
 import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
@@ -12,8 +10,10 @@ import spacesettlers.utilities.Vector2D;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
-import java.util.stream.Collectors;
 
+/**
+ * An abstract Plan, using a heuristic and routing algorithm to determine the best route from a ship to a goal.
+ */
 public abstract class Plan {
     private int nextStep = 0;
     private Position initialShipPosition;
@@ -32,6 +32,10 @@ public abstract class Plan {
         this.initialShipPosition = ship.getPosition();
     }
 
+    /**
+     * The current step of the plan
+     * @return the current step of the plan, null if the plan is finished (or search failed)
+     */
     public Position getStep() {
         if (steps == null || nextStep >= steps.size()) {
             return null;
@@ -39,6 +43,10 @@ public abstract class Plan {
         return steps.get(nextStep);
     }
 
+    /**
+     * The next step of the plan, if exists
+     * @return the next step of the plan, null if plan is finished (or search failed)
+     */
     public Position getNextStep() {
         if (steps == null || nextStep + 1 >= steps.size()) {
             return null;
@@ -46,6 +54,9 @@ public abstract class Plan {
         return steps.get(nextStep + 1);
     }
 
+    /**
+     * Increments the step counter once we have completed a step
+     */
     public void completeStep() {
         if (steps == null) {
             return;
@@ -53,10 +64,22 @@ public abstract class Plan {
         nextStep += 1;
     }
 
+    /**
+     * Whether or not we have completed our plan
+     * @return true if our plan is finished (or search failed)
+     */
     public boolean isDone() {
         return getStep() == null;
     }
 
+    /**
+     * Creates a search graph by fanning out multiple {@link Node} objects. We did this by calculating the distance
+     * from the ship to the goal, and chose {@value N_DISTANCES} as the number of points to divide this distance up by,
+     * forming a line of nodes. Next we created a semi-circle by replicating this line multiple times, choosing {@value N_ANGLES} angles.
+     * We connect all of the nodes only if there's no obstacle in the way, and only if the distance between them is smaller than
+     * half of our goal distance. Finally, we fill the {@link Graph} with these {@link Node}s iff there is no obstacle nearby.
+     * @return the completed {@link Graph}
+     */
     Graph<Node> createSearchGraph() {
         Position goalPosition = JakeTeamClient.interceptPosition(space, goal.getPosition(), initialShipPosition);
         Node root = new Node(initialShipPosition, 0, heuristicCostEstimate(initialShipPosition, goalPosition));
@@ -102,6 +125,7 @@ public abstract class Plan {
             candidates.add(goalPlusDiff);
         }
 
+        // determine whether there is an obstacle nearby for all positions
         for (Position position : candidates) {
             boolean isObstructionNear = false;
             for (AbstractObject obstruction : obstructions) {
@@ -118,6 +142,7 @@ public abstract class Plan {
             }
         }
 
+        // connect neighbors
         for (Node node1 : nodes) {
             HashSet<Node> neighbors = new HashSet<>();
             for (Node node2 : nodes) {
@@ -139,21 +164,12 @@ public abstract class Plan {
         return new Graph<>(nodes, edges, root, goal);
     }
 
+    /**
+     * The possible obstructions we need to worry about
+     * @return any {@link AbstractObject}'s we need to avoid
+     */
     private Set<AbstractObject> obstructions() {
-        Set<AbstractObject> obstructions = new HashSet<>();
-        Set<Ship> otherShips = space.getShips().stream()
-                .filter(ship -> !ship.getId().equals(this.ship.getId()))
-                .collect(Collectors.toSet());
-        Set<Asteroid> badAsteroids = space.getAsteroids().stream()
-                .filter(asteroid -> !asteroid.isMineable())
-                .collect(Collectors.toSet());
-        Set<Base> bases = space.getBases().stream()
-                .filter(base -> !base.getPosition().equalsLocationOnly(goal.getPosition()))
-                .collect(Collectors.toSet());
-        obstructions.addAll(otherShips);
-        obstructions.addAll(badAsteroids);
-        obstructions.addAll(bases);
-        return obstructions;
+        return JakeTeamClient.getObstructions(space, ship);
     }
 
     /**
@@ -164,6 +180,12 @@ public abstract class Plan {
      */
     abstract List<Position> search(Graph<Node> searchGraph);
 
+    /**
+     * An estimate of the cost to get from the start to end position
+     * @param start The beginning position
+     * @param end The ending position
+     * @return an estimate of the cost to get from start to end position, based on the {@link Plan}'s implementation
+     */
     abstract double heuristicCostEstimate(Position start, Position end);
 
     /**
@@ -183,6 +205,10 @@ public abstract class Plan {
         return path;
     }
 
+    /**
+     * For debugging purposes, graphics of our current plan gets drawn
+     * @return the set of graphics our plan created
+     */
     public Set<SpacewarGraphics> getGraphics() {
         Set<SpacewarGraphics> results = new HashSet<>();
         if (isDone()) {
@@ -211,11 +237,11 @@ public abstract class Plan {
         return results;
     }
 
+    /**
+     * Our goal to reach
+     * @return our target that we are trying to reach
+     */
     public AbstractObject getGoal() {
         return goal;
-    }
-
-    public boolean currentStepIsGoal() {
-        return !isDone() && getStep().equalsLocationOnly(goal.getPosition());
     }
 }

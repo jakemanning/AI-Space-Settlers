@@ -19,8 +19,8 @@ import java.util.*;
  * The ships use the bestValue function while keeping track of targets between
  * calls to getMovementStart. It assigns values based on distance from a ship to a target,
  * angle between ship and target, asteroid resources, energy value, obstructions. It also
- * factors in the target with the highest scoring neighbors around it. If an obstruction
- * is found between the ship and the target, then the ship attempts to avoid it.
+ * factors in the target with the highest scoring neighbors around it. The ships use
+ * A* algorithm to determine the best path to a given target, choosing a path with no obstacles in way.
  *
  * @author Jake Manning and Bryan Capps
  */
@@ -119,6 +119,13 @@ public class JakeTeamClient extends TeamClient {
         return actions;
     }
 
+    /**
+     * Determine if there is an obstacle in the way of the ship
+     * @param space physics
+     * @param ship The ship we are moving from
+     * @param stepPosition the target of our path
+     * @return true if an obstacle is in the way
+     */
     private boolean pathBlocked(Toroidal2DPhysics space, Ship ship, Position stepPosition) {
         return stepPosition != null && !space.isPathClearOfObstructions(ship.getPosition(), stepPosition,
                 getObstructions(space, ship), ship.getRadius());
@@ -193,12 +200,13 @@ public class JakeTeamClient extends TeamClient {
      * The ship and the target will collide even if the target is in motion at a constant rate.
      * This method uses {@link #interceptPosition(Toroidal2DPhysics, Position, Position)} to predict the
      * target's future location.
-     * The ship will be going a speed of {@value TARGET_SHIP_SPEED} units when it reaches the target.
+     * The ship will be going a speed of {@value TARGET_SHIP_SPEED} units by default when it reaches the target, depending on
+     * the angle it needs to turn to reach nextStep (slower if angle is larger), so it doesn't overshoot each target
      *
      * @param space physics
      * @param currentPosition The position of the ship at the starting time interval
      * @param target The target object the action should aim for
-     * @param nextStep
+     * @param nextStep the nextStep our plan contains
      * @return An action to get the ship to the target's location
      */
     private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target, Position nextStep) {
@@ -248,6 +256,11 @@ public class JakeTeamClient extends TeamClient {
     }
 
     /*
+     * Returns the inverse of linear normalization. Instead of scaling from newMin to newMax,
+     * our scale ends up being from newMin to newMax.
+     *
+     * For example first range is (0.1 to 0.6), and second range is (0.7 to 1.2).
+     * Input of 0.2 will return 1.1, the ratio of the input between the first range, normalized to the second range (inverse)
      *
      * @param oldMin Original Linear scale start
      * @param oldMax Original scale end
@@ -578,6 +591,14 @@ public class JakeTeamClient extends TeamClient {
         return powerupMap;
     }
 
+    /**
+     * Determine if a weapon is nearby
+     *
+     * @param space physics
+     * @param ship Ship to detect from
+     * @param objects All possible objects in space
+     * @return true if a weapon is within {@value AVOID_RADIUS} * ship's radius
+     */
     private boolean shouldShield(Toroidal2DPhysics space, Ship ship, Set<AbstractObject> objects) {
         if(!ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) {
             return false;
@@ -656,8 +677,8 @@ public class JakeTeamClient extends TeamClient {
      * @param ship Ship to use as a basis for determining enemy ships and bases
      * @return The set of obstructions
      */
-    private Set<AbstractObject> getObstructions(Toroidal2DPhysics space, Ship ship) {
-        Set<AbstractActionableObject> enemies = getEnemyTargets(space, getTeamName());
+    static Set<AbstractObject> getObstructions(Toroidal2DPhysics space, Ship ship) {
+        Set<AbstractActionableObject> enemies = getEnemyTargets(space, ship.getTeamName());
         Set<Asteroid> asteroids = getUnmineableAsteroids(space);
         Set<Ship> friendlyShips = getFriendlyShips(space, ship);
         Set<AbstractObject> obstacles = new HashSet<>();
@@ -673,7 +694,7 @@ public class JakeTeamClient extends TeamClient {
      * @param space physics
      * @return A set of all the unmineable asteroids
      */
-    private Set<Asteroid> getUnmineableAsteroids(Toroidal2DPhysics space) {
+    private static Set<Asteroid> getUnmineableAsteroids(Toroidal2DPhysics space) {
         Set<Asteroid> asteroids = new HashSet<>(space.getAsteroids());
         asteroids.removeAll(getMineableAsteroids(space));
         return asteroids;
@@ -684,7 +705,7 @@ public class JakeTeamClient extends TeamClient {
      * @param space physics
      * @return A set of all the mineable asteroids
      */
-    private Set<Asteroid> getMineableAsteroids(Toroidal2DPhysics space) {
+    private static Set<Asteroid> getMineableAsteroids(Toroidal2DPhysics space) {
         Set<Asteroid> results = new HashSet<>();
         for (Asteroid asteroid : space.getAsteroids()) {
             if (asteroid.isMineable()) {
@@ -700,7 +721,7 @@ public class JakeTeamClient extends TeamClient {
      * @param teamName The name of the team whose ships and bases are not enemy targets
      * @return all enemies
      */
-    private Set<AbstractActionableObject> getEnemyTargets(Toroidal2DPhysics space, String teamName) {
+    private static Set<AbstractActionableObject> getEnemyTargets(Toroidal2DPhysics space, String teamName) {
         Set<AbstractActionableObject> enemies = new HashSet<>();
         // get enemy ships
         for (Ship ship : space.getShips()) {
@@ -723,7 +744,7 @@ public class JakeTeamClient extends TeamClient {
      * @param ship The ship to use to get the ships on the same team
      * @return A set of all the ships on the same team as the given ship
      */
-    private Set<Ship> getFriendlyShips(Toroidal2DPhysics space, Ship ship) {
+    private static Set<Ship> getFriendlyShips(Toroidal2DPhysics space, Ship ship) {
         Set<Ship> results = new HashSet<>();
         for (Ship otherShip : space.getShips()) {
             // check that the team names match, but the ship IDs do not
