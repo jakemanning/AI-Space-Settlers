@@ -16,9 +16,7 @@ public class AStar extends Plan {
     private AStar(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
         super(goal, ship, space);
         Graph<Node> searchGraph = createSearchGraph();
-        Position shipPos = ship.getPosition();
-        Position goalPos = JakeTeamClient.interceptPosition(space, goal.getPosition(), shipPos);
-        steps = search(searchGraph, shipPos, goalPos);
+        steps = search(searchGraph);
     }
 
     /**
@@ -28,15 +26,14 @@ public class AStar extends Plan {
      *
      */
     @Override
-    List<Position> search(Graph<Node> searchGraph, Position start, Position goal) {
-        Node root = new Node(start, 0, heuristicCostEstimate(start, goal));
+    List<Position> search(Graph<Node> searchGraph) {
         PriorityQueue<Node> frontier = new PriorityQueue<>(Comparator.comparingDouble(Node::getCost));
-        frontier.add(root);
+        frontier.add(searchGraph.getStart());
 
         while(!frontier.isEmpty()) {
             Node node = frontier.poll();
             Position nodePosition = node.getPosition();
-            if(nodePosition.equalsLocationOnly(goal)) {
+            if(nodePosition.equalsLocationOnly(searchGraph.getEnd().getPosition())) {
                 return reconstructPath(node);
             }
 
@@ -56,7 +53,7 @@ public class AStar extends Plan {
                 if(tentativeGScore >= neighbor.getCurrentPathCost()) {
                     continue;
                 }
-                double distanceToGoal = heuristicCostEstimate(neighbor.getPosition(), goal);
+                double distanceToGoal = heuristicCostEstimate(neighbor.getPosition(), searchGraph.getEnd().getPosition());
                 neighbor.setPrevious(node);
                 neighbor.setCurrentPathCost(tentativeGScore);
                 neighbor.setDistanceToGoal(distanceToGoal);

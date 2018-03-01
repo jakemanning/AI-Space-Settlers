@@ -44,10 +44,6 @@
             <teamName>Jake</teamName>
             <configFile>jakeinit.xml</configFile>
         </HighLevelTeamConfig>
-        <HighLevelTeamConfig>
-            <teamName>Bryan</teamName>
-            <configFile>bryaninit.xml</configFile>
-		</HighLevelTeamConfig>
 	</variableTeams>
 
 </LadderConfig>

@@ -18,9 +18,7 @@ public class GBFS extends Plan {
     private GBFS(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
         super(goal, ship, space);
         Graph<Node> searchGraph = createSearchGraph();
-        Position shipPos = ship.getPosition();
-        Position goalPos = JakeTeamClient.interceptPosition(space, goal.getPosition(), shipPos);
-        steps = search(searchGraph, shipPos, goalPos);
+        steps = search(searchGraph);
     }
 
     /**
@@ -30,15 +28,14 @@ public class GBFS extends Plan {
      *
      */
     @Override
-    List<Position> search(Graph<Node> searchGraph, Position start, Position goal) {
-        Node root = new Node(start, 0, heuristicCostEstimate(start, goal));
+    List<Position> search(Graph<Node> searchGraph) {
         PriorityQueue<Node> frontier = new PriorityQueue<>(Comparator.comparingDouble(Node::getDistanceToGoal));
-        frontier.add(root);
+        frontier.add(searchGraph.getStart());
 
         while(!frontier.isEmpty()) {
             Node node = frontier.poll();
             Position nodePosition = node.getPosition();
-            if(nodePosition.equalsLocationOnly(goal)) {
+            if(nodePosition.equalsLocationOnly(searchGraph.getEnd().getPosition())) {
                 return reconstructPath(node);
             }
 
@@ -49,12 +46,12 @@ public class GBFS extends Plan {
                 }
 
                 if(!frontier.contains(neighbor)) {
+                    double distanceToGoal = heuristicCostEstimate(neighbor.getPosition(), searchGraph.getEnd().getPosition());
+                    neighbor.setDistanceToGoal(distanceToGoal);
                     frontier.add(neighbor);
                 }
 
-                double distanceToGoal = heuristicCostEstimate(neighbor.getPosition(), goal);
                 neighbor.setPrevious(node);
-                neighbor.setDistanceToGoal(distanceToGoal);
             }
         }
         return null; // failure (maybe we should getRadius a new target)

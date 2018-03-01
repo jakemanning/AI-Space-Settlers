@@ -21,8 +21,8 @@ public abstract class Plan {
     private static final int N_ANGLES = 11;
     private Set<CircleGraphics> searchGraphGraphics = new HashSet<>();
     List<Position> steps;
-    Ship ship;
-    AbstractObject goal;
+    private Ship ship;
+    private AbstractObject goal;
     Toroidal2DPhysics space;
 
     Plan(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
@@ -37,6 +37,13 @@ public abstract class Plan {
             return null;
         }
         return steps.get(nextStep);
+    }
+
+    public Position getNextStep() {
+        if (steps == null || nextStep + 1 >= steps.size()) {
+            return null;
+        }
+        return steps.get(nextStep + 1);
     }
 
     public void completeStep() {
@@ -113,7 +120,7 @@ public abstract class Plan {
 
         nodes.forEach(node -> searchGraphGraphics.add(new CircleGraphics(2, Color.GRAY, node.getPosition())));
 
-        return new Graph<>(nodes, edges);
+        return new Graph<>(nodes, edges, root, goal);
     }
 
     private Set<AbstractObject> obstructions() {
@@ -139,7 +146,7 @@ public abstract class Plan {
      * @param searchGraph The graph of positions to search through
      *
      */
-    abstract List<Position> search(Graph<Node> searchGraph, Position start, Position goal);
+    abstract List<Position> search(Graph<Node> searchGraph);
 
     abstract double heuristicCostEstimate(Position start, Position end);
 
@@ -190,5 +197,9 @@ public abstract class Plan {
 
     public AbstractObject getGoal() {
         return goal;
+    }
+
+    public boolean currentStepIsGoal() {
+        return !isDone() && getStep().equalsLocationOnly(goal.getPosition());
     }
 }

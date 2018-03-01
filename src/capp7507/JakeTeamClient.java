@@ -77,7 +77,8 @@ public class JakeTeamClient extends TeamClient {
                 // Make a new plan if currentPlan is null or done or there's an object in the way
                 if (currentPlan == null
                         || currentPlan.isDone()
-                        || pathBlocked(space, ship, currentPlan.getStep())) {
+                        || pathBlocked(space, ship, currentPlan.getStep())
+                        || pathBlocked(space, ship, currentPlan.getNextStep())) {
                     AbstractObject nextGoalObject = bestValue(space, ship, space.getAllObjects());
                     currentPlan = AStar.forObject(nextGoalObject, ship, space);
                     plans.put(ship.getId(), currentPlan);
@@ -92,7 +93,12 @@ public class JakeTeamClient extends TeamClient {
                     continue;
                 }
 
-                MoveAction action = getMoveAction(space, shipPos, currentStep);
+                Position nextStep = currentPlan.getNextStep();
+                MoveAction action = getMoveAction(space, shipPos, currentStep, nextStep);
+                action.setKvRotational(4);
+                action.setKpRotational(4);
+                action.setKvTranslational(2);
+                action.setKpTranslational(1);
                 actions.put(ship.getId(), action);
 
                 int closeEnough = ship.getRadius() * 2;
@@ -109,7 +115,7 @@ public class JakeTeamClient extends TeamClient {
     }
 
     private boolean pathBlocked(Toroidal2DPhysics space, Ship ship, Position stepPosition) {
-        return !space.isPathClearOfObstructions(ship.getPosition(), stepPosition,
+        return stepPosition != null && !space.isPathClearOfObstructions(ship.getPosition(), stepPosition,
                 getObstructions(space, ship), ship.getRadius());
     }
 
@@ -134,7 +140,7 @@ public class JakeTeamClient extends TeamClient {
             if (object instanceof Asteroid) {
                 Asteroid asteroid = (Asteroid) object;
                 if (asteroid.isMineable()) {
-                    value = linearNormalize(MIN_ASTEROID_MASS, MAX_ASTEROID_MASS, 1, asteroid.getMass());
+                    value = linearNormalize(MIN_ASTEROID_MASS, MAX_ASTEROID_MASS,0,  1, asteroid.getMass());
                 }
             } else if (object instanceof AbstractActionableObject) {
                 AbstractActionableObject actionableObject = (AbstractActionableObject) object;
@@ -187,11 +193,22 @@ public class JakeTeamClient extends TeamClient {
      * @param space physics
      * @param currentPosition The position of the ship at the starting time interval
      * @param target The target object the action should aim for
+     * @param nextStep
      * @return An action to get the ship to the target's location
      */
-    private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target) {
-        double goalAngle = space.findShortestDistanceVector(currentPosition, target).getAngle();
-        Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, TARGET_SHIP_SPEED);
+    private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target, Position nextStep) {
+        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, target);
+        double magnitude;
+        if(nextStep == null) {
+            magnitude = TARGET_SHIP_SPEED;
+        } else {
+            Vector2D nextTargetVector = space.findShortestDistanceVector(target, nextStep);
+            double nextGoalAngle = Math.abs(targetVector.getAngle() - nextTargetVector.getAngle());
+            magnitude = linearNormalizeInverse(0.0, Math.PI, 35, 60, nextGoalAngle);
+        }
+
+        double goalAngle = targetVector.getAngle();
+        Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, magnitude);
         return new MoveAction(space, currentPosition, target, goalVelocity);
     }
 
@@ -214,7 +231,7 @@ public class JakeTeamClient extends TeamClient {
             double distance = space.findShortestDistance(ship.getPosition(), goal.getPosition());
             int targetRadius = goal.getRadius();
             boolean closeEnough = distance < targetRadius * 3;
-            if (!goal.isAlive() || space.getObjectById(goal.getId()) == null || closeEnough) {
+            if (!goal.isAlive() || space.getObjectById(goal.getId()) == null || (closeEnough && goal instanceof Base)) {
                 targets.put(shipId, goal.getId());
             }
         }
@@ -234,11 +251,12 @@ public class JakeTeamClient extends TeamClient {
      *
      * @param oldMin Original Linear scale start
      * @param oldMax Original scale end
+     * @param newMin New linear scale start
      * @param newMax New linear scale end
      * @param input  What we want to convert
      * @return Linearly scaled integer from old range to new range
      */
-    private static double linearNormalize(double oldMin, double oldMax, double newMax, double input) {
+    private static double linearNormalize(double oldMin, double oldMax, double newMin, double newMax, double input) {
         if (input < oldMin) {
             input = oldMin;
         } else if (input > oldMax) {
@@ -247,11 +265,24 @@ public class JakeTeamClient extends TeamClient {
 
         double oldRange = oldMax - oldMin;
         if (oldRange == 0) {
-            return (double) 0;
+            return newMin;
         } else {
-            double newRange = newMax - (double) 0;
-            return (((input - oldMin) * newRange) / oldRange) + (double) 0;
+            double newRange = newMax - newMin;
+            return (((input - oldMin) * newRange) / oldRange) + newMin;
         }
+    }
+
+    /*
+     *
+     * @param oldMin Original Linear scale start
+     * @param oldMax Original scale end
+     * @param newMin New linear scale start
+     * @param newMax New linear scale end
+     * @param input  What we want to convert
+     * @return Linearly scaled integer from old range to new range
+     */
+    private static double linearNormalizeInverse(double oldMin, double oldMax, double newMin, double newMax, double input) {
+        return newMax - linearNormalize(oldMin, oldMax, newMin, newMax, input);
     }
 
     /**
@@ -347,8 +378,7 @@ public class JakeTeamClient extends TeamClient {
      */
     private double scaleDistance(Toroidal2DPhysics space, double rawDistance) {
         double maxDistance = maxDistance(space);
-        double scaledDistance = linearNormalize(0, maxDistance, 1, maxDistance - rawDistance);
-        return 1 - scaledDistance;
+        return linearNormalizeInverse(0, maxDistance, 0, 1, maxDistance - rawDistance);
     }
 
     /**
@@ -368,7 +398,7 @@ public class JakeTeamClient extends TeamClient {
         Vector2D targetDirection = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
         double targetAngle = targetDirection.getAngle();
         double angleDiff = Math.abs(currentAngle - targetAngle);
-        return linearNormalize(0, MAX_ANGLE, 1, angleDiff);
+        return linearNormalize(0, MAX_ANGLE, 0, 1, angleDiff);
     }
 
     /**
@@ -390,7 +420,7 @@ public class JakeTeamClient extends TeamClient {
      */
     private double energyValue(AbstractActionableObject ship) {
         double missingEnergy = ship.getMaxEnergy() - ship.getEnergy();
-        return linearNormalize(0, ship.getMaxEnergy(), SHIP_ENERGY_VALUE_WEIGHT, missingEnergy);
+        return linearNormalize(0, ship.getMaxEnergy(), 0, SHIP_ENERGY_VALUE_WEIGHT, missingEnergy);
     }
 
     /**
@@ -401,7 +431,7 @@ public class JakeTeamClient extends TeamClient {
      */
     private double cargoValue(Ship ship) {
         double total = ship.getResources().getTotal();
-        return linearNormalize(0, SHIP_MAX_RESOURCES, SHIP_CARGO_VALUE_WEIGHT, total);
+        return linearNormalize(0, SHIP_MAX_RESOURCES, 0, SHIP_CARGO_VALUE_WEIGHT, total);
     }
 
     /**

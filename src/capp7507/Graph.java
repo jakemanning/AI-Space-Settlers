@@ -6,10 +6,14 @@ import java.util.Set;
 public class Graph<T> {
     private final Set<T> nodes;
     private final Map<T, Set<T>> edges;
+    private final Node start;
+    private final Node end;
 
-    Graph(Set<T> nodes, Map<T, Set<T>> edges) {
+    Graph(Set<T> nodes, Map<T, Set<T>> edges, Node start, Node end) {
         this.nodes = nodes;
         this.edges = edges;
+        this.start = start;
+        this.end = end;
     }
 
     public Set<T> nodes() {
@@ -22,5 +26,13 @@ public class Graph<T> {
 
     public Set<T> adjacentNodes(T parent) {
         return edges.get(parent);
+    }
+
+    public Node getStart() {
+        return start;
+    }
+
+    public Node getEnd() {
+        return end;
     }
 }
