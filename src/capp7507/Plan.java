@@ -76,6 +76,7 @@ public abstract class Plan {
      * Creates a search graph by fanning out multiple {@link Node} objects. We did this by calculating the distance
      * from the ship to the goal, and chose {@value N_DISTANCES} as the number of points to divide this distance up by,
      * forming a line of nodes. Next we created a semi-circle by replicating this line multiple times, choosing {@value N_ANGLES} angles.
+     * There are also additional nodes placed around the target.
      * We connect all of the nodes only if there's no obstacle in the way, and only if the distance between them is smaller than
      * half of our goal distance. Finally, we fill the {@link Graph} with these {@link Node}s iff there is no obstacle nearby.
      * @return the completed {@link Graph}
