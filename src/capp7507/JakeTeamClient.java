@@ -236,7 +236,7 @@ public class JakeTeamClient extends TeamClient {
             double distance = space.findShortestDistance(ship.getPosition(), goal.getPosition());
             int targetRadius = goal.getRadius();
             boolean closeEnough = distance < targetRadius * 3;
-            if (!goal.isAlive() || space.getObjectById(goal.getId()) == null || (closeEnough && goal instanceof Base)) {
+            if (!goal.isAlive() || space.getObjectById(goal.getId()) == null) {
                 targets.put(shipId, goal.getId());
             }
         }
@@ -287,7 +287,7 @@ public class JakeTeamClient extends TeamClient {
      * @return Linearly scaled integer from old range to new range
      */
     private static double linearNormalizeInverse(double oldMin, double oldMax, double newMin, double newMax, double input) {
-        return newMax - linearNormalize(oldMin, oldMax, newMin, newMax, input);
+        return newMax - linearNormalize(oldMin, oldMax, newMin, newMax, input) + newMin;
     }
 
     /**

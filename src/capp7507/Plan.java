@@ -70,6 +70,8 @@ public abstract class Plan {
 
         Set<AbstractObject> obstructions = obstructions();
 
+        Set<Position> candidates = new HashSet<>();
+
         // loop over n different angles from -180 degrees to 180 degrees
         // where 0 degrees is the angle from the ship to the target
         // and n distances from
@@ -84,30 +86,44 @@ public abstract class Plan {
                 Vector2D rootVector = new Vector2D(root.getPosition());
                 Vector2D positionVector = rootVector.add(Vector2D.fromAngle(angle, distance));
                 Position position = new Position(positionVector);
-
-                boolean isObstructionNear = false;
-                for(AbstractObject obstruction : obstructions) {
-                    double obstructionDistance = space.findShortestDistance(position, obstruction.getPosition());
-                    if(obstructionDistance <= ship.getRadius() * 2) {
-                        isObstructionNear = true;
-                        break;
-                    }
-                }
-
-                if(!isObstructionNear) {
-                    Node node = new Node(position);
-                    nodes.add(node);
-                }
+                candidates.add(position);
             }
         }
 
+        // add a few more nodes around the goal
+        int nNodesAroundGoal = N_ANGLES * 2;
+        for (int i = 0; i < nNodesAroundGoal; i++) {
+            double angleDiff = 2 * i * Math.PI / nNodesAroundGoal;
+            double magnitude = space.findShortestDistance(initialShipPosition, goalPosition) / N_DISTANCES;
+            Vector2D diff = Vector2D.fromAngle(angleDiff, magnitude);
+            Vector2D goalVector = new Vector2D(goalPosition);
+            Vector2D goalPlusDiffVector = goalVector.add(diff);
+            Position goalPlusDiff = new Position(goalPlusDiffVector);
+            candidates.add(goalPlusDiff);
+        }
+
+        for (Position position : candidates) {
+            boolean isObstructionNear = false;
+            for (AbstractObject obstruction : obstructions) {
+                double obstructionDistance = space.findShortestDistance(position, obstruction.getPosition());
+                if (obstructionDistance <= ship.getRadius() * 2) {
+                    isObstructionNear = true;
+                    break;
+                }
+            }
+
+            if (!isObstructionNear) {
+                Node node = new Node(position);
+                nodes.add(node);
+            }
+        }
 
         for (Node node1 : nodes) {
             HashSet<Node> neighbors = new HashSet<>();
             for (Node node2 : nodes) {
                 // only connect nodes if they are not equal, the path is clear between them,
                 // and they are a short distance apart
-                double shortDistance = space.findShortestDistance(initialShipPosition, goalPosition) / (N_DISTANCES / 2);
+                double shortDistance = space.findShortestDistance(initialShipPosition, goalPosition) / 2;
                 if (node1 != node2
                         && space.isPathClearOfObstructions(node1.getPosition(),
                         node2.getPosition(), obstructions, ship.getRadius())
