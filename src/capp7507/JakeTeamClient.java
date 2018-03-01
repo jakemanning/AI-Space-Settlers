@@ -282,7 +282,7 @@ public class JakeTeamClient extends TeamClient {
      * @return Linearly scaled integer from old range to new range
      */
     private static double linearNormalizeInverse(double oldMin, double oldMax, double newMin, double newMax, double input) {
-        return newMax - linearNormalize(oldMin, oldMax, newMin, newMax, input);
+        return newMax - linearNormalize(oldMin, oldMax, newMin, newMax, input) + newMin;
     }
 
     /**
