@@ -5,7 +5,9 @@ import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
+import java.util.PriorityQueue;
 
 public class AStar extends Plan {
 
@@ -21,9 +23,17 @@ public class AStar extends Plan {
 
     /**
      * A* search returns null for failure otherwise a list of positions to travel through
+     * Similar to GBFS except it considers the cost of the path to reach a node.
+     * Adds all neighbor nodes to a priority queue ordered by their f(n) values starting
+     * with the root and continuing with nodes popped off the queue until the goal node is found.
+     * The value of g(n) can change and cause a node in the priority queue to be replaced.
+     *
+     *
+     * f(n) = g(n) + h(n)
+     * @see #heuristicCostEstimate(Position, Position) for h(n)
      *
      * @param searchGraph The graph of positions to search through
-     *
+     * @return A list of positions to travel through to reach the target
      */
     @Override
     List<Position> search(Graph<Node> searchGraph) {

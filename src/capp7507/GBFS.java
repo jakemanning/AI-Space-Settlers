@@ -22,10 +22,16 @@ public class GBFS extends Plan {
     }
 
     /**
-     * A* search returns null for failure otherwise a list of positions to travel through
+     * GBFS search returns null for failure otherwise a list of positions to travel through
+     * Similar to A* except it does not consider the cost of the path to reach a node.
+     * Adds all neighbor nodes to a priority queue starting with the root and continuing
+     * with nodes popped off the queue until the goal node is found
+     *
+     * f(n) = h(n)
+     * @see #heuristicCostEstimate(Position, Position) for h(n)
      *
      * @param searchGraph The graph of positions to search through
-     *
+     * @return A list of positions to travel through to reach the target
      */
     @Override
     List<Position> search(Graph<Node> searchGraph) {
