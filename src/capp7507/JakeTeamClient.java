@@ -82,12 +82,11 @@ public class JakeTeamClient extends TeamClient {
                 MoveAction action;
                 if (obstruction != null) {
                     action = avoidCrashAction(space, obstruction, target, ship);
-                    graphicsUtil.addObstaclePreset(ship.getId(), GraphicsUtil.Preset.CIRCLE, obstruction.getPosition());
+                    graphicsUtil.addObstaclePreset(ship.getId(), GraphicsUtil.Preset.YELLOW_CIRCLE, obstruction.getPosition());
                 } else {
                     graphicsUtil.removeObstacle(ship.getId());
                     action = getMoveAction(space, shipPos, target.getPosition());
                 }
-                improveSteering(action);
                 actions.put(ship.getId(), action);
             } else if (actionable instanceof Base) {
                 Base base = (Base) actionable;
@@ -176,13 +175,17 @@ public class JakeTeamClient extends TeamClient {
      * @return An action to get the ship to the target's location
      */
     private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target) {
-        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, target);
+        // FIXME BRYAN JAKE DON'T WANNA
+        Position adjustedTargetPosition = interceptPosition(space, target, currentPosition);
+        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
         double nextGoalAngle = Math.abs(targetVector.getAngle());
         double magnitude = linearNormalizeInverse(0.0, Math.PI, 15, TARGET_SHIP_SPEED, nextGoalAngle);
 
         double goalAngle = targetVector.getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, magnitude);
-        return new MoveAction(space, currentPosition, target, goalVelocity);
+        graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, target);
+        graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, adjustedTargetPosition);
+        return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
     }
 
     private AvoidAction avoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, AbstractObject target, Ship ship) {
@@ -202,7 +205,7 @@ public class JakeTeamClient extends TeamClient {
         Vector2D newTargetVector = currentVector.add(avoidanceVector);
         Position newTarget = new Position(newTargetVector);
 
-        graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.CIRCLE, obstacle.getPosition());
+        graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.YELLOW_CIRCLE, obstacle.getPosition());
         Vector2D distanceVector = space.findShortestDistanceVector(currentPosition, newTarget);
         distanceVector = distanceVector.multiply(3);
         return new AvoidAction(space, currentPosition, newTarget, distanceVector);
@@ -221,7 +224,11 @@ public class JakeTeamClient extends TeamClient {
         for (Map.Entry<UUID, UUID> entry : currentTargets.entrySet()) {
             UUID shipId = entry.getKey();
             AbstractObject target = space.getObjectById(entry.getValue());
-            if (!target.isAlive() || space.getObjectById(target.getId()) == null) {
+            AbstractObject ship = space.getObjectById(shipId);
+            double distance = space.findShortestDistance(ship.getPosition(), target.getPosition());
+            int targetRadius = target.getRadius();
+            boolean closeEnough = distance < targetRadius * 3;
+            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
                 targets.add(shipId);
             }
         }
@@ -448,13 +455,6 @@ public class JakeTeamClient extends TeamClient {
         }
         // Ensure score is differentiated between neighbors and object (otherwise all neighbors would have same score)
         return total / 2;
-    }
-
-    private void improveSteering(MoveAction action) {
-        action.setKvRotational(4);
-        action.setKpRotational(4);
-        action.setKvTranslational(2);
-        action.setKpTranslational(1);
     }
     // endregion
 
@@ -693,6 +693,10 @@ public class JakeTeamClient extends TeamClient {
 
         // Loop through obstructions
         for (AbstractObject obstruction : obstructions) {
+            // Ignore obstruction if is our target
+            if(obstruction.getPosition().equalsLocationOnly(goalPosition)) {
+                continue;
+            }
             // If the distance to the obstruction is greater than the distance to the end goal, ignore the obstruction
             Position interceptPosition = interceptPosition(space, obstruction.getPosition(), startPosition);
             pathToObstruction = space.findShortestDistanceVector(startPosition, interceptPosition);
@@ -734,10 +738,12 @@ public class JakeTeamClient extends TeamClient {
         Set<AbstractActionableObject> enemies = getEnemyTargets(space, ship.getTeamName());
         Set<Asteroid> asteroids = getUnmineableAsteroids(space);
         Set<Ship> friendlyShips = getFriendlyShips(space, ship);
+        Set<Base> bases = new HashSet<>(space.getBases());
         Set<AbstractObject> obstacles = new HashSet<>();
         obstacles.addAll(enemies);
         obstacles.addAll(asteroids);
         obstacles.addAll(friendlyShips);
+        obstacles.addAll(bases);
         return obstacles;
     }
 

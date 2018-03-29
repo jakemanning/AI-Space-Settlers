@@ -9,9 +9,8 @@ import java.awt.*;
 import java.util.*;
 
 public class GraphicsUtil {
-    private static final Color OBSTACLE_COLOR = Color.YELLOW;
     private static final int CIRCLE_RADIUS = 2;
-    private static final int TARGET_RADIUS = 6;
+    private static final int TARGET_RADIUS = 10;
     private final boolean DEBUG;
     private Set<SpacewarGraphics> graphics;
     private Map<UUID, SpacewarGraphics> targetGraphics;
@@ -76,8 +75,10 @@ public class GraphicsUtil {
     private SpacewarGraphics getPreset(Preset preset, Position position) {
         if(preset == Preset.TARGET) {
             return targetGraphic(position);
+        } else if (preset == Preset.YELLOW_CIRCLE) {
+            return yellowCircleGraphic(position);
         } else {
-            return circleGraphic(position);
+            return redCircleGraphic(position);
         }
     }
 
@@ -85,12 +86,16 @@ public class GraphicsUtil {
         return new TargetGraphics(TARGET_RADIUS, position);
     }
 
-    private CircleGraphics circleGraphic(Position position) {
-        return new CircleGraphics(CIRCLE_RADIUS, OBSTACLE_COLOR, position);
+    private CircleGraphics yellowCircleGraphic(Position position) {
+        return new CircleGraphics(CIRCLE_RADIUS, Color.YELLOW, position);
+    }
+
+    private CircleGraphics redCircleGraphic(Position position) {
+        return new CircleGraphics(CIRCLE_RADIUS, Color.RED, position);
     }
 
     public enum Preset {
-        TARGET, CIRCLE
+        TARGET, YELLOW_CIRCLE, RED_CIRCLE
     }
     // endregion
 }
