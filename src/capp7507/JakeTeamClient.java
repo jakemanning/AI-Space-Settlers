@@ -26,6 +26,7 @@ import java.util.*;
  */
 public class JakeTeamClient extends TeamClient {
     private static final boolean DEBUG = true;
+    private static final double COLLISION_AVOIDANCE_ANGLE = Math.PI / 2;
     private static final double RANDOM_SHOOT_THRESHOLD = 0.35;
     private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
     private static final int SHIP_MAX_RESOURCES = 5000;
@@ -40,11 +41,12 @@ public class JakeTeamClient extends TeamClient {
     private static final int NEIGHBORHOOD_RADIUS = 100;
     private static final int AVOID_RADIUS = 3;
     private static final double MAX_SHOT_ANGLE = Math.PI / 12;
+    private static final int MAX_OBSTRUCTION_DETECTION = 100;
     private static final double GAME_IS_ENDING_FACTOR = 0.98;
     private static final int MAX_SHOT_DISTANCE = 100;
-    protected Set<SpacewarGraphics> graphics;
-    private Map<UUID, Plan> plans = new HashMap<>();
-    private Set<UUID> shieldedShips = new HashSet<>();
+    private Map<UUID, UUID> currentTargets = new HashMap<>();
+    private Set<UUID> shieldedObjects = new HashSet<>();
+    private GraphicsUtil graphicsUtil;
 
     /**
      * Called before movement begins. Fill a HashMap with actions depending on the bestValue
@@ -59,57 +61,34 @@ public class JakeTeamClient extends TeamClient {
         HashMap<UUID, AbstractAction> actions = new HashMap<>();
 
         for (AbstractActionableObject actionable :  actionableObjects) {
+            shieldIfNeeded(space, actionable);
 
             Position shipPos = actionable.getPosition();
-            Plan currentPlan = plans.get(actionable.getId());
 
             if (actionable instanceof Ship) {
                 Ship ship = (Ship) actionable;
-                Set<AbstractObject> allObjects = space.getAllObjects();
+                graphicsUtil.loadGraphicsFor(ship.getId());
 
-                // TODO: Eventually make bases be able to shield
-                if(shouldShield(space, ship, allObjects)) {
-                    shieldedShips.add(ship.getId());
-                } else if(ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) {
-                    shieldedShips.remove(ship.getId());
+                AbstractObject target = space.getObjectById(currentTargets.get(ship.getId()));
+                if(target == null || !target.isAlive()) {
+                    target = bestValue(space, ship, space.getAllObjects());
+                    currentTargets.put(ship.getId(), target.getId());
                 }
-
-                // Make a new plan if currentPlan is null or done or there's an object in the way
-                if (currentPlan == null
-                        || currentPlan.isDone()
-                        || pathBlocked(space, ship, currentPlan.getStep())
-                        || pathBlocked(space, ship, currentPlan.getNextStep())) {
-                    AbstractObject oldGoal = currentPlan != null ? currentPlan.getGoal() : null;
-                    Set<AbstractObject> objectsToEvaluate = space.getAllObjects();
-                    if (oldGoal != null) {
-                        objectsToEvaluate.remove(oldGoal);
-                    }
-                    AbstractObject nextGoalObject = bestValue(space, ship, objectsToEvaluate);
-                    currentPlan = AStar.forObject(nextGoalObject, ship, space);
-                    plans.put(ship.getId(), currentPlan);
+                Position targetPos = target.getPosition();
+                graphicsUtil.addTargetPreset(ship.getId(), GraphicsUtil.Preset.TARGET, targetPos);
+                Set<AbstractObject> obstructions = getObstructions(space, ship);
+                int shipRadius = ship.getRadius();
+                AbstractObject obstruction = obstructionInPath(space, shipPos, targetPos, obstructions, shipRadius);
+                MoveAction action;
+                if (obstruction != null) {
+                    action = avoidCrashAction(space, obstruction, target, ship);
+                    graphicsUtil.addObstaclePreset(ship.getId(), GraphicsUtil.Preset.CIRCLE, obstruction.getPosition());
+                } else {
+                    graphicsUtil.removeObstacle(ship.getId());
+                    action = getMoveAction(space, shipPos, target.getPosition());
                 }
-                graphics.addAll(currentPlan.getGraphics());
-
-                Position currentStep = currentPlan.getStep();
-                if (currentStep == null) {
-                    System.out.println(space.getCurrentTimestep()
-                            + ": The search failed - guess we better give up for this time step");
-                    actions.put(ship.getId(), new DoNothingAction());
-                    continue;
-                }
-
-                Position nextStep = currentPlan.getNextStep();
-                MoveAction action = getMoveAction(space, shipPos, currentStep, nextStep);
-                action.setKvRotational(4);
-                action.setKpRotational(4);
-                action.setKvTranslational(2);
-                action.setKpTranslational(1);
+                improveSteering(action);
                 actions.put(ship.getId(), action);
-
-                int closeEnough = ship.getRadius() * 2;
-                if (space.findShortestDistance(shipPos, currentStep) < closeEnough) {
-                    currentPlan.completeStep();
-                }
             } else if (actionable instanceof Base) {
                 Base base = (Base) actionable;
                 actions.put(base.getId(), new DoNothingAction());
@@ -117,18 +96,6 @@ public class JakeTeamClient extends TeamClient {
         }
 
         return actions;
-    }
-
-    /**
-     * Determine if there is an obstacle in the way of the ship
-     * @param space physics
-     * @param ship The ship we are moving from
-     * @param stepPosition the target of our path
-     * @return true if an obstacle is in the way
-     */
-    private boolean pathBlocked(Toroidal2DPhysics space, Ship ship, Position stepPosition) {
-        return stepPosition != null && !space.isPathClearOfObstructions(ship.getPosition(), stepPosition,
-                getObstructions(space, ship), ship.getRadius());
     }
 
     /**
@@ -206,24 +173,39 @@ public class JakeTeamClient extends TeamClient {
      * @param space physics
      * @param currentPosition The position of the ship at the starting time interval
      * @param target The target object the action should aim for
-     * @param nextStep the nextStep our plan contains
      * @return An action to get the ship to the target's location
      */
-    private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target, Position nextStep) {
+    private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target) {
         Vector2D targetVector = space.findShortestDistanceVector(currentPosition, target);
-        double magnitude;
-        if(nextStep == null) {
-            magnitude = TARGET_SHIP_SPEED;
-        } else {
-            Vector2D nextTargetVector = space.findShortestDistanceVector(target, nextStep);
-            double nextGoalAngle = Math.abs(targetVector.getAngle() - nextTargetVector.getAngle());
-            magnitude = linearNormalizeInverse(0.0, Math.PI, 15, TARGET_SHIP_SPEED, nextGoalAngle);
-        }
-
+        double nextGoalAngle = Math.abs(targetVector.getAngle());
+        double magnitude = linearNormalizeInverse(0.0, Math.PI, 15, TARGET_SHIP_SPEED, nextGoalAngle);
 
         double goalAngle = targetVector.getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, magnitude);
         return new MoveAction(space, currentPosition, target, goalVelocity);
+    }
+
+    private AvoidAction avoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, AbstractObject target, Ship ship) {
+        Position currentPosition = ship.getPosition();
+        Vector2D currentVector = new Vector2D(currentPosition);
+        Vector2D obstacleVector = space.findShortestDistanceVector(currentPosition, obstacle.getPosition());
+        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, target.getPosition());
+        double angleDifference = targetVector.angleBetween(obstacleVector);
+        double newAngle;
+        if (angleDifference < 0) {
+            newAngle = obstacleVector.getAngle() + COLLISION_AVOIDANCE_ANGLE;
+        } else {
+            newAngle = obstacleVector.getAngle() - COLLISION_AVOIDANCE_ANGLE;
+        }
+        int avoidanceMagnitude = obstacle.getRadius() + ship.getRadius();
+        Vector2D avoidanceVector = Vector2D.fromAngle(newAngle, avoidanceMagnitude); // A smaller angle works much better
+        Vector2D newTargetVector = currentVector.add(avoidanceVector);
+        Position newTarget = new Position(newTargetVector);
+
+        graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.CIRCLE, obstacle.getPosition());
+        Vector2D distanceVector = space.findShortestDistanceVector(currentPosition, newTarget);
+        distanceVector = distanceVector.multiply(3);
+        return new AvoidAction(space, currentPosition, newTarget, distanceVector);
     }
 
     /**
@@ -234,24 +216,18 @@ public class JakeTeamClient extends TeamClient {
      */
     @Override
     public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
-        Map<UUID, UUID> targets = new HashMap<>();
+        Set<UUID> targets = new HashSet<>();
 
-        for (Map.Entry<UUID, Plan> entry : plans.entrySet()) {
+        for (Map.Entry<UUID, UUID> entry : currentTargets.entrySet()) {
             UUID shipId = entry.getKey();
-            Plan plan = entry.getValue();
-            AbstractObject goal = plan.getGoal();
-            AbstractObject ship = space.getObjectById(shipId);
-
-            double distance = space.findShortestDistance(ship.getPosition(), goal.getPosition());
-            int targetRadius = goal.getRadius();
-            boolean closeEnough = distance < targetRadius * 3;
-            if (!goal.isAlive() || space.getObjectById(goal.getId()) == null) {
-                targets.put(shipId, goal.getId());
+            AbstractObject target = space.getObjectById(entry.getValue());
+            if (!target.isAlive() || space.getObjectById(target.getId()) == null) {
+                targets.add(shipId);
             }
         }
 
-        for(UUID key : targets.keySet()) {
-            plans.remove(key);
+        for(UUID key : targets) {
+            currentTargets.remove(key);
         }
     }
 
@@ -314,7 +290,7 @@ public class JakeTeamClient extends TeamClient {
      * @param shipLocation Position of the ship at this instant
      * @return Position to aim the ship in order to collide with the target
      */
-    static Position interceptPosition(Toroidal2DPhysics space, Position targetPosition, Position shipLocation) {
+    private static Position interceptPosition(Toroidal2DPhysics space, Position targetPosition, Position shipLocation) {
         // component velocities of the target
         double targetVelX = targetPosition.getTranslationalVelocityX();
         double targetVelY = targetPosition.getTranslationalVelocityY();
@@ -465,7 +441,6 @@ public class JakeTeamClient extends TeamClient {
         double total = 0;
         for (UUID uuid : scores.keySet()) {
             AbstractObject neighbor = space.getObjectById(uuid);
-            // TODO: Eventually ensure the angle to turn is accounted (should be more likely to go towards objects in a line)
             if (space.findShortestDistance(object.getPosition(), neighbor.getPosition()) > NEIGHBORHOOD_RADIUS) {
                 continue;
             }
@@ -475,6 +450,12 @@ public class JakeTeamClient extends TeamClient {
         return total / 2;
     }
 
+    private void improveSteering(MoveAction action) {
+        action.setKvRotational(4);
+        action.setKpRotational(4);
+        action.setKvTranslational(2);
+        action.setKpTranslational(1);
+    }
     // endregion
 
     // region Powerups and Purchases
@@ -536,10 +517,20 @@ public class JakeTeamClient extends TeamClient {
 
         // buy shield powerup if we can afford to
         if (purchaseCosts.canAfford(PurchaseTypes.POWERUP_SHIELD, resourcesAvailable)) {
+            // Ships are more important; buy their shields first
             actionableObjects.stream()
                     .filter(actionableObject -> actionableObject instanceof Ship)
                     .filter(ship -> !ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD))
                     .forEach(ship -> purchases.put(ship.getId(), PurchaseTypes.POWERUP_SHIELD));
+
+            // If we have any money left, purchase shields for bases
+            if (purchaseCosts.canAfford(PurchaseTypes.POWERUP_SHIELD, resourcesAvailable)) {
+                actionableObjects.stream()
+                        .filter(actionableObject -> actionableObject instanceof Base)
+                        .filter(base -> !base.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD))
+                        .limit(3) // Only purchases 3 base shields at a time to save money
+                        .forEach(base -> purchases.put(base.getId(), PurchaseTypes.POWERUP_SHIELD));
+            }
         }
 
         return purchases;
@@ -577,7 +568,7 @@ public class JakeTeamClient extends TeamClient {
                 Set<AbstractActionableObject> enemyShips = getEnemyTargets(space, getTeamName());
                 AbstractObject closestEnemyShip = closest(space, ship.getPosition(), enemyShips);
                 if(ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) { // protect ship if we're in position and do not need energy
-                    if(shieldedShips.contains(ship.getId()) != ship.isShielded()) { // Only if the status of the ship has changed
+                    if(shieldedObjects.contains(ship.getId()) != ship.isShielded()) { // Only if the status of the ship has changed
                         powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.TOGGLE_SHIELD);
                     }
                 } else if (inPositionToShoot(space, ship.getPosition(), closestEnemyShip) && !shipNeedsEnergy(ship)) { // shoot if we're in position and do not need energy
@@ -591,16 +582,24 @@ public class JakeTeamClient extends TeamClient {
         return powerupMap;
     }
 
+    private void shieldIfNeeded(Toroidal2DPhysics space, AbstractActionableObject actionable) {
+        if(shouldShield(space, actionable, space.getAllObjects())) {
+            shieldedObjects.add(actionable.getId());
+        } else if(actionable.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) {
+            shieldedObjects.remove(actionable.getId());
+        }
+    }
+
     /**
      * Determine if a weapon is nearby
      *
      * @param space physics
-     * @param ship Ship to detect from
+     * @param obj Ship to detect from
      * @param objects All possible objects in space
      * @return true if a weapon is within {@value AVOID_RADIUS} * ship's radius
      */
-    private boolean shouldShield(Toroidal2DPhysics space, Ship ship, Set<AbstractObject> objects) {
-        if(!ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) {
+    private boolean shouldShield(Toroidal2DPhysics space, AbstractActionableObject obj, Set<AbstractObject> objects) {
+        if(!obj.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) {
             return false;
         }
 
@@ -611,8 +610,8 @@ public class JakeTeamClient extends TeamClient {
             }
 
             AbstractWeapon weapon = (AbstractWeapon) object;
-            double weaponDistance = space.findShortestDistance(ship.getPosition(), weapon.getPosition());
-            if (isEnemyWeapon(weapon) && weaponDistance < ship.getRadius() * AVOID_RADIUS) {
+            double weaponDistance = space.findShortestDistance(obj.getPosition(), weapon.getPosition());
+            if (isEnemyWeapon(weapon) && weaponDistance < obj.getRadius() * AVOID_RADIUS) {
                 weaponIsClose = true;
                 break;
             }
@@ -671,13 +670,67 @@ public class JakeTeamClient extends TeamClient {
 
     // region Getting Objects
     /**
+     * Check to see if following a straight line path between two given locations would result in a collision with a provided set of obstructions
+     *
+     * @param startPosition the starting location of the straight line path
+     * @param goalPosition  the ending location of the straight line path
+     * @param obstructions  an Set of AbstractObject obstructions (i.e., if you don't wish to consider mineable asteroids or beacons obstructions)
+     * @param freeRadius    used to determine free space buffer size
+     * @return The closest obstacle between a start and goal position, if exists
+     * @author Andrew and Thibault
+     */
+    private AbstractObject obstructionInPath(Toroidal2DPhysics space, Position startPosition, Position goalPosition, Set<AbstractObject> obstructions, int freeRadius) {
+        Vector2D pathToGoal = space.findShortestDistanceVector(startPosition, goalPosition);    // Shortest straight line path from startPosition to goalPosition
+        double distanceToGoal = pathToGoal.getMagnitude();                                        // Distance of straight line path
+
+        AbstractObject closestObstacle = null; // Closest obstacle in the path
+        double distanceToObstacle = Double.MAX_VALUE;
+
+        // Calculate distance between obstruction center and path (including buffer for ship movement)
+        // Uses hypotenuse * sin(theta) = opposite (on a right hand triangle)
+        Vector2D pathToObstruction; // Vector from start position to obstruction
+        double angleBetween;        // Angle between vector from start position to obstruction
+
+        // Loop through obstructions
+        for (AbstractObject obstruction : obstructions) {
+            // If the distance to the obstruction is greater than the distance to the end goal, ignore the obstruction
+            Position interceptPosition = interceptPosition(space, obstruction.getPosition(), startPosition);
+            pathToObstruction = space.findShortestDistanceVector(startPosition, interceptPosition);
+            if (pathToObstruction.getMagnitude() > distanceToGoal) {
+                continue;
+            }
+
+            // Ignore angles > 90 degrees
+            angleBetween = Math.abs(pathToObstruction.angleBetween(pathToGoal));
+            if (angleBetween > Math.PI / 2) {
+                continue;
+            }
+
+            // Compare distance between obstruction and path with buffer distance
+            if (pathToObstruction.getMagnitude() * Math.sin(angleBetween) < obstruction.getRadius() + freeRadius * 1.5) {
+                double distance = space.findShortestDistance(startPosition, obstruction.getPosition());
+                if (distance < distanceToObstacle) {
+                    distanceToObstacle = distance;
+                    closestObstacle = obstruction;
+                }
+            }
+        }
+
+        if (closestObstacle == null || space.findShortestDistance(startPosition, closestObstacle.getPosition()) > MAX_OBSTRUCTION_DETECTION) {
+            return null; // No obstruction
+        } else {
+            return closestObstacle;
+        }
+    }
+
+    /**
      * Get all the objects in the given space that the given ship considers obstructions.
      * This includes ships and bases from other teams, unmineable asteroids, and other ships on the team.
      * @param space physics
      * @param ship Ship to use as a basis for determining enemy ships and bases
      * @return The set of obstructions
      */
-    static Set<AbstractObject> getObstructions(Toroidal2DPhysics space, Ship ship) {
+    private static Set<AbstractObject> getObstructions(Toroidal2DPhysics space, Ship ship) {
         Set<AbstractActionableObject> enemies = getEnemyTargets(space, ship.getTeamName());
         Set<Asteroid> asteroids = getUnmineableAsteroids(space);
         Set<Ship> friendlyShips = getFriendlyShips(space, ship);
@@ -803,7 +856,7 @@ public class JakeTeamClient extends TeamClient {
     // region Boilerplate
     @Override
     public void initialize(Toroidal2DPhysics space) {
-        graphics = new HashSet<>();
+        graphicsUtil = new GraphicsUtil(DEBUG);
     }
 
     @Override
@@ -812,13 +865,7 @@ public class JakeTeamClient extends TeamClient {
 
     @Override
     public Set<SpacewarGraphics> getGraphics() {
-        HashSet<SpacewarGraphics> newGraphics = new HashSet<>(graphics);
-        graphics.clear();
-        if(DEBUG) {
-            return newGraphics;
-        } else {
-            return new HashSet<>();
-        }
+        return graphicsUtil.getGraphics();
     }
     // endregion
 }
