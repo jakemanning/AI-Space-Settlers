@@ -41,7 +41,7 @@ public class JakeTeamClient extends TeamClient {
     private static final int REALLY_BIG_NAV_WEIGHT = 100;
     private static final double SHIP_NEEDS_ENERGY_FACTOR = 0.2;
     private static final int NEIGHBORHOOD_RADIUS = 100;
-    private static final int AVOID_RADIUS = 3;
+    private static final int SHIELD_RADIUS = 3;
     private static final double MAX_SHOT_ANGLE = Math.PI / 12;
     private static final int MAX_OBSTRUCTION_DETECTION = 100;
     private static final double GAME_IS_ENDING_FACTOR = 0.98;
@@ -202,15 +202,15 @@ public class JakeTeamClient extends TeamClient {
         } else {
             newAngle = obstacleVector.getAngle() - COLLISION_AVOIDANCE_ANGLE;
         }
-        int avoidanceMagnitude = obstacle.getRadius() + ship.getRadius();
+        // we should learn this
+        int collisionAvoidanceDistanceFactor = 3;
+        int avoidanceMagnitude = (obstacle.getRadius() + ship.getRadius()) * collisionAvoidanceDistanceFactor;
         Vector2D avoidanceVector = Vector2D.fromAngle(newAngle, avoidanceMagnitude); // A smaller angle works much better
         Vector2D newTargetVector = currentVector.add(avoidanceVector);
         Position newTarget = new Position(newTargetVector);
 
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.YELLOW_CIRCLE, obstacle.getPosition());
-        Vector2D distanceVector = space.findShortestDistanceVector(currentPosition, newTarget);
-        distanceVector = distanceVector.multiply(3);
-        return new AvoidAction(space, currentPosition, newTarget, distanceVector);
+        return new AvoidAction(space, currentPosition, newTarget, avoidanceVector);
     }
 
     /**
@@ -598,7 +598,7 @@ public class JakeTeamClient extends TeamClient {
      * @param space physics
      * @param obj Ship to detect from
      * @param objects All possible objects in space
-     * @return true if a weapon is within {@value AVOID_RADIUS} * ship's radius
+     * @return true if a weapon is within {@value SHIELD_RADIUS} * ship's radius
      */
     private boolean shouldShield(Toroidal2DPhysics space, AbstractActionableObject obj, Set<AbstractObject> objects) {
         if(!obj.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) {
@@ -613,7 +613,7 @@ public class JakeTeamClient extends TeamClient {
 
             AbstractWeapon weapon = (AbstractWeapon) object;
             double weaponDistance = space.findShortestDistance(obj.getPosition(), weapon.getPosition());
-            if (isEnemyWeapon(weapon) && weaponDistance < obj.getRadius() * AVOID_RADIUS) {
+            if (isEnemyWeapon(weapon) && weaponDistance < obj.getRadius() * SHIELD_RADIUS) {
                 weaponIsClose = true;
                 break;
             }
