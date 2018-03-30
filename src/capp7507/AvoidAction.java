@@ -13,6 +13,15 @@ class AvoidAction extends MoveAction {
         targetLoc = targetLocation;
     }
 
+    static AvoidAction build(Toroidal2DPhysics space, Position currentLocation, double avoidAngle,
+                             double avoidDistance) {
+        Vector2D currentVector = new Vector2D(currentLocation);
+        Vector2D targetVector = currentVector.add(Vector2D.fromAngle(avoidAngle, avoidDistance));
+        Position target = new Position(targetVector);
+        Vector2D targetVelocity = Vector2D.fromAngle(avoidAngle, JakeTeamClient.TARGET_SHIP_SPEED);
+        return new AvoidAction(space, currentLocation, target, targetVelocity);
+    }
+
     public Position getTargetLoc() {
         return targetLoc;
     }

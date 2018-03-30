@@ -13,8 +13,6 @@ import spacesettlers.utilities.Vector2D;
 
 import java.util.*;
 
-import static capp7507.MovementUtil.angleDifference;
-
 /**
  * A model-based reflex agent for controlling a spacesettlers team client
  *
@@ -34,7 +32,7 @@ public class JakeTeamClient extends TeamClient {
     private static final int SHIP_MAX_RESOURCES = 5000;
     private static final int MAX_ASTEROID_MASS = 2318;
     private static final int MIN_ASTEROID_MASS = 2000;
-    private static final double TARGET_SHIP_SPEED = 60;
+    public static final double TARGET_SHIP_SPEED = 60;
     private static final int SHIP_ENERGY_VALUE_WEIGHT = 6;
     private static final int SHIP_CARGO_VALUE_WEIGHT = 6;
     private static final double MAX_ANGLE = Math.PI / 2;
@@ -180,8 +178,7 @@ public class JakeTeamClient extends TeamClient {
         Position adjustedTargetPosition = interceptPosition(space, target, currentPosition);
         Vector2D vectorToTarget = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
         double angleToTarget = vectorToTarget.getAngle();
-        double angleOfCurrentMovement = currentPosition.getTranslationalVelocity().getAngle();
-        double angleToTurn = angleDifference(angleToTarget, angleOfCurrentMovement);
+        double angleToTurn = vectorToTarget.angleBetween(currentPosition.getTranslationalVelocity());
         double magnitude = linearNormalizeInverse(0.0, Math.PI, 5, TARGET_SHIP_SPEED, angleToTurn);
 
         Vector2D goalVelocity = Vector2D.fromAngle(angleToTarget, magnitude);
