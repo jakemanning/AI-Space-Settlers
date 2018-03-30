@@ -47,6 +47,7 @@ public class JakeTeamClient extends TeamClient {
     private Map<UUID, UUID> currentTargets = new HashMap<>();
     private Set<UUID> shieldedObjects = new HashSet<>();
     private GraphicsUtil graphicsUtil;
+    private SuperKnowledge knowledge;
 
     /**
      * Called before movement begins. Fill a HashMap with actions depending on the bestValue
@@ -218,23 +219,26 @@ public class JakeTeamClient extends TeamClient {
      */
     @Override
     public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
-        Set<UUID> targets = new HashSet<>();
+//        Set<UUID> targets = new HashSet<>();
+//
+//        for (Map.Entry<UUID, UUID> entry : currentTargets.entrySet()) {
+//            UUID shipId = entry.getKey();
+//            AbstractObject target = space.getObjectById(entry.getValue());
+//            AbstractObject ship = space.getObjectById(shipId);
+//            double distance = space.findShortestDistance(ship.getPosition(), target.getPosition());
+//            int targetRadius = target.getRadius();
+//            boolean closeEnough = (target instanceof Base) && distance < targetRadius * 3;
+//            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
+//                targets.add(shipId);
+//            }
+//        }
+//
+//        for(UUID key : targets) {
+//            currentTargets.remove(key);
+//        }
+        knowledge.think(space);
 
-        for (Map.Entry<UUID, UUID> entry : currentTargets.entrySet()) {
-            UUID shipId = entry.getKey();
-            AbstractObject target = space.getObjectById(entry.getValue());
-            AbstractObject ship = space.getObjectById(shipId);
-            double distance = space.findShortestDistance(ship.getPosition(), target.getPosition());
-            int targetRadius = target.getRadius();
-            boolean closeEnough = (target instanceof Base) && distance < targetRadius * 3;
-            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
-                targets.add(shipId);
-            }
-        }
 
-        for(UUID key : targets) {
-            currentTargets.remove(key);
-        }
     }
 
     /*
@@ -862,6 +866,7 @@ public class JakeTeamClient extends TeamClient {
     @Override
     public void initialize(Toroidal2DPhysics space) {
         graphicsUtil = new GraphicsUtil(DEBUG);
+        knowledge = new SuperKnowledge();
     }
 
     @Override

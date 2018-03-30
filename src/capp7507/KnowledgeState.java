@@ -4,14 +4,13 @@ import java.io.Serializable;
 import java.util.Objects;
 
 public class KnowledgeState implements Serializable {
-    // Distance to the obstacle
-    public double distanceToObstacle;
+    private double distanceToObstacle;
     // Angle difference between the line from the ship to the target and the line from the ship to the obstacle
     // This tells us whether the obstacle is to the ship's left or right
-    public double obstacleLocationAngle;
+    private double obstacleLocationAngle;
     // Angle difference between the line from the ship to the target and the line from the obstacle indicating its velocity
     // This tells us whether the obstacle is moving towards the ship's left or right
-    public double obstacleTrajectoryAngle;
+    private double obstacleTrajectoryAngle;
 
     public KnowledgeState(double distanceToObstacle, double obstacleLocationAngle, double obstacleTrajectoryAngle) {
         this.distanceToObstacle = distanceToObstacle;
@@ -31,7 +30,6 @@ public class KnowledgeState implements Serializable {
 
     @Override
     public int hashCode() {
-
         return Objects.hash(distanceToObstacle, obstacleLocationAngle, obstacleTrajectoryAngle);
     }
 }
