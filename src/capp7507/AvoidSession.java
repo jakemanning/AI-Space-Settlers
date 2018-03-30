@@ -1,0 +1,46 @@
+package capp7507;
+
+import java.time.Instant;
+
+public class AvoidSession {
+    private double distanceAtAvoidBeginning;
+    private double distanceAtAvoidEnd;
+    private boolean successfullyAvoided;
+    private Instant timeCompleted;
+
+    public AvoidSession(double distanceAtAvoidBeginning) {
+        this.distanceAtAvoidBeginning = distanceAtAvoidBeginning;
+    }
+
+    public void setDistanceAtAvoidEnd(double distanceAtAvoidEnd) {
+        this.distanceAtAvoidEnd = distanceAtAvoidEnd;
+    }
+
+    public void setSuccessfullyAvoided(boolean successfullyAvoided) {
+        this.successfullyAvoided = successfullyAvoided;
+    }
+
+    public void setTimeCompleted(Instant timeCompleted) {
+        this.timeCompleted = timeCompleted;
+    }
+
+    public double getDistanceAtAvoidBeginning() {
+        return distanceAtAvoidBeginning;
+    }
+
+    public double getDistanceAtAvoidEnd() {
+        return distanceAtAvoidEnd;
+    }
+
+    public boolean isSuccessfullyAvoided() {
+        return successfullyAvoided;
+    }
+
+    public Instant getTimeCompleted() {
+        return timeCompleted;
+    }
+
+    public boolean isSessionComplete() {
+        return timeCompleted == null;
+    }
+}

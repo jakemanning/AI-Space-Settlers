@@ -4,6 +4,7 @@ import spacesettlers.simulator.Toroidal2DPhysics;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Stack;
 import java.util.UUID;
 
 class SuperKnowledge {
@@ -20,11 +21,24 @@ class SuperKnowledge {
     private int steps = 0;
     private int evaluationSteps = 2000;
     private int populationSize = 25;
-    private Map<UUID, Double> distanceAtBeginning = new HashMap<>();
-    private Map<UUID, Double> distanceAtEnd = new HashMap<>();
-    private Map<UUID, Boolean> successfullyAvoided = new HashMap<>();
+    private Map<UUID, Stack<AvoidSession>> sessions;
 
     SuperKnowledge() {
+        sessions = new HashMap<>();
+    }
+
+    void addSession(UUID uuid, AvoidSession avoidSession) {
+        // TODO is this, in fact, correct?
+        if(!sessions.containsKey(uuid)) {
+            sessions.put(uuid, new Stack<>());
+        }
+        Stack<AvoidSession> currentSessions = sessions.get(uuid);
+        if(currentSessions.isEmpty() || currentSessions.peek().isSessionComplete()) {
+            currentSessions.push(avoidSession);
+        } else if(!currentSessions.peek().isSessionComplete()) {
+            AvoidSession session = currentSessions.pop();
+            currentSessions.push(avoidSession);
+        }
     }
 
     /**
