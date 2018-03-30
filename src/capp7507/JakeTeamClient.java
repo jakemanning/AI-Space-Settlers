@@ -13,6 +13,8 @@ import spacesettlers.utilities.Vector2D;
 
 import java.util.*;
 
+import static capp7507.MovementUtil.angleDifference;
+
 /**
  * A model-based reflex agent for controlling a spacesettlers team client
  *
@@ -175,14 +177,14 @@ public class JakeTeamClient extends TeamClient {
      * @return An action to get the ship to the target's location
      */
     private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target) {
-        // FIXME BRYAN JAKE DON'T WANNA
         Position adjustedTargetPosition = interceptPosition(space, target, currentPosition);
-        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
-        double nextGoalAngle = Math.abs(targetVector.getAngle());
-        double magnitude = linearNormalizeInverse(0.0, Math.PI, 15, TARGET_SHIP_SPEED, nextGoalAngle);
+        Vector2D vectorToTarget = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
+        double angleToTarget = vectorToTarget.getAngle();
+        double angleOfCurrentMovement = currentPosition.getTranslationalVelocity().getAngle();
+        double angleToTurn = angleDifference(angleToTarget, angleOfCurrentMovement);
+        double magnitude = linearNormalizeInverse(0.0, Math.PI, 5, TARGET_SHIP_SPEED, angleToTurn);
 
-        double goalAngle = targetVector.getAngle();
-        Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, magnitude);
+        Vector2D goalVelocity = Vector2D.fromAngle(angleToTarget, magnitude);
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, target);
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, adjustedTargetPosition);
         return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
@@ -227,7 +229,7 @@ public class JakeTeamClient extends TeamClient {
             AbstractObject ship = space.getObjectById(shipId);
             double distance = space.findShortestDistance(ship.getPosition(), target.getPosition());
             int targetRadius = target.getRadius();
-            boolean closeEnough = distance < targetRadius * 3;
+            boolean closeEnough = (target instanceof Base) && distance < targetRadius * 3;
             if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
                 targets.add(shipId);
             }
