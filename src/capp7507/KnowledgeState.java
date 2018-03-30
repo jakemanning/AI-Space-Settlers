@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 public class KnowledgeState implements Serializable {
+    // Distance to the obstacle
     public double distanceToObstacle;
     // Angle difference between the line from the ship to the target and the line from the ship to the obstacle
     // This tells us whether the obstacle is to the ship's left or right
