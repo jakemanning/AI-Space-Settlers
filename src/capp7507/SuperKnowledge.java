@@ -8,6 +8,7 @@ import java.util.Stack;
 import java.util.UUID;
 
 class SuperKnowledge {
+
     /**
      * The current policy for the team
      */
@@ -19,26 +20,31 @@ class SuperKnowledge {
     private KnowledgePopulation population;
 
     private int steps = 0;
-    private int evaluationSteps = 2000;
-    private int populationSize = 25;
-    private Map<UUID, Stack<AvoidSession>> sessions;
+    private final int EVALUATION_STEPS = 2000;
+    private final int POPULATION_SIZE = 25;
+    private Map<UUID, SessionCollection> sessions;
 
     SuperKnowledge() {
         sessions = new HashMap<>();
     }
 
-    void addSession(UUID uuid, AvoidSession avoidSession) {
-        // TODO is this, in fact, correct?
+//    void updateSession(UUID uuid, AvoidSession avoidSession) {
+//        // TODO is this, in fact, correct?
+//        SessionCollection currentSessions = getSessionsFor(uuid);
+//        if(currentSessions.lastSessionWasComplete()) {
+//            currentSessions.add(avoidSession);
+//        } else {
+//            currentSessions.completeLastSession();
+//            currentSessions.push(avoidSession);
+//        }
+//    }
+
+    SessionCollection getSessionsFor(UUID uuid) {
         if(!sessions.containsKey(uuid)) {
-            sessions.put(uuid, new Stack<>());
+            // We gettin' litty up in here boiz, so let's start learnin'
+            sessions.put(uuid, new SessionCollection());
         }
-        Stack<AvoidSession> currentSessions = sessions.get(uuid);
-        if(currentSessions.isEmpty() || currentSessions.peek().isSessionComplete()) {
-            currentSessions.push(avoidSession);
-        } else if(!currentSessions.peek().isSessionComplete()) {
-            AvoidSession session = currentSessions.pop();
-            currentSessions.push(avoidSession);
-        }
+        return sessions.get(uuid);
     }
 
     /**
@@ -49,8 +55,8 @@ class SuperKnowledge {
         // increment the step counter
         steps++;
 
-        // if the step counter is modulo evaluationSteps, then evaluate this member and move to the next one
-        if (steps % evaluationSteps == 0) {
+        // if the step counter is modulo EVALUATION_STEPS, then evaluate this member and move to the next one
+        if (steps % EVALUATION_STEPS == 0) {
             // note that this method currently scores every policy as zero as this is part of
             // what the student has to do
             population.evaluateFitnessForCurrentMember(space);

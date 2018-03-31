@@ -12,16 +12,10 @@ public class AvoidSession {
         this.distanceAtAvoidBeginning = distanceAtAvoidBeginning;
     }
 
-    public void setDistanceAtAvoidEnd(double distanceAtAvoidEnd) {
+    public void completeSession(double distanceAtAvoidEnd, boolean successfullyAvoided) {
         this.distanceAtAvoidEnd = distanceAtAvoidEnd;
-    }
-
-    public void setSuccessfullyAvoided(boolean successfullyAvoided) {
         this.successfullyAvoided = successfullyAvoided;
-    }
-
-    public void setTimeCompleted(Instant timeCompleted) {
-        this.timeCompleted = timeCompleted;
+        this.timeCompleted = Instant.now();
     }
 
     public double getDistanceAtAvoidBeginning() {
@@ -40,7 +34,7 @@ public class AvoidSession {
         return timeCompleted;
     }
 
-    public boolean isSessionComplete() {
+    boolean isSessionComplete() {
         return timeCompleted == null;
     }
 }

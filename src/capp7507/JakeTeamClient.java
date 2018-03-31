@@ -82,10 +82,17 @@ public class JakeTeamClient extends TeamClient {
                 AbstractObject obstruction = obstructionInPath(space, shipPos, targetPos, obstructions, shipRadius);
                 MoveAction action;
                 if (obstruction != null) {
+                    // Begin/keep avoiding
                     action = avoidCrashAction(space, obstruction, target, ship);
                     graphicsUtil.addObstaclePreset(ship.getId(), GraphicsUtil.Preset.YELLOW_CIRCLE, obstruction.getPosition());
                 } else {
+                    // Stop avoiding
                     graphicsUtil.removeObstacle(ship.getId());
+                    SessionCollection sessionCollection = knowledge.getSessionsFor(ship.getId());
+                    double distanceToGoal = space.findShortestDistance(shipPos, targetPos);
+                    sessionCollection.completeLastSession(distanceToGoal, false);
+                    // TODO: I need some measure to find out if the ship collided with the obstacle somehow
+
                     action = getMoveAction(space, shipPos, target.getPosition());
                 }
                 actions.put(ship.getId(), action);
@@ -208,6 +215,15 @@ public class JakeTeamClient extends TeamClient {
         Position newTarget = new Position(newTargetVector);
 
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.YELLOW_CIRCLE, obstacle.getPosition());
+
+        SessionCollection currentSession = knowledge.getSessionsFor(ship.getId());
+        if(currentSession.lastSessionWasComplete()) {
+            AvoidSession newAvoidSession = new AvoidSession(targetVector.getMagnitude());
+            currentSession.add(newAvoidSession);
+        } else {
+            // We are avoiding already (do nothing now?)
+        }
+
         return new AvoidAction(space, currentPosition, newTarget, avoidanceVector);
     }
 
@@ -219,26 +235,26 @@ public class JakeTeamClient extends TeamClient {
      */
     @Override
     public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
-//        Set<UUID> targets = new HashSet<>();
-//
-//        for (Map.Entry<UUID, UUID> entry : currentTargets.entrySet()) {
-//            UUID shipId = entry.getKey();
-//            AbstractObject target = space.getObjectById(entry.getValue());
-//            AbstractObject ship = space.getObjectById(shipId);
-//            double distance = space.findShortestDistance(ship.getPosition(), target.getPosition());
-//            int targetRadius = target.getRadius();
-//            boolean closeEnough = (target instanceof Base) && distance < targetRadius * 3;
-//            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
-//                targets.add(shipId);
-//            }
-//        }
-//
-//        for(UUID key : targets) {
-//            currentTargets.remove(key);
-//        }
+        Set<UUID> targets = new HashSet<>();
+
+        for (Map.Entry<UUID, UUID> entry : currentTargets.entrySet()) {
+            UUID shipId = entry.getKey();
+            AbstractObject target = space.getObjectById(entry.getValue());
+            AbstractObject ship = space.getObjectById(shipId);
+            double distance = space.findShortestDistance(ship.getPosition(), target.getPosition());
+            int targetRadius = target.getRadius();
+            boolean closeEnough = (target instanceof Base) && distance < targetRadius * 3;
+            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
+                targets.add(shipId);
+            }
+        }
+
+        for(UUID key : targets) {
+            currentTargets.remove(key);
+        }
+
+
         knowledge.think(space);
-
-
     }
 
     /*
