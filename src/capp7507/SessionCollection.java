@@ -17,12 +17,15 @@ public class SessionCollection {
         return sessions.push(session);
     }
 
+
     public void completeLastSession(double distanceAtAvoidEnd, boolean successfullyAvoided) {
-        // TODO: fix this
         if(sessions.isEmpty()) {
             return;
         }
         AvoidSession lastSession = sessions.pop();
         lastSession.completeSession(distanceAtAvoidEnd, successfullyAvoided);
     }
+
+    // TODO: Add 'sum' method that collects all the sessions and..does stuff?
+
 }

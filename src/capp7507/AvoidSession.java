@@ -1,5 +1,6 @@
 package capp7507;
 
+import java.time.Duration;
 import java.time.Instant;
 
 public class AvoidSession {
@@ -7,6 +8,8 @@ public class AvoidSession {
     private double distanceAtAvoidEnd;
     private boolean successfullyAvoided;
     private Instant timeCompleted;
+
+    // TODO: Store energy used also
 
     public AvoidSession(double distanceAtAvoidBeginning) {
         this.distanceAtAvoidBeginning = distanceAtAvoidBeginning;
@@ -36,5 +39,10 @@ public class AvoidSession {
 
     boolean isSessionComplete() {
         return timeCompleted == null;
+    }
+
+    boolean isSessionCompleteWithin(Instant now) {
+//        return isSessionComplete() || Duration.between(timeCompleted, now).getSeconds() < 0.1;
+        return false;
     }
 }

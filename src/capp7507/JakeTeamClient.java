@@ -47,7 +47,7 @@ public class JakeTeamClient extends TeamClient {
     private Map<UUID, UUID> currentTargets = new HashMap<>();
     private Set<UUID> shieldedObjects = new HashSet<>();
     private GraphicsUtil graphicsUtil;
-    private SuperKnowledge knowledge;
+    private KnowledgeUtil knowledge;
 
     /**
      * Called before movement begins. Fill a HashMap with actions depending on the bestValue
@@ -86,12 +86,16 @@ public class JakeTeamClient extends TeamClient {
                     action = avoidCrashAction(space, obstruction, target, ship);
                     graphicsUtil.addObstaclePreset(ship.getId(), GraphicsUtil.Preset.YELLOW_CIRCLE, obstruction.getPosition());
                 } else {
-                    // Stop avoiding
+                    // Move towards goal, no more avoiding the issue at hand
                     graphicsUtil.removeObstacle(ship.getId());
                     SessionCollection sessionCollection = knowledge.getSessionsFor(ship.getId());
-                    double distanceToGoal = space.findShortestDistance(shipPos, targetPos);
-                    sessionCollection.completeLastSession(distanceToGoal, false);
-                    // TODO: I need some measure to find out if the ship collided with the obstacle somehow
+
+                    if(!sessionCollection.lastSessionWasComplete()) {
+                        double distanceToGoal = space.findShortestDistance(shipPos, targetPos);
+                        // TODO: I need some measure to find out if the ship collided with the obstacle somehow
+                        // This should be changed from false. We probably don't wanna complete here either, instead in getMovementEnd
+                        sessionCollection.completeLastSession(distanceToGoal, false);
+                    }
 
                     action = getMoveAction(space, shipPos, target.getPosition());
                 }
@@ -217,11 +221,14 @@ public class JakeTeamClient extends TeamClient {
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.YELLOW_CIRCLE, obstacle.getPosition());
 
         SessionCollection currentSession = knowledge.getSessionsFor(ship.getId());
+        // TODO: Maybe instead use the 'isSessionCompleteWithin' method in the AvoidSession class
+        // so that sessions close to eachother aren't counted as different sessions?
+        // Who knows ¯\_(ツ)_/¯
         if(currentSession.lastSessionWasComplete()) {
             AvoidSession newAvoidSession = new AvoidSession(targetVector.getMagnitude());
             currentSession.add(newAvoidSession);
         } else {
-            // We are avoiding already (do nothing now?)
+            // We are avoiding already. Do we need to do anything here?
         }
 
         return new AvoidAction(space, currentPosition, newTarget, avoidanceVector);
@@ -255,6 +262,10 @@ public class JakeTeamClient extends TeamClient {
 
 
         knowledge.think(space);
+        // TODO: Determine if the ship collided with an obstacle that wasn't the target
+        // We could detect this either by: Determining whether the ship is within a certain radius
+        // Or: determining if the ship's total damage received counter went up.
+        // However, the ship's damage also goes up if it hits the target, and the target causes a collision (e.g. bases)
     }
 
     /*
@@ -882,7 +893,7 @@ public class JakeTeamClient extends TeamClient {
     @Override
     public void initialize(Toroidal2DPhysics space) {
         graphicsUtil = new GraphicsUtil(DEBUG);
-        knowledge = new SuperKnowledge();
+        knowledge = new KnowledgeUtil();
     }
 
     @Override

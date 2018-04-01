@@ -4,10 +4,9 @@ import spacesettlers.simulator.Toroidal2DPhysics;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Stack;
 import java.util.UUID;
 
-class SuperKnowledge {
+class KnowledgeUtil {
 
     /**
      * The current policy for the team
@@ -24,24 +23,13 @@ class SuperKnowledge {
     private final int POPULATION_SIZE = 25;
     private Map<UUID, SessionCollection> sessions;
 
-    SuperKnowledge() {
+    KnowledgeUtil() {
         sessions = new HashMap<>();
     }
 
-//    void updateSession(UUID uuid, AvoidSession avoidSession) {
-//        // TODO is this, in fact, correct?
-//        SessionCollection currentSessions = getSessionsFor(uuid);
-//        if(currentSessions.lastSessionWasComplete()) {
-//            currentSessions.add(avoidSession);
-//        } else {
-//            currentSessions.completeLastSession();
-//            currentSessions.push(avoidSession);
-//        }
-//    }
-
     SessionCollection getSessionsFor(UUID uuid) {
         if(!sessions.containsKey(uuid)) {
-            // We gettin' litty up in here boiz, so let's start learnin'
+            // We gettin' litty up in here boiz, let's start learnin'
             sessions.put(uuid, new SessionCollection());
         }
         return sessions.get(uuid);
