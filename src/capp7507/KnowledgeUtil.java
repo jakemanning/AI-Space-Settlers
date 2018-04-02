@@ -9,6 +9,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -30,7 +31,7 @@ class KnowledgeUtil {
     private int steps = 0;
     private final String KNOWLEDGE_FILE;
     private Map<UUID, SessionCollection> sessions;
-    private static final int POPULATION_SIZE = 24;
+    private static final int POPULATION_SIZE = 10;
     private static final int EVALUATION_STEPS = 2000;
 
     KnowledgeUtil(String knowledgeFile) {
@@ -66,7 +67,7 @@ class KnowledgeUtil {
             if (population.isGenerationFinished()) {
                 // note that this is also an empty getTeamPurchases that a student needs to fill in
                 population.makeNextGeneration();
-                shutDown();
+//                shutDown(); not necessary if we make simulation steps in a game = pop size * eval steps
                 currentPolicy = population.getNextMember();
             }
             sessions.clear();
@@ -121,7 +122,8 @@ class KnowledgeUtil {
             System.out.println("Saved KnowledgePopulation to " + KNOWLEDGE_FILE);
         }
         String[] parts = KNOWLEDGE_FILE.split("/");
-        String stamped = parts[0] + "/" + parts[1] + "/xmls/" + Instant.now().toString() + "-" + parts[2];
+        String first = String.join("/", Arrays.asList(parts).subList(0, parts.length - 1));
+        String stamped = first + "/xmls/" + Instant.now().toString() + "-" + parts[1];
         try (FileOutputStream outputStream = new FileOutputStream(stamped); GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
             xStream.toXML(population, gzipOutputStream);
             System.out.println("Saved KnowledgePopulation to " + stamped);
