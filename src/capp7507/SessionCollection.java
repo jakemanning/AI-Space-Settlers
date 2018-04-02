@@ -4,8 +4,6 @@ import spacesettlers.objects.AbstractObject;
 import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Stack;
 
 public class SessionCollection {
@@ -28,8 +26,8 @@ public class SessionCollection {
             return false;
         }
         AvoidSession lastSession = sessions.peek();
-        Duration timeSinceLastSession = Duration.between(lastSession.getTimeStarted(), Instant.now());
-        if (timeSinceLastSession.compareTo(Duration.ofSeconds(5)) > 0) {
+        int timeSinceLastSession = space.getCurrentTimestep() - lastSession.getTimestepStarted();
+        if (timeSinceLastSession > 20) {
             // time since last session is too long to be relevant
             return false;
         }
@@ -47,7 +45,7 @@ public class SessionCollection {
 
     void registerCollision(Toroidal2DPhysics space, AbstractObject obstacle) {
         sessions.stream()
-                .filter(avoidSession -> !avoidSession.isValid())
+                .filter(AvoidSession::isValid)
                 .filter(avoidSession -> !avoidSession.isSessionComplete())
                 .filter(avoidSession -> obstacle.equals(avoidSession.getObstacle(space)))
                 .forEach(avoidSession -> avoidSession.setSuccessfullyAvoided(false));
@@ -67,13 +65,10 @@ public class SessionCollection {
 
     double averageFitness() {
         return sessions.stream()
-                .filter(avoidSession -> !avoidSession.isValid())
-                .filter(avoidSession -> !avoidSession.isSessionComplete())
+                .filter(AvoidSession::isValid)
+                .filter(AvoidSession::isSessionComplete)
                 .mapToDouble(session -> session.result().evaluate())
                 .average()
-                .orElseGet(() -> {
-                    System.out.println("average fitness not found");
-                    return 0;
-                });
+                .orElse(0);
     }
 }

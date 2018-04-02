@@ -4,9 +4,9 @@ import spacesettlers.objects.AbstractObject;
 import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.UUID;
+
+import static capp7507.MovementUtil.linearNormalize;
 
 public class AvoidSession {
     private boolean isValid;
@@ -15,37 +15,36 @@ public class AvoidSession {
     private double energyAtAvoidBeginning;
     private double energyAtAvoidEnd;
     private boolean successfullyAvoided;
-    private Instant timeStarted;
-    private Instant timeCompleted;
+    private int timestepStarted;
+    private int timestepCompleted = Integer.MAX_VALUE;
     private UUID obstacleId;
     private UUID targetId;
 
     AvoidSession(Toroidal2DPhysics space, Ship ship, AbstractObject target, AbstractObject obstacle) {
         this.successfullyAvoided = true;
+        this.isValid = true;
         this.obstacleId = obstacle.getId();
         this.targetId = target.getId();
-        timeStarted = Instant.now();
+        timestepStarted = space.getCurrentTimestep();
         energyAtAvoidBeginning = ship.getEnergy();
         distanceAtAvoidBeginning = space.findShortestDistance(ship.getPosition(), target.getPosition());
     }
 
-    AvoidResult completeSession(Toroidal2DPhysics space, Ship ship) {
+    void completeSession(Toroidal2DPhysics space, Ship ship) {
         AbstractObject target = target(space);
         if (target == null) {
-            // TODO: Mayhap we ought to change this here, righto, god save the queen
-            return null;
+            invalidate();
+            return;
         }
         distanceAtAvoidEnd = space.findShortestDistance(ship.getPosition(), target.getPosition());
         energyAtAvoidEnd = ship.getEnergy();
-        timeCompleted = Instant.now();
-
-        return result();
+        timestepCompleted = space.getCurrentTimestep();
     }
 
     public AvoidResult result() {
         double distanceChange = distanceAtAvoidBeginning - distanceAtAvoidEnd;
         double energySpent = energyAtAvoidBeginning - energyAtAvoidEnd;
-        Duration timeSpent = Duration.between(timeStarted, timeCompleted);
+        int timeSpent = timestepCompleted - timestepStarted;
         return new AvoidResult(successfullyAvoided, distanceChange, energySpent, timeSpent);
     }
 
@@ -58,15 +57,15 @@ public class AvoidSession {
     }
 
     boolean isSessionComplete() {
-        return timeCompleted != null;
+        return timestepCompleted != Integer.MAX_VALUE;
     }
 
     void setIncomplete() {
-        this.timeCompleted = null;
+        this.timestepCompleted = Integer.MAX_VALUE;
     }
 
-    Instant getTimeStarted() {
-        return timeStarted;
+    int getTimestepStarted() {
+        return timestepStarted;
     }
 
     AbstractObject getObstacle(Toroidal2DPhysics space) {
@@ -93,9 +92,9 @@ public class AvoidSession {
         private boolean successfullyAvoided;
         private double distanceChange;
         private double energySpent;
-        private Duration timeSpent;
+        private int timeSpent;
 
-        private AvoidResult(boolean successfullyAvoided, double distanceChange, double energySpent, Duration timeSpent) {
+        private AvoidResult(boolean successfullyAvoided, double distanceChange, double energySpent, int timeSpent) {
             this.successfullyAvoided = successfullyAvoided;
             this.distanceChange = distanceChange;
             this.timeSpent = timeSpent;
@@ -110,7 +109,7 @@ public class AvoidSession {
             return energySpent;
         }
 
-        public Duration getTimeSpent() {
+        public int getTimeSpent() {
             return timeSpent;
         }
 
@@ -120,10 +119,19 @@ public class AvoidSession {
 
         double evaluate() {
             // TODO: Make more smahter to increase knowledge
-            if (successfullyAvoided) {
-                return 1;
-            } else {
+            if (!successfullyAvoided) {
                 return 0;
+            } else {
+                // max time seen: 388
+                // max energy seen: 2739
+                // max distance seen: 225
+                // min distance seen: -37
+                double timeNormalized = linearNormalize(0, 388, 0, 5, timeSpent);
+                double energyNormalized = linearNormalize(0, 2739, 0, 5, energySpent);
+                double distanceNormalized = linearNormalize(-37, 225, 0, 10, distanceChange);
+                double bad = energyNormalized + timeNormalized;
+                double good = distanceNormalized;
+                return Math.max(good - bad, 0);
             }
         }
     }
