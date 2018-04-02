@@ -15,7 +15,7 @@ public class KnowledgePopulation {
     private Random random;
     private KnowledgeChromosome[] population;
 
-    private int currentPopulationCounter = -1;
+    private int currentPopulationCounter;
 
     private double[] fitnessScores;
 
@@ -50,11 +50,8 @@ public class KnowledgePopulation {
         double fitness = sessions.stream()
                 .mapToDouble(SessionCollection::averageFitness)
                 .average()
-                .orElseGet(() -> {
-                    System.out.println("average of session collection fitnesses not found");
-                    return 0;
-                });
-        fitnessScores[currentPopulationCounter] = fitness;
+                .orElse(0);
+        fitnessScores[currentPopulationCounter % population.length] = fitness;
     }
 
     /**
@@ -106,9 +103,9 @@ public class KnowledgePopulation {
 
     private KnowledgeChromosome[] parentSelection(KnowledgeChromosome[] population) {
         double s = DoubleStream.of(fitnessScores).sum();
-        double p = random.nextDouble() * s;
         KnowledgeChromosome[] newPopulation = new KnowledgeChromosome[population.length];
         for (int i = 0; i < population.length; i++) {
+            double p = random.nextDouble() * s;
             int j = 0;
             while (p <= s) {
                 p += fitnessScores[j];

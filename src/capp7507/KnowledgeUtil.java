@@ -29,6 +29,8 @@ class KnowledgeUtil {
     private int steps = 0;
     private final String KNOWLEDGE_FILE;
     private Map<UUID, SessionCollection> sessions;
+    private static final int POPULATION_SIZE = 24;
+    private static final int EVALUATION_STEPS = 2000;
 
     KnowledgeUtil(String knowledgeFile) {
         sessions = new HashMap<>();
@@ -52,7 +54,6 @@ class KnowledgeUtil {
         steps++;
 
         // if the step counter is modulo EVALUATION_STEPS, then evaluate this member and move to the next one
-        int EVALUATION_STEPS = 2000;
         if (steps % EVALUATION_STEPS == 0) {
             // note that this getTeamPurchases currently scores every policy as zero as this is part of
             // what the student has to do
@@ -64,7 +65,7 @@ class KnowledgeUtil {
             if (population.isGenerationFinished()) {
                 // note that this is also an empty getTeamPurchases that a student needs to fill in
                 population.makeNextGeneration();
-
+                shutDown();
                 currentPolicy = population.getNextMember();
             }
             sessions.clear();
@@ -83,7 +84,6 @@ class KnowledgeUtil {
             // if you get an error, handle it other than a null pointer because
             // the error will happen the first time you run
             System.out.println("No existing population found - starting a new one from scratch");
-            int POPULATION_SIZE = 25;
             population = new KnowledgePopulation(POPULATION_SIZE);
         } catch (IOException e) {
             e.printStackTrace();

@@ -246,7 +246,6 @@ public class JakeTeamClient extends TeamClient {
                     Position obstaclePosition = obstacle.getPosition();
                     int totalRadius = ship.getRadius() + obstacle.getRadius();
                     if (space.findShortestDistance(shipPosition, obstaclePosition) < totalRadius) {
-                        System.out.println("COLLISION DETECTED with my obstacle");
                         currentSession.registerCollision(space, obstacle);
                     }
                     // Check if ship is collides with an obstacle that is NOT our obstacle or target
@@ -274,7 +273,6 @@ public class JakeTeamClient extends TeamClient {
                 }
             } else {
                 // Our ship has died, invalidate the ship's current AvoidSession
-                System.out.println("Ship is currently dead right now");
                 targetsToRemove.add(ship.getId());
                 currentSession.invalidateLastSession();
             }
