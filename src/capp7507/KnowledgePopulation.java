@@ -2,6 +2,8 @@ package capp7507;
 
 import spacesettlers.simulator.Toroidal2DPhysics;
 
+import java.util.Collection;
+
 
 /**
  * Stores a whole population of individuals for genetic algorithms / evolutionary computation
@@ -38,10 +40,16 @@ public class KnowledgePopulation {
      *
      * @param space
      */
-    void evaluateFitnessForCurrentMember(Toroidal2DPhysics space) {
+    void evaluateFitnessForCurrentMember(Toroidal2DPhysics space, Collection<SessionCollection> sessions) {
         KnowledgeChromosome currentMember = population[currentPopulationCounter % population.length];
-
-        fitnessScores[currentPopulationCounter] = 0;
+        double fitness = sessions.stream()
+                .mapToDouble(SessionCollection::averageFitness)
+                .average()
+                .orElseGet(() -> {
+                    System.out.println("average of session collection fitnesses not found");
+                    return 0;
+                });
+        fitnessScores[currentPopulationCounter] = fitness;
     }
 
     /**
@@ -75,6 +83,7 @@ public class KnowledgePopulation {
      * Right now all it does is reset the counter to the start.
      */
     void makeNextGeneration() {
+        // TODO: Crossover, selection, and mutation
         currentPopulationCounter = 0;
     }
 

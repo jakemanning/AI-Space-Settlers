@@ -53,7 +53,17 @@ public class SessionCollection {
     }
 
     public void markLastSessionIncomplete() {
-        sessions.peek().isSessionComplete();
+        sessions.peek().setIncomplete();
+    }
+
+    public double averageFitness() {
+        return sessions.stream()
+                .mapToDouble(session -> session.result().evaluate())
+                .average()
+                .orElseGet(() -> {
+                    System.out.println("average fitness not found");
+                    return 0;
+                });
     }
 
     // TODO: Add 'sum' method that collects all the sessions and..does stuff?

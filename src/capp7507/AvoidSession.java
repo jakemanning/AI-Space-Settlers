@@ -32,10 +32,13 @@ public class AvoidSession {
         energyAtAvoidEnd = ship.getEnergy();
         timeCompleted = Instant.now();
 
+        return result();
+    }
+
+    public AvoidResult result() {
         double distanceChange = distanceAtAvoidBeginning - distanceAtAvoidEnd;
         double energySpent = energyAtAvoidBeginning - energyAtAvoidEnd;
         Duration timeSpent = Duration.between(timeStarted, timeCompleted);
-
         return new AvoidResult(successfullyAvoided, distanceChange, energySpent, timeSpent);
     }
 
@@ -139,6 +142,15 @@ public class AvoidSession {
 
         public double getDistanceChange() {
             return distanceChange;
+        }
+
+        public double evaluate() {
+            // TODO: Make more smahter to increase knowledge
+            if (successfullyAvoided) {
+                return 1;
+            } else {
+                return -1;
+            }
         }
     }
 }

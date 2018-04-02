@@ -14,12 +14,35 @@ public class KnowledgeState implements Serializable {
     // This tells us whether the obstacle is moving towards the ship's left or right
     private double obstacleTrajectoryAngle;
     private AbstractObject obstacle;
+    private AbstractObject target;
 
-    public KnowledgeState(double distanceToObstacle, double obstacleLocationAngle, double obstacleTrajectoryAngle, AbstractObject obstacle) {
+    public KnowledgeState(double distanceToObstacle, double obstacleLocationAngle, double obstacleTrajectoryAngle,
+                          AbstractObject obstacle, AbstractObject target) {
         this.distanceToObstacle = distanceToObstacle;
         this.obstacleLocationAngle = obstacleLocationAngle;
         this.obstacleTrajectoryAngle = obstacleTrajectoryAngle;
         this.obstacle = obstacle;
+        this.target = target;
+    }
+
+    public double getDistanceToObstacle() {
+        return distanceToObstacle;
+    }
+
+    public double getObstacleLocationAngle() {
+        return obstacleLocationAngle;
+    }
+
+    public double getObstacleTrajectoryAngle() {
+        return obstacleTrajectoryAngle;
+    }
+
+    public AbstractObject getObstacle() {
+        return obstacle;
+    }
+
+    public AbstractObject getTarget() {
+        return target;
     }
 
     @Override
@@ -35,9 +58,5 @@ public class KnowledgeState implements Serializable {
     @Override
     public int hashCode() {
         return Objects.hash(distanceToObstacle, obstacleLocationAngle, obstacleTrajectoryAngle);
-    }
-
-    public AbstractObject getObstacle() {
-        return obstacle;
     }
 }

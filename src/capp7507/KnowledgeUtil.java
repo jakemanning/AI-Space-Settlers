@@ -47,7 +47,7 @@ class KnowledgeUtil {
         if (steps % EVALUATION_STEPS == 0) {
             // note that this method currently scores every policy as zero as this is part of
             // what the student has to do
-            population.evaluateFitnessForCurrentMember(space);
+            population.evaluateFitnessForCurrentMember(space, sessions.values());
 
             // move to the next member of the population
             currentPolicy = population.getNextMember();
