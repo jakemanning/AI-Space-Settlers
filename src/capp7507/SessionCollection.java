@@ -1,5 +1,11 @@
 package capp7507;
 
+import spacesettlers.objects.AbstractObject;
+import spacesettlers.objects.Ship;
+import spacesettlers.simulator.Toroidal2DPhysics;
+
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Stack;
 
 public class SessionCollection {
@@ -10,20 +16,44 @@ public class SessionCollection {
     }
 
     boolean lastSessionWasComplete() {
-        return sessions.isEmpty() || sessions.peek().isSessionComplete();
+        return sessions.empty() || sessions.peek().isSessionComplete();
     }
 
     public AvoidSession add(AvoidSession session) {
         return sessions.push(session);
     }
 
+    public boolean lastSessionWasFor(Toroidal2DPhysics space, AbstractObject obstacle) {
+        if (sessions.empty()) {
+            return false;
+        }
+        AvoidSession lastSession = sessions.peek();
+        Duration timeSinceLastSession = Duration.between(lastSession.getTimeStarted(), Instant.now());
+        if (timeSinceLastSession.compareTo(Duration.ofSeconds(5)) > 0) {
+            // time since last session is too long to be relevant
+            return false;
+        }
+        return obstacle.equals(lastSession.getObstacle(space));
+    }
 
-    public void completeLastSession(double distanceAtAvoidEnd, boolean successfullyAvoided) {
+
+    public void completeLastSession(Toroidal2DPhysics space, Ship ship) {
         if(sessions.isEmpty()) {
             return;
         }
         AvoidSession lastSession = sessions.pop();
-        lastSession.completeSession(distanceAtAvoidEnd, successfullyAvoided);
+        lastSession.completeSession(space, ship);
+    }
+
+    public void registerCollision(Toroidal2DPhysics space, AbstractObject obstacle) {
+        sessions.parallelStream()
+                .filter(avoidSession -> !avoidSession.isSessionComplete())
+                .filter(avoidSession -> obstacle.equals(avoidSession.getObstacle(space)))
+                .forEach(avoidSession -> avoidSession.setSuccessfullyAvoided(false));
+    }
+
+    public void markLastSessionIncomplete() {
+        sessions.peek().isSessionComplete();
     }
 
     // TODO: Add 'sum' method that collects all the sessions and..does stuff?

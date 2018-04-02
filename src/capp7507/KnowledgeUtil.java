@@ -27,12 +27,12 @@ class KnowledgeUtil {
         sessions = new HashMap<>();
     }
 
-    SessionCollection getSessionsFor(UUID uuid) {
-        if(!sessions.containsKey(uuid)) {
+    SessionCollection getSessionsFor(UUID shipUuid) {
+        if (!sessions.containsKey(shipUuid)) {
             // We gettin' litty up in here boiz, let's start learnin'
-            sessions.put(uuid, new SessionCollection());
+            sessions.put(shipUuid, new SessionCollection());
         }
-        return sessions.get(uuid);
+        return sessions.get(shipUuid);
     }
 
     /**

@@ -28,7 +28,7 @@ public class KnowledgeChromosome {
             // TODO Check if this angle calc actually works
             double randomAngle = rand.nextDouble() * Math.PI * 2;
             double randomDistance = rand.nextDouble() * 10 * myShip.getRadius();
-            AbstractAction action = AvoidAction.build(space, myShip.getPosition(), randomAngle, randomDistance);
+            AbstractAction action = AvoidAction.build(space, myShip.getPosition(), randomAngle, randomDistance, currentState.getObstacle());
             policy.put(currentState, action);
         }
 
