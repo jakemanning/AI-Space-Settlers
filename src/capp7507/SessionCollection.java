@@ -23,7 +23,7 @@ public class SessionCollection {
         return sessions.push(session);
     }
 
-    public boolean lastSessionWasFor(Toroidal2DPhysics space, AbstractObject obstacle) {
+    boolean lastSessionWasFor(Toroidal2DPhysics space, AbstractObject obstacle) {
         if (sessions.empty()) {
             return false;
         }
@@ -37,26 +37,34 @@ public class SessionCollection {
     }
 
 
-    public void completeLastSession(Toroidal2DPhysics space, Ship ship) {
-        if(sessions.isEmpty()) {
+    void completeLastSession(Toroidal2DPhysics space, Ship ship) {
+        if (sessions.empty()) {
             return;
         }
         AvoidSession lastSession = sessions.pop();
         lastSession.completeSession(space, ship);
     }
 
-    public void registerCollision(Toroidal2DPhysics space, AbstractObject obstacle) {
+    void registerCollision(Toroidal2DPhysics space, AbstractObject obstacle) {
         sessions.parallelStream()
                 .filter(avoidSession -> !avoidSession.isSessionComplete())
                 .filter(avoidSession -> obstacle.equals(avoidSession.getObstacle(space)))
                 .forEach(avoidSession -> avoidSession.setSuccessfullyAvoided(false));
     }
 
-    public void markLastSessionIncomplete() {
+    void markLastSessionIncomplete() {
         sessions.peek().setIncomplete();
     }
 
-    public double averageFitness() {
+    void invalidateLastSession() {
+        if (sessions.empty()) {
+            return;
+        }
+        // Get outta' America™️
+        sessions.pop();
+    }
+
+    double averageFitness() {
         return sessions.stream()
                 .mapToDouble(session -> session.result().evaluate())
                 .average()

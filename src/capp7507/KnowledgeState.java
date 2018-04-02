@@ -25,19 +25,19 @@ public class KnowledgeState implements Serializable {
         this.target = target;
     }
 
-    public double getDistanceToObstacle() {
+    double getDistanceToObstacle() {
         return distanceToObstacle;
     }
 
-    public double getObstacleLocationAngle() {
+    double getObstacleLocationAngle() {
         return obstacleLocationAngle;
     }
 
-    public double getObstacleTrajectoryAngle() {
+    double getObstacleTrajectoryAngle() {
         return obstacleTrajectoryAngle;
     }
 
-    public AbstractObject getObstacle() {
+    AbstractObject getObstacle() {
         return obstacle;
     }
 

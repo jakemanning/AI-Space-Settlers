@@ -19,7 +19,8 @@ public class AvoidSession {
     private UUID obstacleId;
     private UUID targetId;
 
-    public AvoidSession(Toroidal2DPhysics space, Ship ship, AbstractObject target, AbstractObject obstacle) {
+    AvoidSession(Toroidal2DPhysics space, Ship ship, AbstractObject target, AbstractObject obstacle) {
+        this.successfullyAvoided = true;
         this.obstacleId = obstacle.getId();
         this.targetId = target.getId();
         timeStarted = Instant.now();
@@ -27,7 +28,7 @@ public class AvoidSession {
         distanceAtAvoidBeginning = space.findShortestDistance(ship.getPosition(), target.getPosition());
     }
 
-    public AvoidResult completeSession(Toroidal2DPhysics space, Ship ship) {
+    AvoidResult completeSession(Toroidal2DPhysics space, Ship ship) {
         distanceAtAvoidEnd = space.findShortestDistance(ship.getPosition(), target(space).getPosition());
         energyAtAvoidEnd = ship.getEnergy();
         timeCompleted = Instant.now();
@@ -50,22 +51,6 @@ public class AvoidSession {
         return space.getObjectById(obstacleId);
     }
 
-    public double getDistanceAtAvoidBeginning() {
-        return distanceAtAvoidBeginning;
-    }
-
-    public double getDistanceAtAvoidEnd() {
-        return distanceAtAvoidEnd;
-    }
-
-    public boolean isSuccessfullyAvoided() {
-        return successfullyAvoided;
-    }
-
-    public Instant getTimeCompleted() {
-        return timeCompleted;
-    }
-
     boolean isSessionComplete() {
         return timeCompleted != null;
     }
@@ -74,40 +59,15 @@ public class AvoidSession {
         this.timeCompleted = null;
     }
 
-    boolean isSessionCompleteWithin(Instant now) {
-//        return isSessionComplete() || Duration.between(timeCompleted, now).getSeconds() < 0.1;
-        return false;
-    }
-
-    public Instant getTimeStarted() {
+    Instant getTimeStarted() {
         return timeStarted;
     }
 
-    public void setTimeStarted(Instant timeStarted) {
-        this.timeStarted = timeStarted;
-    }
-
-    public AbstractObject getObstacle(Toroidal2DPhysics space) {
+    AbstractObject getObstacle(Toroidal2DPhysics space) {
         return space.getObjectById(obstacleId);
     }
 
-    public double getEnergyAtAvoidBeginning() {
-        return energyAtAvoidBeginning;
-    }
-
-    public void setEnergyAtAvoidBeginning(double energyAtAvoidBeginning) {
-        this.energyAtAvoidBeginning = energyAtAvoidBeginning;
-    }
-
-    public double getEnergyAtAvoidEnd() {
-        return energyAtAvoidEnd;
-    }
-
-    public void setEnergyAtAvoidEnd(double energyAtAvoidEnd) {
-        this.energyAtAvoidEnd = energyAtAvoidEnd;
-    }
-
-    public void setSuccessfullyAvoided(boolean successfullyAvoided) {
+    void setSuccessfullyAvoided(boolean successfullyAvoided) {
         this.successfullyAvoided = successfullyAvoided;
     }
 
@@ -144,7 +104,7 @@ public class AvoidSession {
             return distanceChange;
         }
 
-        public double evaluate() {
+        double evaluate() {
             // TODO: Make more smahter to increase knowledge
             if (successfullyAvoided) {
                 return 1;

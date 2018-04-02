@@ -32,7 +32,7 @@ public class JakeTeamClient extends TeamClient {
     private static final int SHIP_MAX_RESOURCES = 5000;
     private static final int MAX_ASTEROID_MASS = 2318;
     private static final int MIN_ASTEROID_MASS = 2000;
-    public static final double TARGET_SHIP_SPEED = 60;
+    static final double TARGET_SHIP_SPEED = 60;
     private static final int SHIP_ENERGY_VALUE_WEIGHT = 6;
     private static final int SHIP_CARGO_VALUE_WEIGHT = 6;
     private static final double MAX_ANGLE = Math.PI / 2;
@@ -221,11 +221,7 @@ public class JakeTeamClient extends TeamClient {
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.YELLOW_CIRCLE, obstacle.getPosition());
 
         SessionCollection currentSession = knowledge.getSessionsFor(ship.getId());
-        // TODO: Maybe instead use the 'isSessionCompleteWithin' method in the AvoidSession class
-        // so that sessions close to eachother aren't counted as different sessions?
-        // Who knows ¯\_(ツ)_/¯
-        // Bryan: I think we can say if the new obstacle is different from the previous one then the previous avoid session was good
-        // If the obstacles are the same maybe we should call it the same session, but I'm not sure
+
         if (currentSession.lastSessionWasFor(space, obstacle)) {
             currentSession.markLastSessionIncomplete();
         }
@@ -258,22 +254,32 @@ public class JakeTeamClient extends TeamClient {
             double distance = space.findShortestDistance(shipPosition, target.getPosition());
             int targetRadius = target.getRadius();
             boolean closeEnough = (target instanceof Base) && distance < targetRadius * 3;
-            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
-                targetsToRemove.add(shipId);
+
+            SessionCollection currentSession = knowledge.getSessionsFor(shipId);
+            if (ship.isAlive()) {
+                // Mark avoid actions unsuccessful if we get too close to the obstacle
+                AbstractAction abstractAction = ship.getCurrentAction();
+                if (abstractAction instanceof AvoidAction) {
+                    AvoidAction action = (AvoidAction) abstractAction;
+                    AbstractObject obstacle = action.getObstacle();
+                    Position obstaclePosition = obstacle.getPosition();
+                    int totalRadius = ship.getRadius() + obstacle.getRadius();
+                    if (space.findShortestDistance(shipPosition, obstaclePosition) < totalRadius) {
+                        System.out.println("COLLISION DETECTED");
+                        currentSession.registerCollision(space, obstacle);
+                    }
+                }
+            } else {
+                // Our ship has died, invalidate the ship's current AvoidSession
+                System.out.println("One shippy boi DIED in the making of this film");
+                targetsToRemove.add(ship.getId());
+                currentSession.invalidateLastSession();
             }
 
-            // Mark avoid actions unsuccessful if we get too close to the obstacle
-            AbstractAction abstractAction = ship.getCurrentAction();
-            if (abstractAction instanceof AvoidAction) {
-                AvoidAction action = (AvoidAction) abstractAction;
-                AbstractObject obstacle = action.getObstacle();
-                Position obstaclePosition = obstacle.getPosition();
-                int totalRadius = ship.getRadius() + obstacle.getRadius();
-                if (space.findShortestDistance(shipPosition, obstaclePosition) < totalRadius) {
-                    System.out.println("COLLISION DETECTED");
-                    SessionCollection currentSession = knowledge.getSessionsFor(shipId);
-                    currentSession.registerCollision(space, obstacle);
-                }
+            // Handle when our target dies
+            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
+                targetsToRemove.add(shipId);
+                currentSession.invalidateLastSession();
             }
         }
 
@@ -283,11 +289,6 @@ public class JakeTeamClient extends TeamClient {
 
 
         knowledge.think(space);
-        // TODO: Determine if the ship collided with an obstacle that wasn't the target
-        // We could detect this either by: Determining whether the ship is within a certain radius
-        // Or: determining if the ship's total damage received counter went up.
-        // However, the ship's damage also goes up if it hits the target, and the target causes a collision (e.g. bases)
-        // Decided to go with the radius approach - implemented above
     }
 
     /*
@@ -915,11 +916,12 @@ public class JakeTeamClient extends TeamClient {
     @Override
     public void initialize(Toroidal2DPhysics space) {
         graphicsUtil = new GraphicsUtil(DEBUG);
-        knowledge = new KnowledgeUtil();
+        knowledge = new KnowledgeUtil(getKnowledgeFile());
     }
 
     @Override
     public void shutDown(Toroidal2DPhysics space) {
+        knowledge.shutDown();
     }
 
     @Override

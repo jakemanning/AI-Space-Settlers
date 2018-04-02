@@ -15,5 +15,5 @@
     <numberInitialShipsInTeam>2</numberInitialShipsInTeam>
 
     <!-- Optional:  if the agent needs to read in from a file, it can specify the path to it here -->
-    <knowledgeFile>foo.xml.gz</knowledgeFile>
+    <knowledgeFile>src/capp7507/KnowledgePopulation.xml.gz</knowledgeFile>
 </TeamClientConfig>
