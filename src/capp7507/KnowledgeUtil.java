@@ -31,8 +31,8 @@ class KnowledgeUtil {
     private int steps = 0;
     private final String KNOWLEDGE_FILE;
     private Map<UUID, SessionCollection> sessions;
-    private static final int POPULATION_SIZE = 10;
-    private static final int EVALUATION_STEPS = 2000;
+    private static final int POPULATION_SIZE = 100; // Prof: no lower than a hundred
+    private static final int EVALUATION_STEPS = 5000; // Prof: told some people no less than 5000
 
     KnowledgeUtil(String knowledgeFile) {
         sessions = new HashMap<>();
