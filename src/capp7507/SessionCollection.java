@@ -46,7 +46,8 @@ public class SessionCollection {
     }
 
     void registerCollision(Toroidal2DPhysics space, AbstractObject obstacle) {
-        sessions.parallelStream()
+        sessions.stream()
+                .filter(avoidSession -> !avoidSession.isValid())
                 .filter(avoidSession -> !avoidSession.isSessionComplete())
                 .filter(avoidSession -> obstacle.equals(avoidSession.getObstacle(space)))
                 .forEach(avoidSession -> avoidSession.setSuccessfullyAvoided(false));
@@ -61,11 +62,13 @@ public class SessionCollection {
             return;
         }
         // Get outta' America™️
-        sessions.pop();
+        sessions.peek().invalidate();
     }
 
     double averageFitness() {
         return sessions.stream()
+                .filter(avoidSession -> !avoidSession.isValid())
+                .filter(avoidSession -> !avoidSession.isSessionComplete())
                 .mapToDouble(session -> session.result().evaluate())
                 .average()
                 .orElseGet(() -> {

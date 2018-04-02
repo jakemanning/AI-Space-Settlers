@@ -234,8 +234,14 @@ public class JakeTeamClient extends TeamClient {
             double distance = space.findShortestDistance(shipPosition, target.getPosition());
             int targetRadius = target.getRadius();
             boolean closeEnough = (target instanceof Base) && distance < targetRadius * 3;
-
             SessionCollection currentSession = knowledge.getSessionsFor(shipId);
+
+            // Handle when our target dies
+            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
+                currentSession.invalidateLastSession();
+                targetsToRemove.add(shipId);
+            }
+
             if (ship.isAlive()) {
                 // Mark avoid actions unsuccessful if we get too close to the obstacle
                 AbstractAction abstractAction = ship.getCurrentAction();
@@ -245,20 +251,36 @@ public class JakeTeamClient extends TeamClient {
                     Position obstaclePosition = obstacle.getPosition();
                     int totalRadius = ship.getRadius() + obstacle.getRadius();
                     if (space.findShortestDistance(shipPosition, obstaclePosition) < totalRadius) {
-                        System.out.println("COLLISION DETECTED");
+                        System.out.println("COLLISION DETECTED with my obstacle");
                         currentSession.registerCollision(space, obstacle);
+                    }
+                    // Check if ship is collides with an obstacle that is NOT our obstacle or target
+                    for (AbstractObject object : space.getAllObjects()) {
+                        if (!object.isAlive()) {
+                            continue;
+                        }
+
+                        // skip them if they are the same object
+                        if (ship.equals(object)) {
+                            continue;
+                        }
+
+                        if (object.equals(obstacle)) {
+                            continue;
+                        }
+
+                        double goingThe = space.findShortestDistance(ship.getPosition(), object.getPosition()); // ;)
+
+                        if (goingThe < (ship.getRadius() + object.getRadius())) {
+                            System.out.println(objection() + " I ran into an unexpected object");
+                            currentSession.invalidateLastSession();
+                        }
                     }
                 }
             } else {
                 // Our ship has died, invalidate the ship's current AvoidSession
-                System.out.println("One shippy boi DIED in the making of this film");
+                System.out.println("Ship is currently dead right now");
                 targetsToRemove.add(ship.getId());
-                currentSession.invalidateLastSession();
-            }
-
-            // Handle when our target dies
-            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
-                targetsToRemove.add(shipId);
                 currentSession.invalidateLastSession();
             }
         }
@@ -269,6 +291,11 @@ public class JakeTeamClient extends TeamClient {
 
 
         knowledge.think(space);
+    }
+
+    private String objection() {
+        String objections[] = {"Clumsy me!", "Whoops!", "OMG!", "Darn 'tootin!"};
+        return objections[random.nextInt(objections.length)];
     }
 
     /**

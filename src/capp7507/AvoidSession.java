@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public class AvoidSession {
+    private boolean isValid;
     private double distanceAtAvoidBeginning;
     private double distanceAtAvoidEnd;
     private double energyAtAvoidBeginning;
@@ -19,7 +20,7 @@ public class AvoidSession {
     private UUID obstacleId;
     private UUID targetId;
 
-    public AvoidSession(Toroidal2DPhysics space, Ship ship, AbstractObject target, AbstractObject obstacle) {
+    AvoidSession(Toroidal2DPhysics space, Ship ship, AbstractObject target, AbstractObject obstacle) {
         this.successfullyAvoided = true;
         this.obstacleId = obstacle.getId();
         this.targetId = target.getId();
@@ -78,6 +79,14 @@ public class AvoidSession {
 
     public AbstractObject getTarget(Toroidal2DPhysics space) {
         return space.getObjectById(targetId);
+    }
+
+    public boolean isValid() {
+        return isValid;
+    }
+
+    void invalidate() {
+        isValid = false;
     }
 
     public class AvoidResult {
