@@ -51,6 +51,7 @@ public class KnowledgePopulation {
                 .mapToDouble(SessionCollection::averageFitness)
                 .average()
                 .orElse(0);
+        System.out.println("eval: " + fitness);
         fitnessScores[currentPopulationCounter % population.length] = fitness;
     }
 
@@ -136,8 +137,7 @@ public class KnowledgePopulation {
         for (KnowledgeChromosome chromosome : newPopulation) {
             if (random.nextDouble() < 0.05) {
                 for (int j = 0; j < chromosome.getCoefficients().length; j++) {
-                    double mutation = random.nextDouble();
-                    if (mutation < 0.25) {
+                    if (random.nextDouble() < 0.25) {
                         chromosome.getCoefficients()[j] = chromosome.resetCoefficient(j, random);
                     }
                 }

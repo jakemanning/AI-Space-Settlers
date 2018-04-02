@@ -266,7 +266,7 @@ public class JakeTeamClient extends TeamClient {
                         double goingThe = space.findShortestDistance(ship.getPosition(), object.getPosition()); // ;)
 
                         if (goingThe < (ship.getRadius() + object.getRadius())) {
-                            System.out.println(objection() + " I ran into an unexpected object");
+//                            System.out.println(objection() + " I ran into an unexpected object");
                             currentSession.invalidateLastSession();
                         }
                     }
