@@ -8,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -118,6 +119,12 @@ class KnowledgeUtil {
         try (FileOutputStream outputStream = new FileOutputStream(KNOWLEDGE_FILE); GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
             xStream.toXML(population, gzipOutputStream);
             System.out.println("Saved KnowledgePopulation to " + KNOWLEDGE_FILE);
+        }
+        String[] parts = KNOWLEDGE_FILE.split("/");
+        String stamped = parts[0] + "/" + parts[1] + "/xmls/" + Instant.now().toString() + "-" + parts[2];
+        try (FileOutputStream outputStream = new FileOutputStream(stamped); GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
+            xStream.toXML(population, gzipOutputStream);
+            System.out.println("Saved KnowledgePopulation to " + stamped);
         }
     }
 
