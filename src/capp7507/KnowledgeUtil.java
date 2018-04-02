@@ -54,7 +54,7 @@ class KnowledgeUtil {
         // if the step counter is modulo EVALUATION_STEPS, then evaluate this member and move to the next one
         int EVALUATION_STEPS = 2000;
         if (steps % EVALUATION_STEPS == 0) {
-            // note that this method currently scores every policy as zero as this is part of
+            // note that this getTeamPurchases currently scores every policy as zero as this is part of
             // what the student has to do
             population.evaluateFitnessForCurrentMember(space, sessions.values());
 
@@ -62,7 +62,7 @@ class KnowledgeUtil {
             currentPolicy = population.getNextMember();
 
             if (population.isGenerationFinished()) {
-                // note that this is also an empty method that a student needs to fill in
+                // note that this is also an empty getTeamPurchases that a student needs to fill in
                 population.makeNextGeneration();
 
                 currentPolicy = population.getNextMember();
