@@ -2,16 +2,20 @@ package capp7507;
 
 import spacesettlers.simulator.Toroidal2DPhysics;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Random;
+import java.util.stream.DoubleStream;
 
 
 /**
  * Stores a whole population of individuals for genetic algorithms / evolutionary computation
  */
 public class KnowledgePopulation {
+    private Random random;
     private KnowledgeChromosome[] population;
 
-    private int currentPopulationCounter;
+    private int currentPopulationCounter = -1;
 
     private double[] fitnessScores;
 
@@ -20,6 +24,7 @@ public class KnowledgePopulation {
      */
     public KnowledgePopulation(int populationSize) {
         super();
+        random = new Random();
 
         // start at member zero
         currentPopulationCounter = 0;
@@ -83,7 +88,10 @@ public class KnowledgePopulation {
      * Right now all it does is reset the counter to the start.
      */
     void makeNextGeneration() {
-        // TODO: Crossover, selection, and mutation
+        KnowledgeChromosome[] parents = parentSelection(population);
+        KnowledgeChromosome[] crossed = crossover(parents);
+        KnowledgeChromosome[] mutated = mutate(crossed);
+        population = mutated;
         currentPopulationCounter = 0;
     }
 
@@ -95,6 +103,49 @@ public class KnowledgePopulation {
     public KnowledgeChromosome getFirstMember() {
         return population[0];
     }
+
+    private KnowledgeChromosome[] parentSelection(KnowledgeChromosome[] population) {
+        double s = DoubleStream.of(fitnessScores).sum();
+        double p = random.nextDouble() * s;
+        KnowledgeChromosome[] newPopulation = new KnowledgeChromosome[population.length];
+        for (int i = 0; i < population.length; i++) {
+            int j = 0;
+            while (p <= s) {
+                p += fitnessScores[j];
+                j++;
+            }
+            newPopulation[i] = population[j];
+        }
+        return newPopulation;
+    }
+
+    private KnowledgeChromosome[] crossover(KnowledgeChromosome[] parents) {
+        KnowledgeChromosome[] newPopulation = Arrays.copyOf(parents, parents.length);
+        for (int i = 0; i < newPopulation.length - 1; i++) {
+            KnowledgeChromosome mom = newPopulation[i];
+            KnowledgeChromosome dad = newPopulation[i + 1];
+            int crossoverPoint = random.nextInt(mom.getCoefficients().length);
+            for (int j = 0; j < crossoverPoint; j++) {
+                double temp = mom.getCoefficients()[j];
+                mom.getCoefficients()[j] = dad.getCoefficients()[j];
+                dad.getCoefficients()[j] = temp;
+            }
+        }
+        return newPopulation;
+    }
+
+    private KnowledgeChromosome[] mutate(KnowledgeChromosome[] population) {
+        KnowledgeChromosome[] newPopulation = Arrays.copyOf(population, population.length);
+        for (KnowledgeChromosome chromosome : newPopulation) {
+            if (random.nextDouble() < 0.05) {
+                for (int j = 0; j < chromosome.getCoefficients().length; j++) {
+                    double mutation = random.nextDouble();
+                    if (mutation < 0.25) {
+                        chromosome.getCoefficients()[j] = chromosome.resetCoefficient(j, random);
+                    }
+                }
+            }
+        }
+        return newPopulation;
+    }
 }
-
-

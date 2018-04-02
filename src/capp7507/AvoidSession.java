@@ -19,7 +19,7 @@ public class AvoidSession {
     private UUID obstacleId;
     private UUID targetId;
 
-    AvoidSession(Toroidal2DPhysics space, Ship ship, AbstractObject target, AbstractObject obstacle) {
+    public AvoidSession(Toroidal2DPhysics space, Ship ship, AbstractObject target, AbstractObject obstacle) {
         this.successfullyAvoided = true;
         this.obstacleId = obstacle.getId();
         this.targetId = target.getId();
@@ -29,7 +29,12 @@ public class AvoidSession {
     }
 
     AvoidResult completeSession(Toroidal2DPhysics space, Ship ship) {
-        distanceAtAvoidEnd = space.findShortestDistance(ship.getPosition(), target(space).getPosition());
+        AbstractObject target = target(space);
+        if (target == null) {
+            // TODO: Mayhap we ought to change this here, righto, god save the queen
+            return null;
+        }
+        distanceAtAvoidEnd = space.findShortestDistance(ship.getPosition(), target.getPosition());
         energyAtAvoidEnd = ship.getEnergy();
         timeCompleted = Instant.now();
 
@@ -109,7 +114,7 @@ public class AvoidSession {
             if (successfullyAvoided) {
                 return 1;
             } else {
-                return -1;
+                return 0;
             }
         }
     }

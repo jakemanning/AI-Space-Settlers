@@ -45,7 +45,6 @@ class KnowledgeUtil {
     }
 
     /**
-     *
      * @param space physics
      */
     void think(Toroidal2DPhysics space) {
@@ -68,7 +67,7 @@ class KnowledgeUtil {
 
                 currentPolicy = population.getNextMember();
             }
-
+            sessions.clear();
         }
     }
 
@@ -120,5 +119,9 @@ class KnowledgeUtil {
             xStream.toXML(population, gzipOutputStream);
             System.out.println("Saved KnowledgePopulation to " + KNOWLEDGE_FILE);
         }
+    }
+
+    public KnowledgeChromosome getCurrentPolicy() {
+        return currentPolicy;
     }
 }

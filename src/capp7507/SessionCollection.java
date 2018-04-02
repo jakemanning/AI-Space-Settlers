@@ -41,7 +41,7 @@ public class SessionCollection {
         if (sessions.empty()) {
             return;
         }
-        AvoidSession lastSession = sessions.pop();
+        AvoidSession lastSession = sessions.peek();
         lastSession.completeSession(space, ship);
     }
 
@@ -73,7 +73,4 @@ public class SessionCollection {
                     return 0;
                 });
     }
-
-    // TODO: Add 'sum' method that collects all the sessions and..does stuff?
-
 }

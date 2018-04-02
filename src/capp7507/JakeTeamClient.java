@@ -13,6 +13,8 @@ import spacesettlers.utilities.Vector2D;
 
 import java.util.*;
 
+import static capp7507.MovementUtil.*;
+
 /**
  * A model-based reflex agent for controlling a spacesettlers team client
  *
@@ -26,7 +28,6 @@ import java.util.*;
  */
 public class JakeTeamClient extends TeamClient {
     private static final boolean DEBUG = true;
-    private static final double COLLISION_AVOIDANCE_ANGLE = Math.PI / 2;
     private static final double RANDOM_SHOOT_THRESHOLD = 0.35;
     private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
     private static final int SHIP_MAX_RESOURCES = 5000;
@@ -176,7 +177,7 @@ public class JakeTeamClient extends TeamClient {
      *
      * This action attempts to move the ship to where the target will be in the future.
      * The ship and the target will collide even if the target is in motion at a constant rate.
-     * This method uses {@link #interceptPosition(Toroidal2DPhysics, Position, Position)} to predict the
+     * This method uses interceptPosition(Toroidal2DPhysics, Position, Position) to predict the
      * target's future location.
      * The ship will be going a speed of {@value TARGET_SHIP_SPEED} units by default when it reaches the target, depending on
      * the angle it needs to turn to reach nextStep (slower if angle is larger), so it doesn't overshoot each target
@@ -200,24 +201,6 @@ public class JakeTeamClient extends TeamClient {
     }
 
     private AvoidAction avoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, AbstractObject target, Ship ship) {
-        Position currentPosition = ship.getPosition();
-        Vector2D currentVector = new Vector2D(currentPosition);
-        Vector2D obstacleVector = space.findShortestDistanceVector(currentPosition, obstacle.getPosition());
-        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, target.getPosition());
-        double angleDifference = targetVector.angleBetween(obstacleVector);
-        double newAngle;
-        if (angleDifference < 0) {
-            newAngle = obstacleVector.getAngle() + COLLISION_AVOIDANCE_ANGLE;
-        } else {
-            newAngle = obstacleVector.getAngle() - COLLISION_AVOIDANCE_ANGLE;
-        }
-        // we should learn this
-        int collisionAvoidanceDistanceFactor = 3;
-        int avoidanceMagnitude = (obstacle.getRadius() + ship.getRadius()) * collisionAvoidanceDistanceFactor;
-        Vector2D avoidanceVector = Vector2D.fromAngle(newAngle, avoidanceMagnitude); // A smaller angle works much better
-        Vector2D newTargetVector = currentVector.add(avoidanceVector);
-        Position newTarget = new Position(newTargetVector);
-
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.YELLOW_CIRCLE, obstacle.getPosition());
 
         SessionCollection currentSession = knowledge.getSessionsFor(ship.getId());
@@ -228,12 +211,9 @@ public class JakeTeamClient extends TeamClient {
         if(currentSession.lastSessionWasComplete()) {
             AvoidSession newAvoidSession = new AvoidSession(space, ship, target, obstacle);
             currentSession.add(newAvoidSession);
-        } //else {
-            // We are avoiding already. Do we need to do anything here?
-        // Bryan: I don't think so
-        // }
-
-        return new AvoidAction(space, currentPosition, newTarget, avoidanceVector, obstacle);
+        }
+        KnowledgeState state = KnowledgeState.build(space, ship, obstacle, target);
+        return knowledge.getCurrentPolicy().getCurrentAction(space, ship, state, random);
     }
 
     /**
@@ -289,119 +269,6 @@ public class JakeTeamClient extends TeamClient {
 
 
         knowledge.think(space);
-    }
-
-    /*
-     * Returns the inverse of linear normalization. Instead of scaling from newMin to newMax,
-     * our scale ends up being from newMin to newMax.
-     *
-     * For example first range is (0.1 to 0.6), and second range is (0.7 to 1.2).
-     * Input of 0.2 will return 1.1, the ratio of the input between the first range, normalized to the second range (inverse)
-     *
-     * @param oldMin Original Linear scale start
-     * @param oldMax Original scale end
-     * @param newMin New linear scale start
-     * @param newMax New linear scale end
-     * @param input  What we want to convert
-     * @return Linearly scaled integer from old range to new range
-     */
-    private static double linearNormalizeInverse(double oldMin, double oldMax, double newMin, double newMax, double input) {
-        return newMax - linearNormalize(oldMin, oldMax, newMin, newMax, input) + newMin;
-    }
-
-    /**
-     * Converts from a linear scale from x1 to x2 to linear scale from y1 to y2
-     * For example, if the first linear scale is from 0 to 1, and the linear scale is 1 to 90,
-     * then an input will be converted from the first linear scale to the second linear scale (adhering to the original ratio)
-     *
-     * For example first range is (0.1 to 0.6), and second range is (0.7 to 1.2).
-     * Input of 0.3 will return 0.9, the ratio of the input between the first range, normalized to the second range
-     *
-     * @param oldMin Original Linear scale start
-     * @param oldMax Original scale end
-     * @param newMin New linear scale start
-     * @param newMax New linear scale end
-     * @param input  What we want to convert
-     * @return Linearly scaled integer from old range to new range
-     */
-    private static double linearNormalize(double oldMin, double oldMax, double newMin, double newMax, double input) {
-        if (input < oldMin) {
-            input = oldMin;
-        } else if (input > oldMax) {
-            input = oldMax;
-        }
-
-        double oldRange = oldMax - oldMin;
-        if (oldRange == 0) {
-            return newMin;
-        } else {
-            double newRange = newMax - newMin;
-            return (((input - oldMin) * newRange) / oldRange) + newMin;
-        }
-    }
-
-    /**
-     * Figure out where the moving target and the ship will meet if the target maintains its current velocity
-     * and the ship moves roughly at {@value TARGET_SHIP_SPEED}
-     * https://stackoverflow.com/questions/2248876/2d-game-fire-at-a-moving-target-by-predicting-intersection-of-projectile-and-u
-     *
-     * @param space The Toroidal2DPhysics for the game
-     * @param targetPosition Position of the target at this instant
-     * @param shipLocation Position of the ship at this instant
-     * @return Position to aim the ship in order to collide with the target
-     */
-    private static Position interceptPosition(Toroidal2DPhysics space, Position targetPosition, Position shipLocation) {
-        // component velocities of the target
-        double targetVelX = targetPosition.getTranslationalVelocityX();
-        double targetVelY = targetPosition.getTranslationalVelocityY();
-        // component location of the target
-        double targetX = targetPosition.getX();
-        double targetY = targetPosition.getY();
-        // component location of the ship
-        double shipX = shipLocation.getX();
-        double shipY = shipLocation.getY();
-
-        // handle wrap around paths in Toroidal2DPhysics
-        double negativeTargetX = targetX - space.getWidth();
-        if (Math.abs(negativeTargetX - shipX) < Math.abs(targetX - shipX)) {
-            targetX = negativeTargetX;
-        }
-        double extraTargetX = targetX + space.getWidth();
-        if (Math.abs(extraTargetX - shipX) < Math.abs(targetX - shipX)) {
-            targetX = extraTargetX;
-        }
-        double negativeTargetY = targetY - space.getHeight();
-        if (Math.abs(negativeTargetY - shipY) < Math.abs(targetY - shipY)) {
-            targetY = negativeTargetY;
-        }
-        double extraTargetY = targetY + space.getHeight();
-        if (Math.abs(extraTargetY - shipY) < Math.abs(targetY - shipY)) {
-            targetY = extraTargetY;
-        }
-
-        // Math to compute the intercept
-        double shipSpeed = Math.max(TARGET_SHIP_SPEED, shipLocation.getTotalTranslationalVelocity());
-        double a = Math.pow(targetVelX, 2) + Math.pow(targetVelY, 2) - Math.pow(shipSpeed, 2);
-        double b = 2 * (targetVelX * (targetX - shipX) + targetVelY * (targetY - shipY));
-        double c = Math.pow(targetX - shipX, 2) + Math.pow(targetY - shipY, 2);
-        double disc = Math.pow(b, 2) - 4 * a * c;
-        if (disc < 0) {
-            return targetPosition;
-        }
-        double t1 = (-b + Math.sqrt(disc)) / (2 * a);
-        double t2 = (-b - Math.sqrt(disc)) / (2 * a);
-        double t;
-        // find the least positive t
-        if (t1 > 0) {
-            if (t2 > 0) t = Math.min(t1, t2);
-            else t = t1;
-        } else {
-            t = t2;
-        }
-        // multiply time by the target's velocity to get how far it travels
-        double aimX = t * targetVelX + targetX;
-        double aimY = t * targetVelY + targetY;
-        return new Position(aimX, aimY);
     }
 
     /**
