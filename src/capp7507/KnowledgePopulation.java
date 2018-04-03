@@ -95,7 +95,7 @@ public class KnowledgePopulation {
         KnowledgeChromosome[] newPopulation = new KnowledgeChromosome[population.length];
         for (int i = 0; i < population.length; i++) {
             double p = random.nextDouble() * s;
-            int j = 0;
+            int j = -1;
             while (p < s) {
                 j++;
                 p += fitnessScores[j];
@@ -115,7 +115,7 @@ public class KnowledgePopulation {
     private KnowledgeChromosome[] crossover(KnowledgeChromosome[] parents) {
         final double alpha = 0.5; // Some value a ϵ [0, 1]
         KnowledgeChromosome[] newPopulation = deepCopyOfPopulation(parents);
-        for (int i = 0; i < newPopulation.length; i++) {
+        for (int i = 0; i < newPopulation.length - 1; i++) {
             KnowledgeChromosome mom = newPopulation[i];
             KnowledgeChromosome dad = newPopulation[i + 1];
             for(int j = 0; j < mom.getCoefficients().length; ++j) {
