@@ -36,13 +36,11 @@ public class KnowledgeChromosome {
             double angleVariance = Math.PI / 3;
             coeff = getGaussian(rand, angleVariance);
             coeff = limitRange(-2 * Math.PI, 2 * Math.PI, coeff);
-            System.out.println("angle coeff: " + coeff);
         } else {
             double distanceVariance = 20;
             coeff = getGaussian(rand, distanceVariance);
             coeff = rand.nextInt(20) + coeff;
             coeff = limitRange(-10, 40, coeff);
-            System.out.println("distance coeff: " + coeff);
         }
         return coeff;
     }

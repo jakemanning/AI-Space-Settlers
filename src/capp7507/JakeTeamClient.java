@@ -149,8 +149,10 @@ public class JakeTeamClient extends TeamClient {
                 value *= OBSTRUCTED_PATH_PENALTY; // We should be less likely to go towards objects with obstacles in the way
             }
 
-            double opponentDistance = distanceToOtherShip(space, object);
-            value *= linearNormalizeInverse(0, space.getWidth(), 0, 30, opponentDistance);
+            if (TRAINING_TREE) {
+                double opponentDistance = distanceToOtherShip(space, object);
+                value *= linearNormalizeInverse(0, space.getWidth(), 0, 100, opponentDistance);
+            }
 
             Position adjustedObjectPosition = interceptPosition(space, object.getPosition(), ship.getPosition());
             double rawDistance = space.findShortestDistance(ship.getPosition(), adjustedObjectPosition);
@@ -211,17 +213,46 @@ public class JakeTeamClient extends TeamClient {
     private AvoidAction avoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, AbstractObject target, Ship ship) {
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.YELLOW_CIRCLE, obstacle.getPosition());
 
-        SessionCollection currentSession = knowledge.getSessionsFor(ship.getId());
+        if (TRAINING_GA) {
+            SessionCollection currentSession = knowledge.getSessionsFor(ship.getId());
 
-        if (currentSession.lastSessionWasFor(space, obstacle)) {
-            currentSession.markLastSessionIncomplete();
+            if (currentSession.lastSessionWasFor(space, obstacle)) {
+                currentSession.markLastSessionIncomplete();
+            }
+            if (currentSession.lastSessionWasComplete()) {
+                AvoidSession newAvoidSession = new AvoidSession(space, ship, target, obstacle);
+                currentSession.add(newAvoidSession);
+            }
+            KnowledgeState state = KnowledgeState.build(space, ship, obstacle, target);
+            return knowledge.getCurrentPolicy().getCurrentAction(space, ship, state);
+        } else {
+            // TODO Use the best chromosome from the knowledge file
+            return oldAvoidCrashAction(space, obstacle, target, ship);
         }
-        if(currentSession.lastSessionWasComplete()) {
-            AvoidSession newAvoidSession = new AvoidSession(space, ship, target, obstacle);
-            currentSession.add(newAvoidSession);
+    }
+
+    private AvoidAction oldAvoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, AbstractObject target, Ship ship) {
+        Position currentPosition = ship.getPosition();
+        Vector2D currentVector = new Vector2D(currentPosition);
+        Vector2D obstacleVector = space.findShortestDistanceVector(currentPosition, obstacle.getPosition());
+        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, target.getPosition());
+        double angleDifference = targetVector.angleBetween(obstacleVector);
+        double newAngle;
+        double collisionAvoidanceAngle = Math.PI / 2;
+        if (angleDifference < 0) {
+            newAngle = obstacleVector.getAngle() + collisionAvoidanceAngle;
+        } else {
+            newAngle = obstacleVector.getAngle() - collisionAvoidanceAngle;
         }
-        KnowledgeState state = KnowledgeState.build(space, ship, obstacle, target);
-        return knowledge.getCurrentPolicy().getCurrentAction(space, ship, state);
+        int avoidanceMagnitude = obstacle.getRadius() + ship.getRadius();
+        Vector2D avoidanceVector = Vector2D.fromAngle(newAngle, avoidanceMagnitude); // A smaller angle works much better
+        Vector2D newTargetVector = currentVector.add(avoidanceVector);
+        Position newTarget = new Position(newTargetVector);
+
+        graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.YELLOW_CIRCLE, obstacle.getPosition());
+        Vector2D distanceVector = space.findShortestDistanceVector(currentPosition, newTarget);
+        distanceVector = distanceVector.multiply(3);
+        return new AvoidAction(space, currentPosition, newTarget, distanceVector, obstacle);
     }
 
     /**
@@ -433,6 +464,8 @@ public class JakeTeamClient extends TeamClient {
         graphicsUtil = new GraphicsUtil(DEBUG);
         if (TRAINING_GA && !TRAINING_TREE) {
             powerupUtil = PowerupUtil.dummy(this, random);
+        } else if (TRAINING_TREE) {
+            powerupUtil = new TrainingPowerupUtil(this, random);
         } else {
             powerupUtil = new PowerupUtil(this, random);
         }

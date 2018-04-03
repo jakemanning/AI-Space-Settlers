@@ -19,7 +19,7 @@ import static capp7507.SpaceSearchUtil.getEnemyTargets;
 import static capp7507.SpaceSearchUtil.getTeamBases;
 
 public class PowerupUtil {
-    private static final double RANDOM_SHOOT_THRESHOLD = 0.35;
+    private static final double RANDOM_SHOOT_THRESHOLD = 0.1;
     private static final double SHIP_NEEDS_ENERGY_FACTOR = 0.2;
     private static final int SHIELD_RADIUS = 3;
     private static final double MAX_SHOT_ANGLE = Math.PI / 12;
@@ -28,7 +28,6 @@ public class PowerupUtil {
     private final JakeTeamClient client;
     private final Random random;
     private Set<UUID> shieldedObjects = new HashSet<>();
-    private Set<ShotAttempt> shotAttempts = new HashSet<>();
 
     PowerupUtil(JakeTeamClient client, Random random) {
         this.client = client;
@@ -129,10 +128,7 @@ public class PowerupUtil {
                         powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.TOGGLE_SHIELD);
                     }
                 } else if (inPositionToShoot(space, ship.getPosition(), closestEnemyShip) && !shipNeedsEnergy(ship)) { // shoot if we're in position and do not need energy
-                    boolean shot = shoot(powerupMap, ship);
-                    if (shot) {
-                        shotAttempts.add(ShotAttempt.build(space, ship, closestEnemyShip));
-                    }
+                    shoot(powerupMap, space, ship, closestEnemyShip);
                 } else if (ship.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY)) {
                     // equip the double max energy powerup
                     powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY);
@@ -212,11 +208,10 @@ public class PowerupUtil {
      * @param target          The potential target for the ship to shoot
      * @return True if the target can be shot from the currentPosition, false otherwise
      */
-    private boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition,
-                                      AbstractObject target) {
+    boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition,
+                              AbstractObject target) {
         // We don't want to worry about shooting anymore, let's be cooperative
-        // Psych
-        return true;
+        return false;
     }
 
     /**
@@ -226,7 +221,7 @@ public class PowerupUtil {
      * @param powerupMap A map from ship IDs to powerup types that is added to when shooting
      * @param ship       The ship that will shoot
      */
-    private boolean shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Ship ship) {
+    boolean shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Toroidal2DPhysics space, Ship ship, AbstractObject target) {
         if (random.nextDouble() < RANDOM_SHOOT_THRESHOLD) {
             powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.FIRE_MISSILE);
             return true;

@@ -33,4 +33,12 @@ public class ShotAttempt {
     public void setMissileId(UUID missileId) {
         this.missileId = missileId;
     }
+
+    public UUID getMissileId() {
+        return missileId;
+    }
+
+    public int getTurnFired() {
+        return turnFired;
+    }
 }
