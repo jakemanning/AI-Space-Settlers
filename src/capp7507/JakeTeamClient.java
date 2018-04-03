@@ -149,6 +149,9 @@ public class JakeTeamClient extends TeamClient {
                 value *= OBSTRUCTED_PATH_PENALTY; // We should be less likely to go towards objects with obstacles in the way
             }
 
+            double opponentDistance = distanceToOtherShip(space, object);
+            value *= linearNormalizeInverse(0, space.getWidth(), 0, 30, opponentDistance);
+
             Position adjustedObjectPosition = interceptPosition(space, object.getPosition(), ship.getPosition());
             double rawDistance = space.findShortestDistance(ship.getPosition(), adjustedObjectPosition);
             double scaledDistance = scaleDistance(space, rawDistance) + angleValue(space, ship, object);
@@ -167,6 +170,14 @@ public class JakeTeamClient extends TeamClient {
         // Find the object with the highest score
         Map.Entry<UUID, Double> maxEntry = Collections.max(scores.entrySet(), Comparator.comparing(Map.Entry::getValue));
         return space.getObjectById(maxEntry.getKey());
+    }
+
+    private double distanceToOtherShip(Toroidal2DPhysics space, AbstractObject object) {
+        return space.getShips().stream()
+                .filter(ship -> "HeuristicMinerTeam".equals(ship.getTeamName()))
+                .mapToDouble(ship -> space.findShortestDistance(object.getPosition(), ship.getPosition()))
+                .min()
+                .orElse(Double.MAX_VALUE);
     }
 
     /**

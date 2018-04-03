@@ -28,6 +28,7 @@ public class PowerupUtil {
     private final JakeTeamClient client;
     private final Random random;
     private Set<UUID> shieldedObjects = new HashSet<>();
+    private Set<ShotAttempt> shotAttempts = new HashSet<>();
 
     PowerupUtil(JakeTeamClient client, Random random) {
         this.client = client;
@@ -128,7 +129,10 @@ public class PowerupUtil {
                         powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.TOGGLE_SHIELD);
                     }
                 } else if (inPositionToShoot(space, ship.getPosition(), closestEnemyShip) && !shipNeedsEnergy(ship)) { // shoot if we're in position and do not need energy
-                    shoot(powerupMap, ship);
+                    boolean shot = shoot(powerupMap, ship);
+                    if (shot) {
+                        shotAttempts.add(ShotAttempt.build(space, ship, closestEnemyShip));
+                    }
                 } else if (ship.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY)) {
                     // equip the double max energy powerup
                     powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY);
@@ -211,7 +215,8 @@ public class PowerupUtil {
     private boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition,
                                       AbstractObject target) {
         // We don't want to worry about shooting anymore, let's be cooperative
-        return false;
+        // Psych
+        return true;
     }
 
     /**
@@ -221,10 +226,12 @@ public class PowerupUtil {
      * @param powerupMap A map from ship IDs to powerup types that is added to when shooting
      * @param ship       The ship that will shoot
      */
-    private void shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Ship ship) {
+    private boolean shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Ship ship) {
         if (random.nextDouble() < RANDOM_SHOOT_THRESHOLD) {
             powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.FIRE_MISSILE);
+            return true;
         }
+        return false;
     }
 
     private static class RandomDistribution {
