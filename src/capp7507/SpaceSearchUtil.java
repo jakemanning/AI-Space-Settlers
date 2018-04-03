@@ -12,7 +12,7 @@ import java.util.Set;
 import static capp7507.MovementUtil.interceptPosition;
 
 class SpaceSearchUtil {
-    private static final int MAX_OBSTRUCTION_DETECTION = 100;
+    private static final int MAX_OBSTRUCTION_DETECTION = 150;
 
     /**
      * Check to see if following a straight line path between two given locations would result in a collision with a provided set of obstructions

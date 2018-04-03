@@ -53,11 +53,7 @@ public class KnowledgePopulation {
      * @return
      */
     boolean isGenerationFinished() {
-        if (currentPopulationCounter == population.length) {
-            return true;
-        } else {
-            return false;
-        }
+        return currentPopulationCounter == population.length;
     }
 
     /**
@@ -90,7 +86,7 @@ public class KnowledgePopulation {
      *
      * @return
      */
-    public KnowledgeChromosome getFirstMember() {
+    KnowledgeChromosome getFirstMember() {
         return population[0];
     }
 
@@ -109,16 +105,24 @@ public class KnowledgePopulation {
         return newPopulation;
     }
 
+    /**
+     * Uses whole arithmetic crossover with 𝜶 = 0.5
+     * Child 1: 𝜶 * x + (1 - a) * y
+     * Child 2: 𝜶 * y + (1 - a) * x
+     * @param parents chromosomes to act on
+     * @return chromosomes with whole arithmetic crossover calculation
+     */
     private KnowledgeChromosome[] crossover(KnowledgeChromosome[] parents) {
+        final double alpha = 0.5; // Some value a ϵ [0, 1]
         KnowledgeChromosome[] newPopulation = deepCopyOfPopulation(parents);
-        for (int i = 0; i < newPopulation.length - 1; i++) {
+        for (int i = 0; i < newPopulation.length; i++) {
             KnowledgeChromosome mom = newPopulation[i];
             KnowledgeChromosome dad = newPopulation[i + 1];
-            int crossoverPoint = random.nextInt(mom.getCoefficients().length);
-            for (int j = 0; j < crossoverPoint; j++) {
-                double temp = mom.getCoefficients()[j];
-                mom.getCoefficients()[j] = dad.getCoefficients()[j];
-                dad.getCoefficients()[j] = temp;
+            for(int j = 0; j < mom.getCoefficients().length; ++j) {
+                double momCoeff = mom.getCoefficients()[j];
+                double dadCoeff = dad.getCoefficients()[j];
+                mom.getCoefficients()[j] = alpha * momCoeff + (1 - alpha) * dadCoeff;
+                dad.getCoefficients()[j] = alpha * dadCoeff + (1 - alpha) * momCoeff;
             }
         }
         return newPopulation;
@@ -127,11 +131,9 @@ public class KnowledgePopulation {
     private KnowledgeChromosome[] mutate(KnowledgeChromosome[] population) {
         KnowledgeChromosome[] newPopulation = deepCopyOfPopulation(population);
         for (KnowledgeChromosome chromosome : newPopulation) {
-            if (random.nextDouble() < 0.05) {
-                for (int j = 0; j < chromosome.getCoefficients().length; j++) {
-                    if (random.nextDouble() < 0.25) {
-                        chromosome.getCoefficients()[j] = chromosome.resetCoefficient(j, random);
-                    }
+            for (int j = 0; j < chromosome.getCoefficients().length; j++) {
+                if (random.nextDouble() < (0.1)) {
+                    chromosome.getCoefficients()[j] = chromosome.resetCoefficient(j, random);
                 }
             }
         }

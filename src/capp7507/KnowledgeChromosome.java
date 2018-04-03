@@ -9,7 +9,7 @@ import java.util.Random;
 public class KnowledgeChromosome {
     private double[] coefficients = null;
 
-    public KnowledgeChromosome() {
+    KnowledgeChromosome() {
         Random rand = new Random();
         // randomly choose coefficients for the raw action
         if (coefficients == null) {
@@ -30,11 +30,34 @@ public class KnowledgeChromosome {
         return rawAction(space, myShip, currentState);
     }
 
-    public double resetCoefficient(int index, Random rand) {
+    double resetCoefficient(int index, Random rand) {
+        double coeff;
         if (index < 3) {
-            return (rand.nextInt(50) * 0.04 * Math.PI) - Math.PI;
+            double angleVariance = Math.PI / 3;
+            coeff = getGaussian(rand, angleVariance);
+            coeff = limitRange(-2 * Math.PI, 2 * Math.PI, coeff);
+            System.out.println("angle coeff: " + coeff);
         } else {
-            return rand.nextInt(70) - 20;
+            double distanceVariance = 20;
+            coeff = getGaussian(rand, distanceVariance);
+            coeff = rand.nextInt(20) + coeff;
+            coeff = limitRange(-10, 40, coeff);
+            System.out.println("distance coeff: " + coeff);
+        }
+        return coeff;
+    }
+
+    private double getGaussian(Random rand, double variance) {
+        return rand.nextGaussian() * variance;
+    }
+
+    private double limitRange(double min, double max, double val) {
+        if (val < min) {
+            return min;
+        } else if(val > max) {
+            return max;
+        } else {
+            return val;
         }
     }
 
@@ -55,7 +78,7 @@ public class KnowledgeChromosome {
         return AvoidAction.build(space, ship.getPosition(), angle, distance, state.getObstacle());
     }
 
-    public double[] getCoefficients() {
+    double[] getCoefficients() {
         return coefficients;
     }
 
