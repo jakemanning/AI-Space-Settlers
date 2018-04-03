@@ -122,16 +122,7 @@ public class AvoidSession {
             if (!successfullyAvoided) {
                 return 0;
             } else {
-                // max time seen: 388
-                // max energy seen: 2739
-                // max distance seen: 225
-                // min distance seen: -37
-                double timeNormalized = linearNormalize(0, 388, 0, 5, timeSpent);
-                double energyNormalized = linearNormalize(0, 2739, 0, 5, energySpent);
-                double distanceNormalized = linearNormalize(-37, 225, 0, 11, distanceChange);
-                double bad = energyNormalized + timeNormalized;
-                double good = distanceNormalized;
-                return Math.max(good - bad, 0);
+                return 1;
             }
         }
     }
