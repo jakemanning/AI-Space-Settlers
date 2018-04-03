@@ -285,11 +285,6 @@ public class JakeTeamClient extends TeamClient {
         }
     }
 
-    private String objection() {
-        String objections[] = {"Clumsy me!", "Whoops!", "OMG!", "Darn 'tootin!"};
-        return objections[random.nextInt(objections.length)];
-    }
-
     /**
      * Whether the game is ending soon or not. Ships should return any resources before the game is over.
      * @param space The Toroidal2DPhysics for the game
