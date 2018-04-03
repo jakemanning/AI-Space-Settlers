@@ -94,14 +94,16 @@ class KnowledgeUtil {
     }
 
     private KnowledgePopulation loadFile(XStream xStream) throws IOException {
-        try (FileInputStream inputStream = new FileInputStream(KNOWLEDGE_FILE); GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+        try (FileInputStream inputStream = new FileInputStream(KNOWLEDGE_FILE);
+             GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
             System.out.println("Loaded KnowledgePopulation from " + KNOWLEDGE_FILE);
             return (KnowledgePopulation) xStream.fromXML(gzipInputStream);
         }
     }
 
     private PopulationCollection loadCollectionFile(XStream xStream) throws IOException {
-        try (FileInputStream inputStream = new FileInputStream(COLLECTION_FILE); GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+        try (FileInputStream inputStream = new FileInputStream(COLLECTION_FILE);
+             GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
             System.out.println("Loaded PopulationCollection from " + COLLECTION_FILE);
             return (PopulationCollection) xStream.fromXML(gzipInputStream);
         }
@@ -121,14 +123,16 @@ class KnowledgeUtil {
     }
 
     private void createFile(XStream xStream, KnowledgePopulation population) throws IOException {
-        try (FileOutputStream outputStream = new FileOutputStream(KNOWLEDGE_FILE); GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
+        try (FileOutputStream outputStream = new FileOutputStream(KNOWLEDGE_FILE);
+             GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
             xStream.toXML(population, gzipOutputStream);
             System.out.println("Saved KnowledgePopulation to " + KNOWLEDGE_FILE);
         }
     }
 
     private void createCollectionFile(XStream xStream, PopulationCollection collection) throws IOException {
-        try (FileOutputStream outputStream = new FileOutputStream(COLLECTION_FILE); GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
+        try (FileOutputStream outputStream = new FileOutputStream(COLLECTION_FILE);
+             GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
             xStream.toXML(collection, gzipOutputStream);
             System.out.println("Saved PopulationCollection to " + COLLECTION_FILE);
         }
