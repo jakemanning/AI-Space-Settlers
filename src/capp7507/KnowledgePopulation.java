@@ -112,13 +112,13 @@ public class KnowledgePopulation {
                 p += fitnessScores[j];
                 j++;
             }
-            newPopulation[i] = population[j];
+            newPopulation[i] = population[j].deepCopy();
         }
         return newPopulation;
     }
 
     private KnowledgeChromosome[] crossover(KnowledgeChromosome[] parents) {
-        KnowledgeChromosome[] newPopulation = Arrays.copyOf(parents, parents.length);
+        KnowledgeChromosome[] newPopulation = deepCopyOfPopulation(parents);
         for (int i = 0; i < newPopulation.length - 1; i++) {
             KnowledgeChromosome mom = newPopulation[i];
             KnowledgeChromosome dad = newPopulation[i + 1];
@@ -133,7 +133,7 @@ public class KnowledgePopulation {
     }
 
     private KnowledgeChromosome[] mutate(KnowledgeChromosome[] population) {
-        KnowledgeChromosome[] newPopulation = Arrays.copyOf(population, population.length);
+        KnowledgeChromosome[] newPopulation = deepCopyOfPopulation(population);
         for (KnowledgeChromosome chromosome : newPopulation) {
             if (random.nextDouble() < 0.05) {
                 for (int j = 0; j < chromosome.getCoefficients().length; j++) {
@@ -144,6 +144,14 @@ public class KnowledgePopulation {
             }
         }
         return newPopulation;
+    }
+
+    private KnowledgeChromosome[] deepCopyOfPopulation(KnowledgeChromosome[] population) {
+        KnowledgeChromosome[] copy = new KnowledgeChromosome[population.length];
+        for (int i = 0; i < population.length; i++) {
+            copy[i] = population[i].deepCopy();
+        }
+        return copy;
     }
 
     public KnowledgePopulation deepCopy() {

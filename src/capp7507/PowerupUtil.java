@@ -11,7 +11,6 @@ import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.objects.weapons.AbstractWeapon;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
-import spacesettlers.utilities.Vector2D;
 
 import java.util.*;
 import java.util.stream.DoubleStream;
@@ -207,16 +206,8 @@ public class PowerupUtil {
      */
     private boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition,
                                       AbstractObject target) {
-        Position targetPosition = target.getPosition();
-        boolean close = space.findShortestDistance(currentPosition, targetPosition) < MAX_SHOT_DISTANCE;
-        if (!close) {
-            return false;
-        }
-        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, targetPosition);
-        double targetAngle = targetVector.getAngle();
-        double currentAngle = currentPosition.getOrientation();
-        double angleDifference = Math.abs(targetAngle - currentAngle);
-        return angleDifference < MAX_SHOT_ANGLE;
+        // We don't want to worry about shooting anymore, let's be cooperative
+        return false;
     }
 
     /**

@@ -12,30 +12,6 @@
 	
 	<!-- The list of static clients/teams.  These play in each match. -->
 	<staticTeams>
-		<HighLevelTeamConfig>
-			<teamName>RandomTeam</teamName>
-			<configFile>random-clientinit.xml</configFile>
-			<initialRegionULX>0</initialRegionULX>
-			<initialRegionULY>0</initialRegionULY>
-			<initialRegionLRX>300</initialRegionLRX>
-			<initialRegionLRY>300</initialRegionLRY>
-		</HighLevelTeamConfig>
-		<HighLevelTeamConfig>
-			<teamName>DoNothingTeam</teamName>
-			<configFile>donothing-clientinit.xml</configFile>
-			<initialRegionULX>724</initialRegionULX>
-			<initialRegionULY>300</initialRegionULY>
-			<initialRegionLRX>1024</initialRegionLRX>
-			<initialRegionLRY>600</initialRegionLRY>
-		</HighLevelTeamConfig>
-		<HighLevelTeamConfig>
-			<teamName>HeuristicMinerTeam</teamName>
-			<configFile>passive-heuristic-clientinit.xml</configFile>
-			<initialRegionULX>640</initialRegionULX>
-			<initialRegionULY>400</initialRegionULY>
-			<initialRegionLRX>940</initialRegionLRX>
-			<initialRegionLRY>700</initialRegionLRY>
-		</HighLevelTeamConfig>
 	</staticTeams>
 
 	<!-- The list of variable clients/teams.  Each will participate in numRepeatMatches but against 
