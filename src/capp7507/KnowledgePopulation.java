@@ -92,17 +92,32 @@ public class KnowledgePopulation {
 
     private KnowledgeChromosome[] parentSelection(KnowledgeChromosome[] population) {
         double s = DoubleStream.of(fitnessScores).sum();
+        double[] fitnesses = shiftMinToZero(fitnessScores);
         KnowledgeChromosome[] newPopulation = new KnowledgeChromosome[population.length];
         for (int i = 0; i < population.length; i++) {
             double p = random.nextDouble() * s;
             int j = 0;
             while (p < s) {
                 j++;
-                p += fitnessScores[j];
+                p += fitnesses[j];
             }
             newPopulation[i] = population[j].deepCopy();
         }
         return newPopulation;
+    }
+
+    private double[] shiftMinToZero(double[] fitnessScores) {
+        double min = Double.MAX_VALUE;
+        for (double fitness : fitnessScores) {
+            if (fitness < min) {
+                min = fitness;
+            }
+        }
+        double[] result = new double[fitnessScores.length];
+        for (int i = 0; i < fitnessScores.length; i++) {
+            result[i] = fitnessScores[i] - min;
+        }
+        return result;
     }
 
     /**
