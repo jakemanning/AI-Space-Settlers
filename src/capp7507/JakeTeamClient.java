@@ -281,9 +281,6 @@ public class JakeTeamClient extends TeamClient {
         for (UUID key : targetsToRemove) {
             currentTargets.remove(key);
         }
-
-
-        knowledge.think(space);
     }
 
     private String objection() {
@@ -432,6 +429,7 @@ public class JakeTeamClient extends TeamClient {
 
     @Override
     public void shutDown(Toroidal2DPhysics space) {
+        knowledge.think(space);
         knowledge.shutDown();
     }
 

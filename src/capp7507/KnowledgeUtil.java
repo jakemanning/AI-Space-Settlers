@@ -56,27 +56,17 @@ class KnowledgeUtil {
      * @param space physics
      */
     void think(Toroidal2DPhysics space) {
-        // increment the step counter
-        steps++;
+        population.evaluateFitnessForCurrentMember(space, sessions.values());
 
-        // if the step counter is modulo EVALUATION_STEPS, then evaluate this member and move to the next one
-        if (steps % EVALUATION_STEPS == 0) {
-            // note that this method currently scores every policy as zero as this is part of
-            // what the student has to do
-            population.evaluateFitnessForCurrentMember(space, sessions.values());
+        // move to the next member of the population
+        currentPolicy = population.getNextMember();
 
-            // move to the next member of the population
+        if (population.isGenerationFinished()) {
+            populationCollection.add(population.deepCopy());
+            population.makeNextGeneration();
             currentPolicy = population.getNextMember();
-
-            if (population.isGenerationFinished()) {
-                // note that this is also an empty method that a student needs to fill in
-                populationCollection.add(population.deepCopy());
-                population.makeNextGeneration();
-//                shutDown(); not necessary if we make simulation steps in a game = pop size * eval steps
-                currentPolicy = population.getNextMember();
-            }
-            sessions.clear();
         }
+        sessions.clear();
     }
 
     private void loadKnowledge() {
