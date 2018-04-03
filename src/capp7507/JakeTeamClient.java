@@ -476,6 +476,7 @@ public class JakeTeamClient extends TeamClient {
     public void shutDown(Toroidal2DPhysics space) {
         knowledge.think();
         knowledge.shutDown();
+        powerupUtil.shutDown();
     }
 
     @Override

@@ -1,24 +1,37 @@
 package capp7507;
 
+import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.XStreamException;
 import spacesettlers.objects.AbstractActionableObject;
 import spacesettlers.objects.AbstractObject;
 import spacesettlers.objects.Ship;
 import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
 import spacesettlers.objects.weapons.AbstractWeapon;
+import spacesettlers.objects.weapons.Missile;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
 import spacesettlers.utilities.Vector2D;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.*;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 public class TrainingPowerupUtil extends PowerupUtil {
-    private Set<ShotAttempt> shotAttempts = new HashSet<>();
-    private HashMap<UUID, Integer> trackedWeapons = new HashMap<>();
+    private static final String KNOWLEDGE_FILE = "capp7507/shooting_data.xml.gz";
+    private ShotCollection shotAttempts = new ShotCollection();
     private String teamName;
+    private final XStream xStream;
 
     public TrainingPowerupUtil(JakeTeamClient client, Random random) {
         super(client, random);
         teamName = client.getTeamName();
+        xStream = new XStream();
+        xStream.alias("trainingData", ShotCollection.class);
+        loadKnowledge();
     }
 
     @Override
@@ -35,6 +48,16 @@ public class TrainingPowerupUtil extends PowerupUtil {
             UUID weaponId = weapon.getId();
             if (!weaponWasShot(weaponId)) {
                 setNewWeapon(space, weaponId);
+            }
+        }
+        for (ShotAttempt attempt : shotAttempts) {
+            Missile missile = (Missile) space.getObjectById(attempt.getMissileId());
+            AbstractObject target = space.getObjectById(attempt.getTargetId());
+            if ((missile == null && !attempt.targetHit()) || target == null) {
+                attempt.markMissed();
+            } else if (missile != null &&
+                    space.findShortestDistance(missile.getPosition(), target.getPosition()) < target.getRadius()) {
+                attempt.markHit();
             }
         }
     }
@@ -73,21 +96,44 @@ public class TrainingPowerupUtil extends PowerupUtil {
         return shot;
     }
 
-    /*
-        Duplicate of above, but I'm not sure I'm not gonna mess up
-         */
-    private void updateWeapons(Toroidal2DPhysics space) {
-        Set<AbstractWeapon> weapons = space.getWeapons();
-        for (AbstractWeapon weapon : weapons) {
-            UUID weaponId = weapon.getId();
-            if (!trackedWeapons.containsKey(weaponId)) {
-                trackedWeapons.put(weaponId, space.getCurrentTimestep());
-            }
+    private void loadKnowledge() {
+        // try to load the population from the existing saved file.  If that fails, start from scratch
+        try {
+            shotAttempts = loadFile(xStream);
+        } catch (XStreamException | FileNotFoundException e) {
+            // if you get an error, handle it other than a null pointer because
+            // the error will happen the first time you run
+            System.out.println("No existing population found - starting a new one from scratch");
+            shotAttempts = new ShotCollection();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        for (UUID weaponId : trackedWeapons.keySet()) {
-            if (space.getObjectById(weaponId) == null) {
-                trackedWeapons.remove(weaponId);
-            }
+    }
+
+    private ShotCollection loadFile(XStream xStream) throws IOException {
+        try (FileInputStream inputStream = new FileInputStream(KNOWLEDGE_FILE); GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+            System.out.println("Loaded trainingData from " + KNOWLEDGE_FILE);
+            return (ShotCollection) xStream.fromXML(gzipInputStream);
+        }
+    }
+
+    @Override
+    public void shutDown() {
+        try {
+            createFile(xStream, shotAttempts);
+        } catch (XStreamException | FileNotFoundException e) {
+            // if you get an error, handle it somehow as it means your knowledge didn't save
+            System.out.println("Can't save knowledge file in shutdown");
+            System.out.println(e.getMessage());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void createFile(XStream xStream, ShotCollection trainingPowerupUtil) throws IOException {
+        try (FileOutputStream outputStream = new FileOutputStream(KNOWLEDGE_FILE); GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
+            xStream.toXML(trainingPowerupUtil, gzipOutputStream);
+            System.out.println("Saved training data to " + KNOWLEDGE_FILE);
         }
     }
 }

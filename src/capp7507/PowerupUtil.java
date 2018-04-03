@@ -229,6 +229,9 @@ public class PowerupUtil {
         return false;
     }
 
+    public void shutDown() {
+    }
+
     private static class RandomDistribution {
         static double probabilities[] = {
                 0.3, // Purchase more ships
