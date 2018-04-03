@@ -39,22 +39,7 @@
 	<!-- Each team needs a base.  Optionally, you can initialize the location of the base -->
 	<bases>
 		<BaseConfig>
-			<teamName>DoNothingTeam</teamName>
-		</BaseConfig>
-		<BaseConfig>
 			<teamName>Space Jam</teamName>
-		</BaseConfig>
-		<BaseConfig>
-			<teamName>RandomTeam</teamName>
-		</BaseConfig>
-		<!-- uncomment if you want to play human -->
-		<!-- 
-		<BaseConfig>
-			<teamName>HumanTeam</teamName>
-		</BaseConfig>
-		 -->
-		<BaseConfig>
-			<teamName>HeuristicMinerTeam</teamName>
 		</BaseConfig>
 	</bases>
 	
