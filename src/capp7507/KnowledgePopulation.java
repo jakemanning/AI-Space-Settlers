@@ -108,7 +108,7 @@ public class KnowledgePopulation {
         for (int i = 0; i < population.length; i++) {
             double p = random.nextDouble() * s;
             int j = 0;
-            while (p <= s) {
+            while (p < s) {
                 p += fitnessScores[j];
                 j++;
             }
@@ -144,5 +144,16 @@ public class KnowledgePopulation {
             }
         }
         return newPopulation;
+    }
+
+    public KnowledgePopulation deepCopy() {
+        KnowledgePopulation copy = new KnowledgePopulation(population.length);
+        for (int i = 0; i < population.length; i++) {
+            copy.population[i] = population[i].deepCopy();
+        }
+        copy.random = random;
+        copy.fitnessScores = Arrays.copyOf(fitnessScores, fitnessScores.length);
+        copy.currentPopulationCounter = currentPopulationCounter;
+        return copy;
     }
 }

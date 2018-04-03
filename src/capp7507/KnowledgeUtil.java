@@ -8,8 +8,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.time.Instant;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -27,14 +25,20 @@ class KnowledgeUtil {
      * The current population (either being built or being evaluated)
      */
     private KnowledgePopulation population;
+    private PopulationCollection populationCollection;
 
     private int steps = 0;
     private final String KNOWLEDGE_FILE;
+    private static final String COLLECTION_FILE = "capp7507/knowledge_collection.xml.gz";
     private Map<UUID, SessionCollection> sessions;
     private static final int POPULATION_SIZE = 100; // Prof: no lower than a hundred
     private static final int EVALUATION_STEPS = 5000; // Prof: told some people no less than 5000
+    private XStream xStream;
 
     KnowledgeUtil(String knowledgeFile) {
+        xStream = new XStream();
+        xStream.alias("KnowledgePopulation", KnowledgePopulation.class);
+        xStream.alias("PopulationCollection", PopulationCollection.class);
         sessions = new HashMap<>();
         this.KNOWLEDGE_FILE = knowledgeFile;
         loadKnowledge();
@@ -57,7 +61,7 @@ class KnowledgeUtil {
 
         // if the step counter is modulo EVALUATION_STEPS, then evaluate this member and move to the next one
         if (steps % EVALUATION_STEPS == 0) {
-            // note that this getTeamPurchases currently scores every policy as zero as this is part of
+            // note that this method currently scores every policy as zero as this is part of
             // what the student has to do
             population.evaluateFitnessForCurrentMember(space, sessions.values());
 
@@ -65,7 +69,8 @@ class KnowledgeUtil {
             currentPolicy = population.getNextMember();
 
             if (population.isGenerationFinished()) {
-                // note that this is also an empty getTeamPurchases that a student needs to fill in
+                // note that this is also an empty method that a student needs to fill in
+                populationCollection.add(population.deepCopy());
                 population.makeNextGeneration();
 //                shutDown(); not necessary if we make simulation steps in a game = pop size * eval steps
                 currentPolicy = population.getNextMember();
@@ -76,8 +81,6 @@ class KnowledgeUtil {
 
     private void loadKnowledge() {
         sessions = new HashMap<>();
-        XStream xStream = new XStream();
-        xStream.alias("KnowledgePopulation", KnowledgePopulation.class);
 
         // try to load the population from the existing saved file.  If that fails, start from scratch
         try {
@@ -87,6 +90,17 @@ class KnowledgeUtil {
             // the error will happen the first time you run
             System.out.println("No existing population found - starting a new one from scratch");
             population = new KnowledgePopulation(POPULATION_SIZE);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            populationCollection = loadCollectionFile(xStream);
+        } catch (XStreamException | FileNotFoundException e) {
+            // if you get an error, handle it other than a null pointer because
+            // the error will happen the first time you run
+            System.out.println("No existing population collection found - starting a new one from scratch");
+            populationCollection = new PopulationCollection();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -101,12 +115,17 @@ class KnowledgeUtil {
         }
     }
 
-    public void shutDown() {
-        XStream xStream = new XStream();
-        xStream.alias("KnowledgePopulation", KnowledgePopulation.class);
+    private PopulationCollection loadCollectionFile(XStream xStream) throws IOException {
+        try (FileInputStream inputStream = new FileInputStream(COLLECTION_FILE); GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+            System.out.println("Loaded PopulationCollection from " + COLLECTION_FILE);
+            return (PopulationCollection) xStream.fromXML(gzipInputStream);
+        }
+    }
 
+    public void shutDown() {
         try {
             createFile(xStream, population);
+            createCollectionFile(xStream, populationCollection);
         } catch (XStreamException | FileNotFoundException e) {
             // if you get an error, handle it somehow as it means your knowledge didn't save
             System.out.println("Can't save knowledge file in shutdown");
@@ -121,12 +140,12 @@ class KnowledgeUtil {
             xStream.toXML(population, gzipOutputStream);
             System.out.println("Saved KnowledgePopulation to " + KNOWLEDGE_FILE);
         }
-        String[] parts = KNOWLEDGE_FILE.split("/");
-        String first = String.join("/", Arrays.asList(parts).subList(0, parts.length - 1));
-        String stamped = first + "/xmls/" + Instant.now().toString() + "-" + parts[1];
-        try (FileOutputStream outputStream = new FileOutputStream(stamped); GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
-            xStream.toXML(population, gzipOutputStream);
-            System.out.println("Saved KnowledgePopulation to " + stamped);
+    }
+
+    private void createCollectionFile(XStream xStream, PopulationCollection collection) throws IOException {
+        try (FileOutputStream outputStream = new FileOutputStream(COLLECTION_FILE); GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
+            xStream.toXML(collection, gzipOutputStream);
+            System.out.println("Saved PopulationCollection to " + COLLECTION_FILE);
         }
     }
 

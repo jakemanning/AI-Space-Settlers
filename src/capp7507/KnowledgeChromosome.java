@@ -3,6 +3,7 @@ package capp7507;
 import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
 
+import java.util.Arrays;
 import java.util.Random;
 
 public class KnowledgeChromosome {
@@ -60,5 +61,13 @@ public class KnowledgeChromosome {
 
     public double[] getCoefficients() {
         return coefficients;
+    }
+
+    public KnowledgeChromosome deepCopy() {
+        KnowledgeChromosome copy = new KnowledgeChromosome();
+        if (coefficients != null) {
+            copy.coefficients = Arrays.copyOf(coefficients, coefficients.length);
+        }
+        return copy;
     }
 }

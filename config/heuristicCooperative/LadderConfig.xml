@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <LadderConfig>
 	<!-- The number of times each match is repeated -->
-    <numRepeatMatches>5000</numRepeatMatches>
+	<numRepeatMatches>10000</numRepeatMatches>
+	<!--Enough for 100 generations-->
 
 	<!-- The maximum number of variable (e.g. can change each match) teams in a game -->
 	<maximumNumberVariableTeams>1</maximumNumberVariableTeams>
