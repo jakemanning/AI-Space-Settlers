@@ -10,6 +10,14 @@ public class KnowledgeChromosome {
     private double[] coefficients = null;
 
     public KnowledgeChromosome() {
+        Random rand = new Random();
+        // randomly choose coefficients for the raw action
+        if (coefficients == null) {
+            coefficients = new double[5];
+            for (int i = 0; i < coefficients.length; i++) {
+                coefficients[i] = resetCoefficient(i, rand);
+            }
+        }
     }
 
     /**
@@ -18,28 +26,16 @@ public class KnowledgeChromosome {
      * @param currentState
      * @return
      */
-    public AvoidAction getCurrentAction(Toroidal2DPhysics space, Ship myShip, KnowledgeState currentState, Random rand) {
-        // randomly choose coeffients for the raw action
-        if (coefficients == null) {
-            coefficients = new double[5];
-            for (int i = 0; i < coefficients.length; i++) {
-                coefficients[i] = resetCoefficient(i, rand);
-            }
-        }
-
+    public AvoidAction getCurrentAction(Toroidal2DPhysics space, Ship myShip, KnowledgeState currentState) {
         return rawAction(space, myShip, currentState);
     }
 
     public double resetCoefficient(int index, Random rand) {
-        double coeff;
         if (index < 3) {
-            coeff = (rand.nextInt(50) * 0.04 * Math.PI) - Math.PI;
-            System.out.println("angle coeff: " + coeff);
+            return (rand.nextInt(50) * 0.04 * Math.PI) - Math.PI;
         } else {
-            coeff = rand.nextInt(70) - 20;
-            System.out.println("distance coeff: " + coeff);
+            return rand.nextInt(70) - 20;
         }
-        return coeff;
     }
 
     private AvoidAction rawAction(Toroidal2DPhysics space, Ship ship, KnowledgeState state) {

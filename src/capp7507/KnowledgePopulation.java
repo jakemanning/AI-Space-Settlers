@@ -1,7 +1,5 @@
 package capp7507;
 
-import spacesettlers.simulator.Toroidal2DPhysics;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Random;
@@ -40,19 +38,13 @@ public class KnowledgePopulation {
         fitnessScores = new double[populationSize];
     }
 
-    /**
-     * Currently scores all members as zero (the student must implement this!)
-     *
-     * @param space
-     */
-    void evaluateFitnessForCurrentMember(Toroidal2DPhysics space, Collection<SessionCollection> sessions) {
-        KnowledgeChromosome currentMember = population[currentPopulationCounter % population.length];
+    public void evaluateFitnessForCurrentMember(Collection<SessionCollection> sessions) {
         double fitness = sessions.stream()
                 .mapToDouble(SessionCollection::averageFitness)
                 .average()
                 .orElse(0);
         System.out.println("eval: " + fitness);
-        fitnessScores[currentPopulationCounter % population.length] = fitness;
+        fitnessScores[currentPopulationCounter] = fitness;
     }
 
     /**
@@ -75,9 +67,9 @@ public class KnowledgePopulation {
      * @return
      */
     KnowledgeChromosome getNextMember() {
+        KnowledgeChromosome member = population[currentPopulationCounter];
         currentPopulationCounter++;
-
-        return population[currentPopulationCounter % population.length];
+        return member;
     }
 
     /**
@@ -109,8 +101,8 @@ public class KnowledgePopulation {
             double p = random.nextDouble() * s;
             int j = 0;
             while (p < s) {
-                p += fitnessScores[j];
                 j++;
+                p += fitnessScores[j];
             }
             newPopulation[i] = population[j].deepCopy();
         }

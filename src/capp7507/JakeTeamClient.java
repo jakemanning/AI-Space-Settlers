@@ -29,6 +29,8 @@ import static capp7507.SpaceSearchUtil.obstructionInPath;
  */
 public class JakeTeamClient extends TeamClient {
     private static final boolean DEBUG = true;
+    private static final boolean TRAINING_GA = true;
+    private static final boolean TRAINING_TREE = false;
     private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
     private static final int SHIP_MAX_RESOURCES = 5000;
     private static final int MAX_ASTEROID_MASS = 2318;
@@ -208,7 +210,7 @@ public class JakeTeamClient extends TeamClient {
             currentSession.add(newAvoidSession);
         }
         KnowledgeState state = KnowledgeState.build(space, ship, obstacle, target);
-        return knowledge.getCurrentPolicy().getCurrentAction(space, ship, state, random);
+        return knowledge.getCurrentPolicy().getCurrentAction(space, ship, state);
     }
 
     /**
@@ -423,13 +425,17 @@ public class JakeTeamClient extends TeamClient {
     @Override
     public void initialize(Toroidal2DPhysics space) {
         graphicsUtil = new GraphicsUtil(DEBUG);
-        powerupUtil = new PowerupUtil(this, random);
+        if (TRAINING_GA && !TRAINING_TREE) {
+            powerupUtil = PowerupUtil.dummy(this, random);
+        } else {
+            powerupUtil = new PowerupUtil(this, random);
+        }
         knowledge = new KnowledgeUtil(getKnowledgeFile());
     }
 
     @Override
     public void shutDown(Toroidal2DPhysics space) {
-        knowledge.think(space);
+        knowledge.think();
         knowledge.shutDown();
     }
 

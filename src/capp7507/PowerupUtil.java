@@ -34,6 +34,10 @@ public class PowerupUtil {
         this.random = random;
     }
 
+    public static PowerupUtil dummy(JakeTeamClient client, Random random) {
+        return new DummyPowerupUtil(client, random);
+    }
+
     public HashMap<UUID, PurchaseTypes> getTeamPurchases(Toroidal2DPhysics space,
                                                          Set<AbstractActionableObject> actionableObjects,
                                                          ResourcePile resourcesAvailable,
@@ -261,6 +265,26 @@ public class PowerupUtil {
             public int getValue() {
                 return value;
             }
+        }
+    }
+
+    private static class DummyPowerupUtil extends PowerupUtil {
+        DummyPowerupUtil(JakeTeamClient client, Random random) {
+            super(client, random);
+        }
+
+        @Override
+        public HashMap<UUID, PurchaseTypes> getTeamPurchases(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects, ResourcePile resourcesAvailable, PurchaseCosts purchaseCosts) {
+            return new HashMap<>();
+        }
+
+        @Override
+        Map<UUID, SpaceSettlersPowerupEnum> getPowerups(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
+            return new HashMap<>();
+        }
+
+        @Override
+        void shieldIfNeeded(Toroidal2DPhysics space, AbstractActionableObject actionable) {
         }
     }
 }

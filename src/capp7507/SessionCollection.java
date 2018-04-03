@@ -63,10 +63,10 @@ public class SessionCollection {
         sessions.peek().invalidate();
     }
 
-    double averageFitness() {
+    public double averageFitness() {
         return sessions.stream()
-                .filter(avoidSession -> !avoidSession.isValid())
-                .filter(avoidSession -> !avoidSession.isSessionComplete())
+                .filter(AvoidSession::isValid)
+                .filter(AvoidSession::isSessionComplete)
                 .mapToDouble(session -> session.result().evaluate())
                 .average()
                 .orElse(0);

@@ -56,7 +56,7 @@ public class AvoidSession {
         return space.getObjectById(obstacleId);
     }
 
-    boolean isSessionComplete() {
+    public boolean isSessionComplete() {
         return timestepCompleted != Integer.MAX_VALUE;
     }
 

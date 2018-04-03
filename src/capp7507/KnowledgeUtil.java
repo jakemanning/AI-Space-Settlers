@@ -2,7 +2,6 @@ package capp7507;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.XStreamException;
-import spacesettlers.simulator.Toroidal2DPhysics;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -32,7 +31,6 @@ class KnowledgeUtil {
     private static final String COLLECTION_FILE = "capp7507/knowledge_collection.xml.gz";
     private Map<UUID, SessionCollection> sessions;
     private static final int POPULATION_SIZE = 100; // Prof: no lower than a hundred
-    private static final int EVALUATION_STEPS = 5000; // Prof: told some people no less than 5000
     private XStream xStream;
 
     KnowledgeUtil(String knowledgeFile) {
@@ -52,11 +50,8 @@ class KnowledgeUtil {
         return sessions.get(shipUuid);
     }
 
-    /**
-     * @param space physics
-     */
-    void think(Toroidal2DPhysics space) {
-        population.evaluateFitnessForCurrentMember(space, sessions.values());
+    void think() {
+        population.evaluateFitnessForCurrentMember(sessions.values());
 
         // move to the next member of the population
         currentPolicy = population.getNextMember();
