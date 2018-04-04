@@ -141,4 +141,8 @@ class KnowledgeUtil {
     public KnowledgeChromosome getCurrentPolicy() {
         return currentPolicy;
     }
+
+    public KnowledgeChromosome bestPolicy() {
+        return population.getBestMember();
+    }
 }

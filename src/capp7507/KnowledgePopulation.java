@@ -173,4 +173,18 @@ public class KnowledgePopulation {
         copy.currentPopulationCounter = currentPopulationCounter;
         return copy;
     }
+
+    public KnowledgeChromosome getBestMember() {
+        KnowledgeChromosome best = population[0];
+        double highestFitness = Double.MIN_VALUE;
+        for (int i = 0; i < population.length; i++) {
+            KnowledgeChromosome chromosome = population[i];
+            double fitness = fitnessScores[i];
+            if (fitness > highestFitness) {
+                best = chromosome;
+                highestFitness = fitness;
+            }
+        }
+        return best;
+    }
 }

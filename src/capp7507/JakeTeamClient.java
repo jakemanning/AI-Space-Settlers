@@ -263,8 +263,13 @@ public class JakeTeamClient extends TeamClient {
             KnowledgeState state = KnowledgeState.build(space, ship, obstacle, target);
             return knowledge.getCurrentPolicy().getCurrentAction(space, ship, state);
         } else {
-            // TODO Use the best chromosome from the knowledge file
-            return oldAvoidCrashAction(space, obstacle, target, ship);
+            KnowledgeState state = KnowledgeState.build(space, ship, obstacle, target);
+            KnowledgeChromosome bestChromosome = knowledge.bestPolicy();
+            if (bestChromosome != null) {
+                return bestChromosome.getCurrentAction(space, ship, state);
+            } else {
+                return oldAvoidCrashAction(space, obstacle, target, ship);
+            }
         }
     }
 
