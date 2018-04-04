@@ -42,6 +42,7 @@ public class JakeTeamClient extends TeamClient {
     private static final int REALLY_BIG_NAV_WEIGHT = 100;
     private static final int NEIGHBORHOOD_RADIUS = 100;
     private static final double GAME_IS_ENDING_FACTOR = 0.98;
+    public static final int SHOT_TRAINING_TARGET_WEIGHT = 3;
     private Map<UUID, UUID> currentTargets = new HashMap<>();
     private GraphicsUtil graphicsUtil;
     private PowerupUtil powerupUtil;
@@ -95,7 +96,11 @@ public class JakeTeamClient extends TeamClient {
                         sessionCollection.completeLastSession(space, ship);
                     }
 
-                    action = getMoveAction(space, shipPos, target.getPosition());
+                    if (target instanceof AbstractActionableObject && !isOurBase((AbstractActionableObject) target)) {
+                        action = getMoveActionToShoot(space, shipPos, target.getPosition());
+                    } else {
+                        action = getMoveAction(space, shipPos, target.getPosition());
+                    }
                 }
                 actions.put(ship.getId(), action);
             } else if (actionable instanceof Base) {
@@ -139,6 +144,8 @@ public class JakeTeamClient extends TeamClient {
                     }
                 } else if (actionableObject.getId() == ship.getId()) {
                     continue; // Don't ever set the target to our current ship
+                } else if (TRAINING_TREE) {
+                    value = SHOT_TRAINING_TARGET_WEIGHT;
                 }
             } else if (object instanceof Beacon) {
                 value = energyValue(ship);
@@ -208,6 +215,24 @@ public class JakeTeamClient extends TeamClient {
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, target);
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, adjustedTargetPosition);
         return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
+    }
+
+    private MoveAction getMoveActionToShoot(Toroidal2DPhysics space, Position currentPosition, Position target) {
+        Position adjustedTargetPosition = interceptPosition(space, target, currentPosition);
+        Vector2D vectorToTarget = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
+        double angleToTarget = vectorToTarget.getAngle();
+        double angleToTurn = vectorToTarget.angleBetween(currentPosition.getTranslationalVelocity());
+        double magnitude = linearNormalizeInverse(0.0, Math.PI, 2, TARGET_SHIP_SPEED / 2, angleToTurn);
+
+        int shotDistance = random.nextInt(30);
+        Vector2D vectorForShot = new Vector2D(adjustedTargetPosition);
+        vectorForShot = vectorForShot.add(Vector2D.fromAngle(angleToTarget, -shotDistance));
+        Position positionForShot = new Position(vectorForShot);
+
+        Vector2D goalVelocity = Vector2D.fromAngle(angleToTarget, magnitude);
+        graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, target);
+        graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, positionForShot);
+        return new MoveAction(space, currentPosition, positionForShot, goalVelocity);
     }
 
     private AvoidAction avoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, AbstractObject target, Ship ship) {
