@@ -92,7 +92,7 @@ public class JakeTeamClient extends TeamClient {
                     // Move towards goal, no more avoiding the issue at hand
                     graphicsUtil.removeObstacle(ship.getId());
 
-                    if(!sessionCollection.lastSessionWasComplete()) {
+                    if (TRAINING_GA && !sessionCollection.lastSessionWasComplete()) {
                         sessionCollection.completeLastSession(space, ship);
                     }
 
@@ -187,7 +187,7 @@ public class JakeTeamClient extends TeamClient {
 
     private double distanceToOtherShip(Toroidal2DPhysics space, AbstractObject object) {
         return space.getShips().stream()
-                .filter(ship -> "HeuristicMinerTeam".equals(ship.getTeamName()))
+                .filter(ship -> !getTeamName().equals(ship.getTeamName()))
                 .mapToDouble(ship -> space.findShortestDistance(object.getPosition(), ship.getPosition()))
                 .min()
                 .orElse(Double.MAX_VALUE);
@@ -507,8 +507,10 @@ public class JakeTeamClient extends TeamClient {
 
     @Override
     public void shutDown(Toroidal2DPhysics space) {
-        knowledge.think();
-        knowledge.shutDown();
+        if (TRAINING_GA) {
+            knowledge.think();
+            knowledge.shutDown();
+        }
         powerupUtil.shutDown();
     }
 

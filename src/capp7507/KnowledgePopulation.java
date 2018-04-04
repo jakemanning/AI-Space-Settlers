@@ -130,9 +130,9 @@ public class KnowledgePopulation {
     private KnowledgeChromosome[] crossover(KnowledgeChromosome[] parents) {
         final double alpha = 0.5; // Some value a ϵ [0, 1]
         KnowledgeChromosome[] newPopulation = deepCopyOfPopulation(parents);
-        for (int i = 0; i < newPopulation.length - 1; i++) {
+        for (int i = 0; i < newPopulation.length; i++) {
             KnowledgeChromosome mom = newPopulation[i];
-            KnowledgeChromosome dad = newPopulation[i + 1];
+            KnowledgeChromosome dad = newPopulation[(i + 1) % newPopulation.length];
             for(int j = 0; j < mom.getCoefficients().length; ++j) {
                 double momCoeff = mom.getCoefficients()[j];
                 double dadCoeff = dad.getCoefficients()[j];
