@@ -153,7 +153,11 @@ public class JakeTeamClient extends TeamClient {
 
             Set<AbstractObject> obstructions = getObstructions(space, ship);
             if (!space.isPathClearOfObstructions(ship.getPosition(), object.getPosition(), obstructions, ship.getRadius())) {
-                value *= OBSTRUCTED_PATH_PENALTY; // We should be less likely to go towards objects with obstacles in the way
+                if (TRAINING_GA) {
+                    value /= OBSTRUCTED_PATH_PENALTY;
+                } else {
+                    value *= OBSTRUCTED_PATH_PENALTY; // We should be less likely to go towards objects with obstacles in the way
+                }
             }
 
             if (TRAINING_TREE) {
