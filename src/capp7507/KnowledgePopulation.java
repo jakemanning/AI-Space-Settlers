@@ -96,7 +96,7 @@ public class KnowledgePopulation {
         KnowledgeChromosome[] newPopulation = new KnowledgeChromosome[population.length];
         for (int i = 0; i < population.length; i++) {
             double p = random.nextDouble() * s;
-            int j = 0;
+            int j = -1;
             while (p < s) {
                 j++;
                 p += fitnesses[j];

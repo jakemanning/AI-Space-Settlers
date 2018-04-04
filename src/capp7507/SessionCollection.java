@@ -26,8 +26,8 @@ public class SessionCollection {
             return false;
         }
         AvoidSession lastSession = sessions.peek();
-        int timeSinceLastSession = space.getCurrentTimestep() - lastSession.getTimestepStarted();
-        if (timeSinceLastSession > 20) {
+        int timeStepsSinceLastSession = space.getCurrentTimestep() - lastSession.getTimestepStarted();
+        if (timeStepsSinceLastSession > 20) {
             // time since last session is too long to be relevant
             return false;
         }
@@ -43,7 +43,7 @@ public class SessionCollection {
         lastSession.completeSession(space, ship);
     }
 
-    void registerCollision(Toroidal2DPhysics space, AbstractObject obstacle) {
+    void markAvoidanceAsUnsuccessful(Toroidal2DPhysics space, AbstractObject obstacle) {
         sessions.stream()
                 .filter(AvoidSession::isValid)
                 .filter(avoidSession -> !avoidSession.isSessionComplete())
@@ -64,6 +64,7 @@ public class SessionCollection {
     }
 
     public double averageFitness() {
+        System.out.println("This is how many are valid: " + sessions.stream().filter(AvoidSession::isValid).count() + ", out of " + sessions.size());
         return sessions.stream()
                 .filter(AvoidSession::isValid)
                 .filter(AvoidSession::isSessionComplete)

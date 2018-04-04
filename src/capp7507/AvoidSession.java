@@ -6,6 +6,8 @@ import spacesettlers.simulator.Toroidal2DPhysics;
 
 import java.util.UUID;
 
+import static capp7507.MovementUtil.linearNormalize;
+
 public class AvoidSession {
     private boolean isValid;
     private double distanceAtAvoidBeginning;

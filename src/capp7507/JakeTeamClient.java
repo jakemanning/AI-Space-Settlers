@@ -139,7 +139,7 @@ public class JakeTeamClient extends TeamClient {
                 AbstractActionableObject actionableObject = (AbstractActionableObject) object;
                 if (isOurBase(actionableObject)) {
                     value = energyValue(ship) + cargoValue(ship);
-                    if (gameIsEnding(space)) {
+                    if (!TRAINING_GA && !TRAINING_TREE && gameIsEnding(space)) {
                         value += REALLY_BIG_NAV_WEIGHT; // We really want to go back to a base and deposit resources
                     }
                 } else if (actionableObject.getId() == ship.getId()) {
@@ -154,7 +154,7 @@ public class JakeTeamClient extends TeamClient {
             Set<AbstractObject> obstructions = getObstructions(space, ship);
             if (!space.isPathClearOfObstructions(ship.getPosition(), object.getPosition(), obstructions, ship.getRadius())) {
                 if (TRAINING_GA) {
-                    value /= OBSTRUCTED_PATH_PENALTY;
+//                    value /= OBSTRUCTED_PATH_PENALTY; Might not be right
                 } else {
                     value *= OBSTRUCTED_PATH_PENALTY; // We should be less likely to go towards objects with obstacles in the way
                 }
@@ -298,6 +298,7 @@ public class JakeTeamClient extends TeamClient {
             UUID shipId = entry.getKey();
             AbstractObject target = space.getObjectById(entry.getValue());
             Ship ship = (Ship) space.getObjectById(shipId);
+            AbstractAction abstractAction = ship.getCurrentAction();
             Position shipPosition = ship.getPosition();
             double distance = space.findShortestDistance(shipPosition, target.getPosition());
             int targetRadius = target.getRadius();
@@ -306,20 +307,21 @@ public class JakeTeamClient extends TeamClient {
 
             // Handle when our target dies
             if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
-                currentSession.invalidateLastSession();
+                if((abstractAction instanceof AvoidAction) && !closeEnough) {
+                    currentSession.invalidateLastSession();
+                }
                 targetsToRemove.add(shipId);
             }
 
             if (ship.isAlive()) {
                 // Mark avoid actions unsuccessful if we get too close to the obstacle
-                AbstractAction abstractAction = ship.getCurrentAction();
                 if (abstractAction instanceof AvoidAction) {
                     AvoidAction action = (AvoidAction) abstractAction;
                     AbstractObject obstacle = action.getObstacle();
                     Position obstaclePosition = obstacle.getPosition();
                     int totalRadius = ship.getRadius() + obstacle.getRadius();
                     if (space.findShortestDistance(shipPosition, obstaclePosition) < totalRadius) {
-                        currentSession.registerCollision(space, obstacle);
+                        currentSession.markAvoidanceAsUnsuccessful(space, obstacle);
                     }
                     // Check if ship is collides with an obstacle that is NOT our obstacle or target
                     for (AbstractObject object : space.getAllObjects()) {
@@ -339,15 +341,17 @@ public class JakeTeamClient extends TeamClient {
                         double goingThe = space.findShortestDistance(ship.getPosition(), object.getPosition()); // ;)
 
                         if (goingThe < (ship.getRadius() + object.getRadius())) {
-//                            System.out.println(objection() + " I ran into an unexpected object");
                             currentSession.invalidateLastSession();
                         }
                     }
                 }
             } else {
-                // Our ship has died, invalidate the ship's current AvoidSession
                 targetsToRemove.add(ship.getId());
-                currentSession.invalidateLastSession();
+                if (abstractAction instanceof AvoidAction) {
+                    AvoidAction action = (AvoidAction) abstractAction;
+                    AbstractObject obstacle = action.getObstacle();
+                    currentSession.markAvoidanceAsUnsuccessful(space, obstacle);
+                }
             }
         }
 
