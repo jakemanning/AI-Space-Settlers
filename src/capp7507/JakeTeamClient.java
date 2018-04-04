@@ -30,7 +30,7 @@ import static capp7507.SpaceSearchUtil.obstructionInPath;
 public class JakeTeamClient extends TeamClient {
     private static final boolean DEBUG = true;
     private static final boolean TRAINING_GA = false;
-    private static final boolean TRAINING_TREE = true;
+    private static final boolean TRAINING_TREE = false;
     private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
     private static final int SHIP_MAX_RESOURCES = 5000;
     private static final int MAX_ASTEROID_MASS = 2318;
