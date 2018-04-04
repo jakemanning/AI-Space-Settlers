@@ -91,8 +91,8 @@ public class KnowledgePopulation {
     }
 
     private KnowledgeChromosome[] parentSelection(KnowledgeChromosome[] population) {
-        double s = DoubleStream.of(fitnessScores).sum();
         double[] fitnesses = shiftMinToZero(fitnessScores);
+        double s = DoubleStream.of(fitnesses).sum();
         KnowledgeChromosome[] newPopulation = new KnowledgeChromosome[population.length];
         for (int i = 0; i < population.length; i++) {
             double p = random.nextDouble() * s;
