@@ -20,6 +20,9 @@ import static capp7507.TrainingPowerupUtil.MAX_SHOOT_DISTANCE;
 /**
  * A model-based reflex agent for controlling a spacesettlers team client
  *
+ * Set TRAINING_GA to true to train the genetic algorithm for avoiding asteroids
+ * Set TRAINING_TREE to true to collect data about shooting other ships
+ *
  * The ships use the bestValue function while keeping track of targets between
  * calls to getMovementStart. It assigns values based on distance from a ship to a target,
  * angle between ship and target, asteroid resources, energy value, obstructions. It also
@@ -95,6 +98,7 @@ public class JakeTeamClient extends TeamClient {
                     graphicsUtil.removeObstacle(ship.getId());
 
                     if (TRAINING_GA && !sessionCollection.lastSessionWasComplete()) {
+                        // end the last avoid session since we're no longer avoiding
                         sessionCollection.completeLastSession(space, ship);
                     }
 
@@ -146,7 +150,7 @@ public class JakeTeamClient extends TeamClient {
                     }
                 } else if (actionableObject.getId() == ship.getId()) {
                     continue; // Don't ever set the target to our current ship
-                } else if (TRAINING_TREE) {
+                } else if (TRAINING_TREE && actionableObject instanceof Ship) {
                     value = SHOT_TRAINING_TARGET_WEIGHT;
                 }
             } else if (object instanceof Beacon || object instanceof AiCore) {
@@ -155,14 +159,13 @@ public class JakeTeamClient extends TeamClient {
 
             Set<AbstractObject> obstructions = getObstructions(space, ship);
             if (!space.isPathClearOfObstructions(ship.getPosition(), object.getPosition(), obstructions, ship.getRadius())) {
-                if (TRAINING_GA) {
-//                    value /= OBSTRUCTED_PATH_PENALTY; Might not be right
-                } else {
+                if (!TRAINING_GA) {
                     value *= OBSTRUCTED_PATH_PENALTY; // We should be less likely to go towards objects with obstacles in the way
                 }
             }
 
             if (TRAINING_TREE) {
+                // prioritize other ships so we can collect shot success data
                 double opponentDistance = distanceToOtherShip(space, object);
                 value *= linearNormalizeInverse(0, space.getWidth(), 0, 100, opponentDistance);
             }
@@ -224,8 +227,7 @@ public class JakeTeamClient extends TeamClient {
     }
 
     private MoveAction getMoveActionToShoot(Toroidal2DPhysics space, Position currentPosition, Position target) {
-        Position adjustedTargetPosition = interceptPosition(space, target, currentPosition);
-        Vector2D vectorToTarget = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
+        Vector2D vectorToTarget = space.findShortestDistanceVector(currentPosition, target);
         double angleToTarget = vectorToTarget.getAngle();
         double angleToTurn = vectorToTarget.angleBetween(currentPosition.getTranslationalVelocity());
         double magnitude = linearNormalizeInverse(0.0, Math.PI, 2, TARGET_SHIP_SPEED / 4, angleToTurn);
@@ -233,13 +235,9 @@ public class JakeTeamClient extends TeamClient {
             magnitude = 0;
         }
 
-        Vector2D vectorForShot = new Vector2D(adjustedTargetPosition);
-        vectorForShot = vectorForShot.add(Vector2D.fromAngle(angleToTarget, -shotDistance));
-        Position positionForShot = new Position(vectorForShot);
-
         Vector2D goalVelocity = Vector2D.fromAngle(angleToTarget, magnitude);
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, target);
-        graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, positionForShot);
+        graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, target);
         return new MoveAction(space, currentPosition, target, goalVelocity);
     }
 

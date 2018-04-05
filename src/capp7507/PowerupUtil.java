@@ -122,16 +122,17 @@ public class PowerupUtil {
             if (actionable instanceof Ship) {
                 Ship ship = (Ship) actionable;
                 Set<AbstractActionableObject> enemyShips = getEnemyTargets(space, client.getTeamName());
-                AbstractObject closestEnemyShip = MovementUtil.closest(space, ship.getPosition(), enemyShips);
-                if (ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) { // protect ship if we're in position and do not need energy
-                    if (shieldedObjects.contains(ship.getId()) != ship.isShielded()) { // Only if the status of the ship has changed
-                        powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.TOGGLE_SHIELD);
+                for (AbstractActionableObject enemyShip : enemyShips) {
+                    if (ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) { // protect ship if we're in position and do not need energy
+                        if (shieldedObjects.contains(ship.getId()) != ship.isShielded()) { // Only if the status of the ship has changed
+                            powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.TOGGLE_SHIELD);
+                        }
+                    } else if (inPositionToShoot(space, ship.getPosition(), enemyShip) && !shipNeedsEnergy(ship)) { // shoot if we're in position and do not need energy
+                        shoot(powerupMap, space, ship, enemyShip);
+                    } else if (ship.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY)) {
+                        // equip the double max energy powerup
+                        powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY);
                     }
-                } else if (inPositionToShoot(space, ship.getPosition(), closestEnemyShip) && !shipNeedsEnergy(ship)) { // shoot if we're in position and do not need energy
-                    shoot(powerupMap, space, ship, closestEnemyShip);
-                } else if (ship.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY)) {
-                    // equip the double max energy powerup
-                    powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY);
                 }
             }
         }
