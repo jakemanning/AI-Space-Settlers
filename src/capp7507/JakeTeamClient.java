@@ -149,7 +149,7 @@ public class JakeTeamClient extends TeamClient {
                 } else if (TRAINING_TREE) {
                     value = SHOT_TRAINING_TARGET_WEIGHT;
                 }
-            } else if (object instanceof Beacon) {
+            } else if (object instanceof Beacon || object instanceof AiCore) {
                 value = energyValue(ship);
             }
 
