@@ -22,6 +22,7 @@ import java.util.zip.GZIPOutputStream;
 
 public class TrainingPowerupUtil extends PowerupUtil {
     private static final String KNOWLEDGE_FILE = "capp7507/shooting_data.xml.gz";
+    public static final int MAX_SHOOT_DISTANCE = 200;
     private ShotCollection shotAttempts = new ShotCollection();
     private String teamName;
     private final XStream xStream;
@@ -83,7 +84,7 @@ public class TrainingPowerupUtil extends PowerupUtil {
     boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition, AbstractObject target) {
         Vector2D vector = space.findShortestDistanceVector(currentPosition, target.getPosition());
         boolean angle = vector.getAngle() < Math.PI;
-        boolean distance = vector.getMagnitude() < 200;
+        boolean distance = vector.getMagnitude() < MAX_SHOOT_DISTANCE;
         return angle && distance;
     }
 

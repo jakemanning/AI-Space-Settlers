@@ -15,6 +15,7 @@ import java.util.*;
 import static capp7507.MovementUtil.*;
 import static capp7507.SpaceSearchUtil.getObstructions;
 import static capp7507.SpaceSearchUtil.obstructionInPath;
+import static capp7507.TrainingPowerupUtil.MAX_SHOOT_DISTANCE;
 
 /**
  * A model-based reflex agent for controlling a spacesettlers team client
@@ -30,7 +31,7 @@ import static capp7507.SpaceSearchUtil.obstructionInPath;
 public class JakeTeamClient extends TeamClient {
     private static final boolean DEBUG = true;
     private static final boolean TRAINING_GA = false;
-    private static final boolean TRAINING_TREE = false;
+    private static final boolean TRAINING_TREE = true;
     private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
     private static final int SHIP_MAX_RESOURCES = 5000;
     private static final int MAX_ASTEROID_MASS = 2318;
@@ -47,6 +48,7 @@ public class JakeTeamClient extends TeamClient {
     private GraphicsUtil graphicsUtil;
     private PowerupUtil powerupUtil;
     private KnowledgeUtil knowledge;
+    private int shotDistance;
 
     /**
      * Called before movement begins. Fill a HashMap with actions depending on the bestValue
@@ -226,9 +228,11 @@ public class JakeTeamClient extends TeamClient {
         Vector2D vectorToTarget = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
         double angleToTarget = vectorToTarget.getAngle();
         double angleToTurn = vectorToTarget.angleBetween(currentPosition.getTranslationalVelocity());
-        double magnitude = linearNormalizeInverse(0.0, Math.PI, 2, TARGET_SHIP_SPEED / 2, angleToTurn);
+        double magnitude = linearNormalizeInverse(0.0, Math.PI, 2, TARGET_SHIP_SPEED / 4, angleToTurn);
+        if (vectorToTarget.getMagnitude() < 100) {
+            magnitude = 0;
+        }
 
-        int shotDistance = random.nextInt(30);
         Vector2D vectorForShot = new Vector2D(adjustedTargetPosition);
         vectorForShot = vectorForShot.add(Vector2D.fromAngle(angleToTarget, -shotDistance));
         Position positionForShot = new Position(vectorForShot);
@@ -236,7 +240,7 @@ public class JakeTeamClient extends TeamClient {
         Vector2D goalVelocity = Vector2D.fromAngle(angleToTarget, magnitude);
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, target);
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, positionForShot);
-        return new MoveAction(space, currentPosition, positionForShot, goalVelocity);
+        return new MoveAction(space, currentPosition, target, goalVelocity);
     }
 
     private AvoidAction avoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, AbstractObject target, Ship ship) {
@@ -338,7 +342,7 @@ public class JakeTeamClient extends TeamClient {
                             continue;
                         }
 
-                        double goingThe = space.findShortestDistance(ship.getPosition(), object.getPosition()); // ;)
+                        double goingThe = space.findShortestDistance(ship.getPosition(), object.getPosition());
 
                         if (goingThe < (ship.getRadius() + object.getRadius())) {
                             currentSession.invalidateLastSession();
@@ -503,6 +507,7 @@ public class JakeTeamClient extends TeamClient {
             powerupUtil = new PowerupUtil(this, random);
         }
         knowledge = new KnowledgeUtil(getKnowledgeFile());
+        shotDistance = random.nextInt(MAX_SHOOT_DISTANCE);
     }
 
     @Override
