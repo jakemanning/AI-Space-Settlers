@@ -14,6 +14,11 @@ public class AvoidSession {
     private double distanceAtAvoidEnd;
     private double energyAtAvoidBeginning;
     private double energyAtAvoidEnd;
+
+    public boolean isSuccessfullyAvoided() {
+        return successfullyAvoided;
+    }
+
     private boolean successfullyAvoided;
     private int timestepStarted;
     private int timestepCompleted = Integer.MAX_VALUE;

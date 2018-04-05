@@ -33,14 +33,9 @@ public class KnowledgeChromosome {
     double resetCoefficient(int index, Random rand) {
         double coeff;
         if (index < 3) {
-            double angleVariance = Math.PI / 3;
-            coeff = getGaussian(rand, angleVariance);
-            coeff = limitRange(-2 * Math.PI, 2 * Math.PI, coeff);
+            coeff = (rand.nextInt(25) * 0.04 * Math.PI) - 3 * 0.04 * Math.PI;
         } else {
-            double distanceVariance = 20;
-            coeff = getGaussian(rand, distanceVariance);
-            coeff = rand.nextInt(20) + coeff;
-            coeff = limitRange(-10, 40, coeff);
+            coeff = rand.nextInt(20) - 3;
         }
         return coeff;
     }

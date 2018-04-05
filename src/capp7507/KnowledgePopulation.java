@@ -128,7 +128,7 @@ public class KnowledgePopulation {
      * @return chromosomes with whole arithmetic crossover calculation
      */
     private KnowledgeChromosome[] crossover(KnowledgeChromosome[] parents) {
-        final double alpha = 0.5; // Some value a ϵ [0, 1]
+        final double alpha = 0.4; // Some value a ϵ [0, 1]
         KnowledgeChromosome[] newPopulation = deepCopyOfPopulation(parents);
         for (int i = 0; i < newPopulation.length - 1; i++) {
             KnowledgeChromosome mom = newPopulation[i];
@@ -147,7 +147,7 @@ public class KnowledgePopulation {
         KnowledgeChromosome[] newPopulation = deepCopyOfPopulation(population);
         for (KnowledgeChromosome chromosome : newPopulation) {
             for (int j = 0; j < chromosome.getCoefficients().length; j++) {
-                if (random.nextDouble() < (0.1)) {
+                if (random.nextDouble() < (1 / chromosome.getCoefficients().length)) {
                     chromosome.getCoefficients()[j] = chromosome.resetCoefficient(j, random);
                 }
             }

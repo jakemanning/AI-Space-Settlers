@@ -64,12 +64,12 @@ class SpaceSearchUtil {
                 }
             }
         }
-
-        if (closestObstacle == null || space.findShortestDistance(startPosition, closestObstacle.getPosition()) > MAX_OBSTRUCTION_DETECTION) {
-            return null; // No obstruction
-        } else {
-            return closestObstacle;
-        }
+        return closestObstacle;
+//        if (closestObstacle == null || space.findShortestDistance(startPosition, closestObstacle.getPosition()) > MAX_OBSTRUCTION_DETECTION) {
+//            return null; // No obstruction
+//        } else {
+//            return closestObstacle;
+//        }
     }
 
     /**

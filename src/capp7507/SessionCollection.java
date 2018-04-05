@@ -64,7 +64,9 @@ public class SessionCollection {
     }
 
     public double averageFitness() {
-        System.out.println("This is how many are valid: " + sessions.stream().filter(AvoidSession::isValid).count() + ", out of " + sessions.size());
+        System.out.println("This is how many avoided successfully: " + sessions.stream().filter(AvoidSession::isValid)
+                .filter(AvoidSession::isSessionComplete).filter(AvoidSession::isSuccessfullyAvoided).count() + ", out of " + sessions.size());
+
         return sessions.stream()
                 .filter(AvoidSession::isValid)
                 .filter(AvoidSession::isSessionComplete)
