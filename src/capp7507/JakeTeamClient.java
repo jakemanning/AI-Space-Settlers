@@ -19,10 +19,10 @@ import static capp7507.TrainingPowerupUtil.MAX_SHOOT_DISTANCE;
 
 /**
  * A model-based reflex agent for controlling a spacesettlers team client
- *
+ * <p>
  * Set TRAINING_GA to true to train the genetic algorithm for avoiding asteroids
  * Set TRAINING_TREE to true to collect data about shooting other ships
- *
+ * <p>
  * The ships use the bestValue function while keeping track of targets between
  * calls to getMovementStart. It assigns values based on distance from a ship to a target,
  * angle between ship and target, asteroid resources, energy value, obstructions. It also
@@ -33,8 +33,8 @@ import static capp7507.TrainingPowerupUtil.MAX_SHOOT_DISTANCE;
  */
 public class JakeTeamClient extends TeamClient {
     private static final boolean DEBUG = true;
-    private static final boolean TRAINING_GA = false;
-    private static final boolean TRAINING_TREE = true;
+    static final boolean TRAINING_GA = false;
+    static final boolean TRAINING_TREE = true;
     private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
     private static final int SHIP_MAX_RESOURCES = 5000;
     private static final int MAX_ASTEROID_MASS = 2318;
@@ -56,7 +56,7 @@ public class JakeTeamClient extends TeamClient {
     /**
      * Called before movement begins. Fill a HashMap with actions depending on the bestValue
      *
-     * @param space physics
+     * @param space             physics
      * @param actionableObjects objects that can perform an action
      * @return HashMap of actions to take per object id
      */
@@ -65,7 +65,7 @@ public class JakeTeamClient extends TeamClient {
                                                       Set<AbstractActionableObject> actionableObjects) {
         HashMap<UUID, AbstractAction> actions = new HashMap<>();
 
-        for (AbstractActionableObject actionable :  actionableObjects) {
+        for (AbstractActionableObject actionable : actionableObjects) {
             powerupUtil.shieldIfNeeded(space, actionable);
 
             Position shipPos = actionable.getPosition();
@@ -77,7 +77,7 @@ public class JakeTeamClient extends TeamClient {
 
                 // Retrieve ship's current target or pick a new one if needed
                 AbstractObject target = space.getObjectById(currentTargets.get(ship.getId()));
-                if(target == null || !target.isAlive()) {
+                if (target == null || !target.isAlive()) {
                     target = bestValue(space, ship, space.getAllObjects());
                     currentTargets.put(ship.getId(), target.getId());
                 }
@@ -126,8 +126,8 @@ public class JakeTeamClient extends TeamClient {
      * - Asteroids: Asteroid mass and which has the highest scoring neighbors
      * - Obstacles: Score is halved if there are obstacles between it and target
      *
-     * @param space physics
-     * @param ship current ship
+     * @param space   physics
+     * @param ship    current ship
      * @param objects from which we determine which object to head to
      * @return best object based on our heuristics (highest total score)
      */
@@ -139,7 +139,7 @@ public class JakeTeamClient extends TeamClient {
             if (object instanceof Asteroid) {
                 Asteroid asteroid = (Asteroid) object;
                 if (asteroid.isMineable()) {
-                    value = linearNormalize(MIN_ASTEROID_MASS, MAX_ASTEROID_MASS,0,  1, asteroid.getMass());
+                    value = linearNormalize(MIN_ASTEROID_MASS, MAX_ASTEROID_MASS, 0, 1, asteroid.getMass());
                 }
             } else if (object instanceof AbstractActionableObject) {
                 AbstractActionableObject actionableObject = (AbstractActionableObject) object;
@@ -200,7 +200,7 @@ public class JakeTeamClient extends TeamClient {
 
     /**
      * Get a {@link MoveAction} that will take a ship through space from the current position to the target
-     *
+     * <p>
      * This action attempts to move the ship to where the target will be in the future.
      * The ship and the target will collide even if the target is in motion at a constant rate.
      * This getTeamPurchases uses interceptPosition(Toroidal2DPhysics, Position, Position) to predict the
@@ -208,9 +208,9 @@ public class JakeTeamClient extends TeamClient {
      * The ship will be going a speed of {@value TARGET_SHIP_SPEED} units by default when it reaches the target, depending on
      * the angle it needs to turn to reach nextStep (slower if angle is larger), so it doesn't overshoot each target
      *
-     * @param space physics
+     * @param space           physics
      * @param currentPosition The position of the ship at the starting time interval
-     * @param target The target object the action should aim for
+     * @param target          The target object the action should aim for
      * @return An action to get the ship to the target's location
      */
     private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target) {
@@ -238,7 +238,13 @@ public class JakeTeamClient extends TeamClient {
         Vector2D goalVelocity = Vector2D.fromAngle(angleToTarget, magnitude);
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, target);
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, target);
-        return new MoveAction(space, currentPosition, target, goalVelocity);
+
+        Vector2D vectorForShot = new Vector2D(target);
+        vectorForShot = vectorForShot.add(Vector2D.fromAngle(angleToTarget, -shotDistance));
+        Position positionForShot = new Position(vectorForShot);
+        positionForShot.setOrientation(goalVelocity.getAngle());
+
+        return new MoveActionWithOrientation(space, currentPosition, positionForShot, goalVelocity);
     }
 
     private AvoidAction avoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, AbstractObject target, Ship ship) {
@@ -309,7 +315,7 @@ public class JakeTeamClient extends TeamClient {
 
             // Handle when our target dies
             if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
-                if((abstractAction instanceof AvoidAction) && !closeEnough) {
+                if ((abstractAction instanceof AvoidAction) && !closeEnough) {
                     currentSession.invalidateLastSession();
                 }
                 targetsToRemove.add(shipId);
@@ -364,6 +370,7 @@ public class JakeTeamClient extends TeamClient {
 
     /**
      * Whether the game is ending soon or not. Ships should return any resources before the game is over.
+     *
      * @param space The Toroidal2DPhysics for the game
      * @return True if the game is nearly over, false otherwise
      */
@@ -372,10 +379,11 @@ public class JakeTeamClient extends TeamClient {
     }
 
     // region Value Calculations
+
     /**
      * Linearly normalizes the distance from 0 to 1
      *
-     * @param space physics
+     * @param space       physics
      * @param rawDistance Input distance to convert
      * @return normalized distance, preserving ratio from 0 to 1
      */
@@ -387,8 +395,8 @@ public class JakeTeamClient extends TeamClient {
     /**
      * Value for an angle between your ship and a provided object
      *
-     * @param space physics
-     * @param ship ship the angle is from
+     * @param space  physics
+     * @param ship   ship the angle is from
      * @param target object the angle is to
      * @return Linear normalized value from 0 to 1 based a target
      */
@@ -440,7 +448,7 @@ public class JakeTeamClient extends TeamClient {
     /**
      * Continually add scores to a map based on best neighborhood score
      *
-     * @param space physics
+     * @param space  physics
      * @param scores scores map to fill
      * @param object object to compare neighbors
      * @return the best neighbor score for the given object
@@ -464,10 +472,10 @@ public class JakeTeamClient extends TeamClient {
      * Buys bases and tries to spread them out in the space. Also buys double max energy powerups.
      * It buys whenever it can afford to.
      *
-     * @param space physics
-     * @param actionableObjects Ships and bases on the team
+     * @param space              physics
+     * @param actionableObjects  Ships and bases on the team
      * @param resourcesAvailable how much resourcesAvailable you have
-     * @param purchaseCosts Used to see if we can afford to buy things
+     * @param purchaseCosts      Used to see if we can afford to buy things
      * @return A map of ship or base IDs to types of purchases we want to buy
      */
     @Override
@@ -480,11 +488,11 @@ public class JakeTeamClient extends TeamClient {
 
     /**
      * Shoot at other ships and use powerups.
-     *
+     * <p>
      * We shoot at any enemy ships or bases if we are in
      * position according to 'inPositionToShoot'.
      *
-     * @param space physics
+     * @param space             physics
      * @param actionableObjects the ships and bases for this team
      * @return A map from ship IDs to powerup types
      */

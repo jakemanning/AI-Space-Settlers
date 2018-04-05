@@ -42,6 +42,15 @@ public class TrainingPowerupUtil extends PowerupUtil {
         return powerups;
     }
 
+    @Override
+    boolean shipNeedsEnergy(Ship ship) {
+        return false;
+    }
+
+    @Override
+    void shieldIfNeeded(Toroidal2DPhysics space, AbstractActionableObject actionable) {
+    }
+
     private void updateMissiles(Toroidal2DPhysics space) {
         Set<AbstractWeapon> weapons = space.getWeapons();
         for (AbstractWeapon weapon : weapons) {
@@ -54,7 +63,8 @@ public class TrainingPowerupUtil extends PowerupUtil {
         for (ShotAttempt attempt : shotAttempts) {
             Missile missile = (Missile) space.getObjectById(attempt.getMissileId());
             AbstractObject target = space.getObjectById(attempt.getTargetId());
-            if ((missile == null && !attempt.targetHit()) || target == null) {
+            boolean notNew = space.getCurrentTimestep() > attempt.getTurnFired();
+            if ((missile == null && notNew && !attempt.targetHit()) || target == null) {
                 attempt.markMissed();
             } else if (missile != null &&
                     space.findShortestDistance(missile.getPosition(), target.getPosition()) < target.getRadius()) {
@@ -63,9 +73,17 @@ public class TrainingPowerupUtil extends PowerupUtil {
         }
     }
 
+    /**
+     * Set the missile ID on a shot attempt from the last timestep if the shooter matches
+     *
+     * @param space    physics
+     * @param weaponId ID of the missile fired
+     */
     private void setNewWeapon(Toroidal2DPhysics space, UUID weaponId) {
+        AbstractWeapon weapon = (AbstractWeapon) space.getObjectById(weaponId);
         for (ShotAttempt attempt : shotAttempts) {
-            if (attempt.getTurnFired() == space.getCurrentTimestep() - 1) {
+            if (attempt.getTurnFired() == space.getCurrentTimestep() - 1
+                    && weapon.getFiringShip().getId().equals(attempt.getShooterId())) {
                 attempt.setMissileId(weaponId);
             }
         }
@@ -85,7 +103,10 @@ public class TrainingPowerupUtil extends PowerupUtil {
         Vector2D vector = space.findShortestDistanceVector(currentPosition, target.getPosition());
         boolean angle = vector.getAngle() < Math.PI;
         boolean distance = vector.getMagnitude() < MAX_SHOOT_DISTANCE;
-        return angle && distance;
+        boolean inPosition = angle && distance;
+        if (inPosition) {
+        }
+        return inPosition;
     }
 
     @Override

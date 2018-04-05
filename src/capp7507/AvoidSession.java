@@ -6,8 +6,6 @@ import spacesettlers.simulator.Toroidal2DPhysics;
 
 import java.util.UUID;
 
-import static capp7507.MovementUtil.linearNormalize;
-
 public class AvoidSession {
     private boolean isValid;
     private double distanceAtAvoidBeginning;
@@ -118,7 +116,6 @@ public class AvoidSession {
         }
 
         double evaluate() {
-            // TODO: Make more smahter to increase knowledge
             double fitness = 0;
             if (!successfullyAvoided) {
                 // penalize not avoiding the obstacle

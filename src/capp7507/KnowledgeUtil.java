@@ -51,7 +51,6 @@ class KnowledgeUtil {
     }
 
     void think() {
-        System.out.println("SIZE: " + sessions.size());
         population.evaluateFitnessForCurrentMember(sessions.values());
 
         // move to the next member of the population

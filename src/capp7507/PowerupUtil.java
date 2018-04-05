@@ -19,7 +19,7 @@ import static capp7507.SpaceSearchUtil.getEnemyTargets;
 import static capp7507.SpaceSearchUtil.getTeamBases;
 
 public class PowerupUtil {
-    private static final double RANDOM_SHOOT_THRESHOLD = 0.1;
+    private static final double RANDOM_SHOOT_THRESHOLD = 0.25;
     private static final double SHIP_NEEDS_ENERGY_FACTOR = 0.2;
     private static final int SHIELD_RADIUS = 3;
     private static final double MAX_SHOT_ANGLE = Math.PI / 12;
@@ -146,7 +146,7 @@ public class PowerupUtil {
      * @param ship The ship that may need more energy
      * @return True if the ship needs more energy, false otherwise
      */
-    private boolean shipNeedsEnergy(Ship ship) {
+    boolean shipNeedsEnergy(Ship ship) {
         return ship.getEnergy() < ship.getMaxEnergy() * SHIP_NEEDS_ENERGY_FACTOR;
     }
 
@@ -212,6 +212,7 @@ public class PowerupUtil {
     boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition,
                               AbstractObject target) {
         // We don't want to worry about shooting anymore, let's be cooperative
+        // TODO: Replace with decision tree
         return false;
     }
 
@@ -223,7 +224,7 @@ public class PowerupUtil {
      * @param ship       The ship that will shoot
      */
     boolean shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Toroidal2DPhysics space, Ship ship, AbstractObject target) {
-        if (random.nextDouble() < RANDOM_SHOOT_THRESHOLD) {
+        if (space.getCurrentTimestep() % Math.round(1 / RANDOM_SHOOT_THRESHOLD) == 0) {
             powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.FIRE_MISSILE);
             return true;
         }

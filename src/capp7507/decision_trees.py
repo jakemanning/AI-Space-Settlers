@@ -29,6 +29,7 @@ def main():
         '/Users/bryancapps/Dropbox/school/college/ou/classes/Artificial Intelligence/AI-spacesettlers/src/capp7507/shooting_data.xml')
     root = tree.getroot()
     hits = []
+    didnt_finish = 0
     angles = []
     distances = []
     examples = []
@@ -39,8 +40,11 @@ def main():
             hits.append(example.hit)
             angles.append(example.angle)
             distances.append(example.distance)
+        else:
+            didnt_finish += 1
     print('hits: ' + str(hits.count(True)))
     print('misses: ' + str(hits.count(False)))
+    print('didnt finish: ' + str(didnt_finish))
 
     tree = decision_tree_learning(examples, ['angle', 'distance'], [])
     print(tree)

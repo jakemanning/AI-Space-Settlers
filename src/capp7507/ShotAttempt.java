@@ -8,6 +8,7 @@ import spacesettlers.utilities.Vector2D;
 import java.util.UUID;
 
 public class ShotAttempt {
+    private UUID shooterId;
     private UUID missileId;
     private UUID targetId;
     private double angle;
@@ -16,11 +17,14 @@ public class ShotAttempt {
     private boolean shotHitTarget;
     private boolean missileGone;
 
-    public ShotAttempt(UUID targetId, double angle, double distance, int turnFired) {
+    public ShotAttempt(UUID shooterId, UUID targetId, double angle, double distance, int turnFired) {
+        this.shooterId = shooterId;
         this.targetId = targetId;
         this.angle = angle;
         this.distance = distance;
         this.turnFired = turnFired;
+        shotHitTarget = false;
+        missileGone = false;
     }
 
     public static ShotAttempt build(Toroidal2DPhysics space, Ship ship, AbstractObject target) {
@@ -30,7 +34,7 @@ public class ShotAttempt {
         double angle = Math.abs(currentVector.angleBetween(targetVector));
         double distance = targetVector.getMagnitude();
         int turnFired = space.getCurrentTimestep();
-        return new ShotAttempt(targetId, angle, distance, turnFired);
+        return new ShotAttempt(ship.getId(), targetId, angle, distance, turnFired);
     }
 
     public void setMissileId(UUID missileId) {
@@ -52,6 +56,10 @@ public class ShotAttempt {
     public void markMissed() {
         missileGone = true;
         shotHitTarget = false;
+    }
+
+    public UUID getShooterId() {
+        return shooterId;
     }
 
     public UUID getTargetId() {
