@@ -200,9 +200,10 @@ public class PowerupUtil {
     /**
      * Determine if the ship at currentPosition is in position to shoot the target
      * <p>
-     * If the target is within a distance of {@value MAX_SHOT_DISTANCE} and at an
-     * angle less than {@value MAX_SHOT_ANGLE} from the ship's current orientation then
-     * the ship is considered in position to shoot the target.
+     * This was learned using a decision tree learning algorithm taking into account the following:
+     * distance from the ship to the target,
+     * angle between the ship's orientation and the line from the ship to the target,
+     * and the target object's speed
      *
      * @param space           physics
      * @param currentPosition The current position of a ship
@@ -275,6 +276,9 @@ public class PowerupUtil {
         }
     }
 
+    /**
+     * Dummy implementation used during training
+     */
     private static class DummyPowerupUtil extends PowerupUtil {
         DummyPowerupUtil(JakeTeamClient client, Random random) {
             super(client, random);

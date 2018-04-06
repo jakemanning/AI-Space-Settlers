@@ -1,16 +1,51 @@
+import gzip
 import math
 import xml.etree.ElementTree as ET
 
+import matplotlib.pyplot as plt
 
-# hits = []
-# angles = []
-# distances = []
-# examples = []
+
+def main():
+    """
+    Set up global variables and call the decision tree learning algorithm from the book
+    Then evaluate
+    """
+    training_examples = get_examples(
+        'shooting_data.xml.gz'
+    )
+
+    n_examples = []
+    accuracies = []
+    biases = []
+    for i in range(20, len(training_examples), 20):
+        decision_tree = decision_tree_learning(training_examples[:i], ['angle', 'distance', 'targetSpeed'], [])
+        print(decision_tree)
+
+        test_examples = get_examples(
+            'test_shooting_data.xml.gz'
+        )
+
+        accuracy, bias = evaluate(decision_tree, test_examples)
+        n_examples.append(i)
+        accuracies.append(accuracy)
+        biases.append(bias)
+    plot(n_examples, accuracies, biases)
+
+
+def plot(n_examples, accuracies, biases):
+    plt.title('Decision Tree Learning')
+    plt.xlabel('Examples')
+    plt.plot(n_examples, accuracies)
+    plt.plot(n_examples, biases)
+    plt.legend(['Accuracy', 'Bias'])
+    plt.show()
+
 
 class Example(object):
     def __init__(self, shot):
         self.angle = float(shot.find('angle').text)
         self.distance = float(shot.find('distance').text)
+        self.target_speed = float(shot.find('distance').text)
         self.hit = shot.find('shotHitTarget').text == 'true'
 
     def __getitem__(self, item):
@@ -18,40 +53,33 @@ class Example(object):
             return self.angle
         if item == 'distance':
             return self.distance
+        if item == 'targetSpeed':
+            return self.target_speed
         return None
 
 
-def main():
-    """
-    Set up global variables and call the decision tree learning algorithm from the book
-    """
-    tree = ET.parse(
-        '/Users/bryancapps/Dropbox/school/college/ou/classes/Artificial Intelligence/AI-spacesettlers/src/capp7507/shooting_data.xml')
-    root = tree.getroot()
+def get_xml(file_name):
+    with gzip.open(file_name, 'rb') as f:
+        return ET.parse(f)
+
+
+def get_examples(file_name):
+    xml_tree = get_xml(file_name)
+    root = xml_tree.getroot()
     hits = []
     didnt_finish = 0
-    angles = []
-    distances = []
     examples = []
     for shot in root.iter('capp7507.ShotAttempt'):
         if 'true' == shot.find('missileGone').text:
             example = Example(shot)
             examples.append(example)
             hits.append(example.hit)
-            angles.append(example.angle)
-            distances.append(example.distance)
         else:
             didnt_finish += 1
     print('hits: ' + str(hits.count(True)))
     print('misses: ' + str(hits.count(False)))
     print('didnt finish: ' + str(didnt_finish))
-
-    tree = decision_tree_learning(examples, ['angle', 'distance'], [])
-    print(tree)
-
-
-# input variables: angle, distance
-# output variables: hits
+    return examples
 
 
 def find_split(examples, attributes):
@@ -115,11 +143,11 @@ def decision_tree_learning(examples, attributes, parent_examples):
             all_same = False
             break
     if all_same:
-        return Node(None, None, classification)
+        return LeafNode(classification)
     if len(attributes) == 0:
         return plurality_value(examples)
     split_attribute, split_val = find_split(examples, attributes)
-    tree = Node(split_attribute, {}, None)
+    tree = Node(split_attribute, split_val)
     exs = []
     non_exs = []
     for e in examples:
@@ -131,10 +159,8 @@ def decision_tree_learning(examples, attributes, parent_examples):
     atts = [att for att in attributes if att is not split_attribute]
     left_subtree = decision_tree_learning(exs, atts, examples)
     right_subtree = decision_tree_learning(non_exs, atts, examples)
-    left_label = f'{split_attribute} < {split_val}'
-    right_label = f'{split_attribute} >= {split_val}'
-    tree.branches[left_label] = left_subtree
-    tree.branches[right_label] = right_subtree
+    tree.left_branch = left_subtree
+    tree.right_branch = right_subtree
     return tree
 
 
@@ -146,8 +172,8 @@ def plurality_value(examples):
         if example.hit:
             trues += 1
     if trues > total / 2:
-        return Node(None, None, 'True')
-    return Node(None, None, 'False')
+        return LeafNode(True)
+    return LeafNode(False)
 
 
 def possible_values(attribute):
@@ -164,26 +190,67 @@ def b(q):
 
 
 class Node:
-    def __init__(self, attribute, branches, classification):
+    def __init__(self, attribute, split):
         self.attribute = attribute
-        self.branches = branches
+        self.split = split
+        self.left_branch = None
+        self.right_branch = None
+        self.classification = None
+
+    def __str__(self):
+        s = '\n' + self.attribute + '\n'
+        if self.left_branch.classification is not None:
+            s += f'{self.attribute} < {self.split}' + ': ' + str(self.left_branch) + '    '
+        if self.right_branch.classification is not None:
+            s += f'{self.attribute} >= {self.split}' + ': ' + str(self.right_branch) + '    '
+        if self.left_branch.classification is None:
+            s += '\n' + f'{self.attribute} < {self.split}' + ':'
+            s += str(self.left_branch)
+        if self.right_branch.classification is None:
+            s += '\n' + f'{self.attribute} >= {self.split}' + ':'
+            s += str(self.right_branch)
+        return s
+
+
+class LeafNode:
+    def __init__(self, classification):
         self.classification = classification
 
     def __str__(self):
-        if self.classification is None:
-            s = '\n' + self.attribute + '\n'
-            for branch_label in self.branches:
-                branch = self.branches[branch_label]
-                if branch.classification is not None:
-                    s += str(branch_label) + ': ' + str(branch) + '    '
-            for branch_label in self.branches:
-                branch = self.branches[branch_label]
-                if branch.classification is None:
-                    s += '\n' + str(branch_label) + ':'
-                    s += str(branch)
-            return s
-        else:
-            return str(self.classification)
+        return str(self.classification)
+
+
+def evaluate(tree, examples):
+    confusion_matrix = fill_confusion_matrix(tree, examples)
+    a, b, c, d = confusion_matrix
+    accuracy = (a + d) / (a + b + c + d)
+    bias = (a + b) / (a + c)
+    return accuracy, bias
+
+
+def fill_confusion_matrix(tree, examples):
+    a = 0  # forecast yes and observed yes
+    b = 0  # forecast yes and observed no
+    c = 0  # forecast no and observed yes
+    d = 0  # forecast no and observed no
+
+    for example in examples:
+        node = tree
+        while node.classification is None:
+            if example[node.attribute] < node.split:
+                node = node.left_branch
+            else:
+                node = node.right_branch
+        if node.classification and example.hit:
+            a += 1
+        elif node.classification and not example.hit:
+            b += 1
+        elif not node.classification and example.hit:
+            c += 1
+        elif not node.classification and not example.hit:
+            d += 1
+
+    return [a, b, c, d]
 
 
 if __name__ == '__main__':
