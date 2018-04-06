@@ -8,6 +8,9 @@ import spacesettlers.utilities.Position;
 import java.awt.*;
 import java.util.*;
 
+/**
+ * Makes it easy to add any graphics if we want
+ */
 public class GraphicsUtil {
     private static final int CIRCLE_RADIUS = 2;
     private static final int TARGET_RADIUS = 10;
@@ -23,6 +26,10 @@ public class GraphicsUtil {
         obstacleGraphics = new HashMap<>();
     }
 
+    /**
+     * Uses previous graphics if they already existed
+      * @param uuid uuid of an object to load
+     */
     void loadGraphicsFor(UUID uuid) {
         SpacewarGraphics targetGraphic = targetGraphics.get(uuid);
         SpacewarGraphics obstacleGraphic = obstacleGraphics.get(uuid);
@@ -44,7 +51,6 @@ public class GraphicsUtil {
     void addGraphic(SpacewarGraphics graphic) {
         graphics.add(graphic);
     }
-
 
     void addTargetGraphic(UUID uuid, SpacewarGraphics graphics) {
         targetGraphics.put(uuid, graphics);
@@ -72,6 +78,12 @@ public class GraphicsUtil {
         obstacleGraphics.put(uuid, getPreset(preset, position));
     }
 
+    /**
+     * Which graphics {@link Preset} we want to choose
+     * @param preset preset to add
+     * @param position where our graphics should be
+     * @return a graphics preset
+     */
     private SpacewarGraphics getPreset(Preset preset, Position position) {
         if(preset == Preset.TARGET) {
             return targetGraphic(position);
@@ -94,6 +106,9 @@ public class GraphicsUtil {
         return new CircleGraphics(CIRCLE_RADIUS, Color.RED, position);
     }
 
+    /**
+     * Some graphics presets so we can just specify which preset we want to be added
+     */
     public enum Preset {
         TARGET, YELLOW_CIRCLE, RED_CIRCLE
     }

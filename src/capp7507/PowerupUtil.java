@@ -11,6 +11,7 @@ import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.objects.weapons.AbstractWeapon;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
+import spacesettlers.utilities.Vector2D;
 
 import java.util.*;
 import java.util.stream.DoubleStream;
@@ -19,7 +20,7 @@ import static capp7507.SpaceSearchUtil.getEnemyTargets;
 import static capp7507.SpaceSearchUtil.getTeamBases;
 
 public class PowerupUtil {
-    private static final double RANDOM_SHOOT_THRESHOLD = 0.1;
+    private static final double RANDOM_SHOOT_THRESHOLD = 0.25;
     private static final double SHIP_NEEDS_ENERGY_FACTOR = 0.2;
     private static final int SHIELD_RADIUS = 3;
     private static final double MAX_SHOT_ANGLE = Math.PI / 12;
@@ -122,16 +123,17 @@ public class PowerupUtil {
             if (actionable instanceof Ship) {
                 Ship ship = (Ship) actionable;
                 Set<AbstractActionableObject> enemyShips = getEnemyTargets(space, client.getTeamName());
-                AbstractObject closestEnemyShip = MovementUtil.closest(space, ship.getPosition(), enemyShips);
-                if (ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) { // protect ship if we're in position and do not need energy
-                    if (shieldedObjects.contains(ship.getId()) != ship.isShielded()) { // Only if the status of the ship has changed
-                        powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.TOGGLE_SHIELD);
+                for (AbstractActionableObject enemyShip : enemyShips) {
+                    if (ship.isValidPowerup(SpaceSettlersPowerupEnum.TOGGLE_SHIELD)) { // protect ship if we're in position and do not need energy
+                        if (shieldedObjects.contains(ship.getId()) != ship.isShielded()) { // Only if the status of the ship has changed
+                            powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.TOGGLE_SHIELD);
+                        }
+                    } else if (inPositionToShoot(space, ship.getPosition(), enemyShip) && !shipNeedsEnergy(ship)) { // shoot if we're in position and do not need energy
+                        shoot(powerupMap, space, ship, enemyShip);
+                    } else if (ship.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY)) {
+                        // equip the double max energy powerup
+                        powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY);
                     }
-                } else if (inPositionToShoot(space, ship.getPosition(), closestEnemyShip) && !shipNeedsEnergy(ship)) { // shoot if we're in position and do not need energy
-                    shoot(powerupMap, space, ship, closestEnemyShip);
-                } else if (ship.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY)) {
-                    // equip the double max energy powerup
-                    powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY);
                 }
             }
         }
@@ -145,7 +147,7 @@ public class PowerupUtil {
      * @param ship The ship that may need more energy
      * @return True if the ship needs more energy, false otherwise
      */
-    private boolean shipNeedsEnergy(Ship ship) {
+    boolean shipNeedsEnergy(Ship ship) {
         return ship.getEnergy() < ship.getMaxEnergy() * SHIP_NEEDS_ENERGY_FACTOR;
     }
 
@@ -199,9 +201,10 @@ public class PowerupUtil {
     /**
      * Determine if the ship at currentPosition is in position to shoot the target
      * <p>
-     * If the target is within a distance of {@value MAX_SHOT_DISTANCE} and at an
-     * angle less than {@value MAX_SHOT_ANGLE} from the ship's current orientation then
-     * the ship is considered in position to shoot the target.
+     * This was learned using a decision tree learning algorithm taking into account the following:
+     * distance from the ship to the target,
+     * angle between the ship's orientation and the line from the ship to the target,
+     * and the target object's speed
      *
      * @param space           physics
      * @param currentPosition The current position of a ship
@@ -210,8 +213,41 @@ public class PowerupUtil {
      */
     boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition,
                               AbstractObject target) {
-        // We don't want to worry about shooting anymore, let's be cooperative
-        return false;
+        double targetSpeed = target.getPosition().getTranslationalVelocity().getMagnitude();
+        double orientation = currentPosition.getOrientation();
+        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, target.getPosition());
+        double angle = Math.abs(Vector2D.fromAngle(orientation, 1).angleBetween(targetVector));
+        double distance = targetVector.getMagnitude();
+
+        if (angle < 0.174509659409523) {
+            if (distance < 111.35050289080861) {
+                if (targetSpeed < 64.66485818941423) {
+                    return true;
+                } else {
+                    return true;
+                }
+            } else {
+                if (targetSpeed < 141.56978592719528) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        } else {
+            if (distance < 46.54384657952563) {
+                if (targetSpeed < 40.070214270983705) {
+                    return false;
+                } else {
+                    return true;
+                }
+            } else {
+                if (targetSpeed < 92.8939393855356) {
+                    return false;
+                } else {
+                    return false;
+                }
+            }
+        }
     }
 
     /**
@@ -222,7 +258,7 @@ public class PowerupUtil {
      * @param ship       The ship that will shoot
      */
     boolean shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Toroidal2DPhysics space, Ship ship, AbstractObject target) {
-        if (random.nextDouble() < RANDOM_SHOOT_THRESHOLD) {
+        if (space.getCurrentTimestep() % Math.round(1 / RANDOM_SHOOT_THRESHOLD) == 0) {
             powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.FIRE_MISSILE);
             return true;
         }
@@ -232,6 +268,15 @@ public class PowerupUtil {
     public void shutDown() {
     }
 
+    /**
+     * Determines which Powerup to buy for a given purchase session
+     * Using some predefined probabilities
+     * i.e. we want:
+     * to purchase ships 30% of the time,
+     * buy bases 25% of the time,
+     * energy 30% of the time,
+     * and shields 15% of the time
+     */
     private static class RandomDistribution {
         static double probabilities[] = {
                 0.3, // Purchase more ships
@@ -244,6 +289,12 @@ public class PowerupUtil {
             assert (DoubleStream.of(probabilities).sum() == 1);
         }
 
+        /**
+         * Where all of the magic happens
+         * Uses the probabilities array to bias towards a value
+         * @param random random
+         * @return which {@link Index} we want to bias towards
+         */
         static int biasTowards(Random random) {
             double roll = random.nextDouble();
             double total = 0;
@@ -258,6 +309,9 @@ public class PowerupUtil {
             return -1; // This shouldn't ever happen
         }
 
+        /**
+         * What we're going to end up buying
+         */
         enum Index {
             INVALID(-1), MORE_SHIPS(0), MORE_BASES(1), ENERGY(2), SHIELDS(3);
 
@@ -273,6 +327,9 @@ public class PowerupUtil {
         }
     }
 
+    /**
+     * Dummy implementation used during training
+     */
     private static class DummyPowerupUtil extends PowerupUtil {
         DummyPowerupUtil(JakeTeamClient client, Random random) {
             super(client, random);

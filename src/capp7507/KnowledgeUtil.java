@@ -13,6 +13,13 @@ import java.util.UUID;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+/**
+ * Utility to pull from a file, and
+ * handles all of our GA learning
+ *
+ * At the end of the game it evaluates the fitness,
+ * and creates a new generation as soon as we're finished with our current generation
+ */
 class KnowledgeUtil {
 
     /**
@@ -138,7 +145,11 @@ class KnowledgeUtil {
         }
     }
 
-    public KnowledgeChromosome getCurrentPolicy() {
+    KnowledgeChromosome getCurrentPolicy() {
         return currentPolicy;
+    }
+
+    KnowledgeChromosome bestPolicy() {
+        return population.getBestMember();
     }
 }

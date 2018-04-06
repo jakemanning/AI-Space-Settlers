@@ -9,6 +9,10 @@ import spacesettlers.utilities.Vector2D;
 import java.io.Serializable;
 import java.util.Objects;
 
+/**
+ * Used to build our avoid actions. Given a ship's current 'state',
+ * we want to build an {@link AvoidAction}
+ */
 public class KnowledgeState implements Serializable {
     private double distanceToObstacle;
     // Angle difference between the line from the ship to the target and the line from the ship to the obstacle
@@ -29,6 +33,14 @@ public class KnowledgeState implements Serializable {
         this.target = target;
     }
 
+    /**
+     * Uses distance and angle calculation to build our state whenever we need to avoid
+     * @param space physics
+     * @param myShip current ship to build knowledge
+     * @param obstacle which obstacle we're avoiding
+     * @param target where we're heading
+     * @return our built state
+     */
     public static KnowledgeState build(Toroidal2DPhysics space, Ship myShip, AbstractObject obstacle, AbstractObject target) {
         Position shipPosition = myShip.getPosition();
         Position obstaclePosition = obstacle.getPosition();

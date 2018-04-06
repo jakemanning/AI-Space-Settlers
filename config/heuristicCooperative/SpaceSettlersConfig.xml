@@ -34,12 +34,20 @@
 			<teamName>Space Jam</teamName>
 			<configFile>jakeinit.xml</configFile>
 		</HighLevelTeamConfig>
+		<HighLevelTeamConfig>
+			<teamName>HeuristicMinerTeam</teamName>
+			<!-- Pick the one you intend to play against (self versus other) -->
+			<configFile>passive-heuristic-clientinit.xml</configFile>
+		</HighLevelTeamConfig>
 	</teams>
 
 	<!-- Each team needs a base.  Optionally, you can initialize the location of the base -->
 	<bases>
 		<BaseConfig>
 			<teamName>Space Jam</teamName>
+		</BaseConfig>
+		<BaseConfig>
+			<teamName>HeuristicMinerTeam</teamName>
 		</BaseConfig>
 	</bases>
 	
