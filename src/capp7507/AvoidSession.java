@@ -128,12 +128,15 @@ public class AvoidSession {
             if (!successfullyAvoided) {
                 // penalize not avoiding the obstacle
                 fitness -= 200;
+            } else {
+                fitness += 200;
             }
             // energy tends to be closeish to 10 times as much as distance or energy
             // we don't really care what the raw value of evaluate is,
             // but we do want to weigh these three values at a certain ratio
             // energy is about 3 times as important as distance and time
             fitness += distanceChange - energySpent / 3 - timeSpent;
+
             return fitness;
         }
     }

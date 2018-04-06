@@ -33,9 +33,9 @@ public class KnowledgeChromosome {
     double resetCoefficient(int index, Random rand) {
         double coeff;
         if (index < 3) {
-            coeff = (rand.nextInt(25) * 0.04 * Math.PI) - 3 * 0.04 * Math.PI;
+            coeff = (rand.nextInt(10) - 5) * Math.PI / 180;
         } else {
-            coeff = rand.nextInt(20) - 3;
+            coeff = rand.nextInt(5) - 2;
         }
         return coeff;
     }
@@ -65,10 +65,9 @@ public class KnowledgeChromosome {
         double angleToObstacle = state.getObstacleLocationAngle();
         double angleToObstacleMovement = state.getObstacleTrajectoryAngle();
 
-        double angle = b * angleToObstacle + c * angleToObstacleMovement + d;
-        double distance = e * distanceToObstacle + h;
-
-        return AvoidAction.build(space, ship.getPosition(), angle, distance, state.getObstacle());
+        double offset = b + angleToObstacle;
+//        double distance = e * distanceToObstacle + h;
+        return AvoidAction.build(space, ship.getPosition(), offset, distanceToObstacle, state.getObstacle());
     }
 
     double[] getCoefficients() {
