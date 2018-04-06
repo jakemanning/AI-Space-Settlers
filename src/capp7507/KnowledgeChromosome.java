@@ -6,6 +6,12 @@ import spacesettlers.simulator.Toroidal2DPhysics;
 import java.util.Arrays;
 import java.util.Random;
 
+/**
+ * Essentially a wrapper around our coefficients that we use to avoid
+ * - Generates coefficients
+ * - Creates {@link AvoidAction}s out of a {@link KnowledgeState}
+ * -
+ */
 public class KnowledgeChromosome {
     private double[] coefficients = null;
 
@@ -30,13 +36,19 @@ public class KnowledgeChromosome {
         return rawAction(space, myShip, currentState);
     }
 
+    /**
+     * Generates a coefficient.
+     * @param index
+     * @param rand
+     * @return
+     */
     double resetCoefficient(int index, Random rand) {
         double coeff;
-        if (index < 3) {
+        if (index < 3) { // Angle calculations
             double angleVariance = Math.PI / 3;
             coeff = getGaussian(rand, angleVariance);
             coeff = limitRange(-2 * Math.PI, 2 * Math.PI, coeff);
-        } else {
+        } else { // Distance calculations
             double distanceVariance = 20;
             coeff = getGaussian(rand, distanceVariance);
             coeff = rand.nextInt(20) + coeff;
@@ -45,10 +57,23 @@ public class KnowledgeChromosome {
         return coeff;
     }
 
+    /**
+     * We want most (68%) our coefficients to be between 2/3 * variance
+     * @param rand random
+     * @param variance what our variance should be
+     * @return a coefficient
+     */
     private double getGaussian(Random rand, double variance) {
         return rand.nextGaussian() * variance;
     }
 
+    /**
+     * Constraint these coefficients to some predefined range
+     * @param min the min we want our coefficients to be
+     * @param max the max we want our coefficients to be
+     * @param val what value to constraint
+     * @return the final coefficient
+     */
     private double limitRange(double min, double max, double val) {
         if (val < min) {
             return min;
@@ -59,6 +84,13 @@ public class KnowledgeChromosome {
         }
     }
 
+    /**
+     * An action constructed using our coefficients, and {@link KnowledgeState}
+     * @param space physics
+     * @param ship which ship is avoiding
+     * @param state our current state in space
+     * @return an action to hopefully avoid our object
+     */
     private AvoidAction rawAction(Toroidal2DPhysics space, Ship ship, KnowledgeState state) {
         double b = coefficients[0];
         double c = coefficients[1];

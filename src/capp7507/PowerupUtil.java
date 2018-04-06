@@ -268,6 +268,15 @@ public class PowerupUtil {
     public void shutDown() {
     }
 
+    /**
+     * Determines which Powerup to buy for a given purchase session
+     * Using some predefined probabilities
+     * i.e. we want:
+     * to purchase ships 30% of the time,
+     * buy bases 25% of the time,
+     * energy 30% of the time,
+     * and shields 15% of the time
+     */
     private static class RandomDistribution {
         static double probabilities[] = {
                 0.3, // Purchase more ships
@@ -280,6 +289,12 @@ public class PowerupUtil {
             assert (DoubleStream.of(probabilities).sum() == 1);
         }
 
+        /**
+         * Where all of the magic happens
+         * Uses the probabilities array to bias towards a value
+         * @param random random
+         * @return which {@link Index} we want to bias towards
+         */
         static int biasTowards(Random random) {
             double roll = random.nextDouble();
             double total = 0;
@@ -294,6 +309,9 @@ public class PowerupUtil {
             return -1; // This shouldn't ever happen
         }
 
+        /**
+         * What we're going to end up buying
+         */
         enum Index {
             INVALID(-1), MORE_SHIPS(0), MORE_BASES(1), ENERGY(2), SHIELDS(3);
 

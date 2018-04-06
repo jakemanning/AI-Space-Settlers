@@ -6,6 +6,18 @@ import spacesettlers.simulator.Toroidal2DPhysics;
 
 import java.util.UUID;
 
+/**
+ * Used when training GA. An Avoid Session is created whenever a ship begins avoiding.
+ * The same avoid session is used throughout our avoidance.
+ * We mark the session as complete as soon as we finish avoiding (move towards an obstacle).
+ * When we start avoiding again-to handle variability in our ship's target choosing-we keep track
+ * of whether we completed a session within the last 20 timesteps. If the obstacle is the same, then we
+ * reuse our previous avoid session.
+ *
+ * We mark AvoidSessions invalid if we hit any other object while avoiding
+ * to handle weird cases like when we hit a beacon which changes our energy calculation
+ *
+ */
 public class AvoidSession {
     private boolean isValid;
     private double distanceAtAvoidBeginning;
@@ -28,6 +40,11 @@ public class AvoidSession {
         distanceAtAvoidBeginning = space.findShortestDistance(ship.getPosition(), target.getPosition());
     }
 
+    /**
+     * Mark our last session complete
+     * @param space physics
+     * @param ship which ship to complete
+     */
     void completeSession(Toroidal2DPhysics space, Ship ship) {
         AbstractObject target = target(space);
         if (target == null) {
@@ -39,6 +56,10 @@ public class AvoidSession {
         timestepCompleted = space.getCurrentTimestep();
     }
 
+    /**
+     * Our final result of our session, which we can use to evaluate the fitness
+     * @return an AvoidResult
+     */
     public AvoidResult result() {
         double distanceChange = distanceAtAvoidBeginning - distanceAtAvoidEnd;
         double energySpent = energyAtAvoidBeginning - energyAtAvoidEnd;
@@ -50,11 +71,7 @@ public class AvoidSession {
         return space.getObjectById(targetId);
     }
 
-    private AbstractObject obstacle(Toroidal2DPhysics space) {
-        return space.getObjectById(obstacleId);
-    }
-
-    public boolean isSessionComplete() {
+    boolean isSessionComplete() {
         return timestepCompleted != Integer.MAX_VALUE;
     }
 
@@ -86,6 +103,9 @@ public class AvoidSession {
         isValid = false;
     }
 
+    /**
+     * The result of our AvoidSession, to calculate our fitness score
+     */
     public class AvoidResult {
         private boolean successfullyAvoided;
         private double distanceChange;
@@ -115,6 +135,10 @@ public class AvoidSession {
             return distanceChange;
         }
 
+        /**
+         * Fitness score calculation
+         * @return the final fitness score
+         */
         double evaluate() {
             double fitness = 0;
             if (!successfullyAvoided) {

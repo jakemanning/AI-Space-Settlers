@@ -38,6 +38,10 @@ public class KnowledgePopulation {
         fitnessScores = new double[populationSize];
     }
 
+    /**
+     * Evaluates fitness using all of our avoid sessions
+     * @param sessions all of our avoid sessions
+     */
     public void evaluateFitnessForCurrentMember(Collection<SessionCollection> sessions) {
         double fitness = sessions.stream()
                 .mapToDouble(SessionCollection::averageFitness)
@@ -69,9 +73,7 @@ public class KnowledgePopulation {
     }
 
     /**
-     * Does crossover, selection, and mutation using our current population.
-     * Note, none of this is implemented as it is up to the student to implement it.
-     * Right now all it does is reset the counter to the start.
+     * Does crossover, selection, and mutation using our current population
      */
     void makeNextGeneration() {
         KnowledgeChromosome[] parents = parentSelection(population);
@@ -90,6 +92,11 @@ public class KnowledgePopulation {
         return population[0];
     }
 
+    /**
+     * Uses roulette wheel selection. Shifts all chromosomes evaluations to be above zero
+     * @param population population to select from
+     * @return the chromosomes we want
+     */
     private KnowledgeChromosome[] parentSelection(KnowledgeChromosome[] population) {
         double[] fitnesses = shiftMinToZero(fitnessScores);
         double s = DoubleStream.of(fitnesses).sum();
@@ -106,6 +113,11 @@ public class KnowledgePopulation {
         return newPopulation;
     }
 
+    /**
+     * Necessary for roulette wheel to work (can't work on negative vals)
+     * @param fitnessScores scores to shift
+     * @return shifted scores
+     */
     private double[] shiftMinToZero(double[] fitnessScores) {
         double min = Double.MAX_VALUE;
         for (double fitness : fitnessScores) {
@@ -143,6 +155,11 @@ public class KnowledgePopulation {
         return newPopulation;
     }
 
+    /**
+     * We mutate ~10% of the time
+     * @param population population to mutate
+     * @return mutated population
+     */
     private KnowledgeChromosome[] mutate(KnowledgeChromosome[] population) {
         KnowledgeChromosome[] newPopulation = deepCopyOfPopulation(population);
         for (KnowledgeChromosome chromosome : newPopulation) {
@@ -174,7 +191,10 @@ public class KnowledgePopulation {
         return copy;
     }
 
-    public KnowledgeChromosome getBestMember() {
+    /**
+     * @return Which chromosome out of our population is actual best
+     */
+    KnowledgeChromosome getBestMember() {
         KnowledgeChromosome best = population[0];
         double highestFitness = Double.MIN_VALUE;
         for (int i = 0; i < population.length; i++) {

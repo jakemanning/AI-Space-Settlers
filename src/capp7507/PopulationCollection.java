@@ -3,10 +3,14 @@ package capp7507;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * A collection of populations (we store this in 'knowledge_collection.xml.gz)
+ * So we can keep track of populations over time (and plot them)
+ */
 public class PopulationCollection {
     private List<KnowledgePopulation> populations;
 
-    public PopulationCollection() {
+    PopulationCollection() {
         populations = new ArrayList<>();
     }
 

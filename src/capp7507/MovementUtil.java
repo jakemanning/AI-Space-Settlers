@@ -9,6 +9,9 @@ import java.util.Collection;
 
 import static capp7507.JakeTeamClient.TARGET_SHIP_SPEED;
 
+/**
+ * A collection of helpful utilities concerning movement
+ */
 class MovementUtil {
     /*
      * Returns the inverse of linear normalization. Instead of scaling from newMin to newMax,

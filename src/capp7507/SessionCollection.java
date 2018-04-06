@@ -7,7 +7,8 @@ import spacesettlers.simulator.Toroidal2DPhysics;
 import java.util.Stack;
 
 /**
- * Stores a collection of avoid sessions
+ * A collection of {@link AvoidSession}s
+ * Simply makes it easy to deal with a lot of sessions
  */
 public class SessionCollection {
     private Stack<AvoidSession> sessions;

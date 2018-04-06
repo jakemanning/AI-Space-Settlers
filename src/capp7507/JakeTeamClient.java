@@ -32,7 +32,7 @@ import static capp7507.TrainingPowerupUtil.MAX_SHOOT_DISTANCE;
  * @author Jake Manning and Bryan Capps
  */
 public class JakeTeamClient extends TeamClient {
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     static final boolean TRAINING_GA = false;
     static final boolean TRAINING_TREE = false;
     private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
@@ -46,7 +46,7 @@ public class JakeTeamClient extends TeamClient {
     private static final int REALLY_BIG_NAV_WEIGHT = 100;
     private static final int NEIGHBORHOOD_RADIUS = 100;
     private static final double GAME_IS_ENDING_FACTOR = 0.98;
-    public static final int SHOT_TRAINING_TARGET_WEIGHT = 3;
+    private static final int SHOT_TRAINING_TARGET_WEIGHT = 3;
     private Map<UUID, UUID> currentTargets = new HashMap<>();
     private GraphicsUtil graphicsUtil;
     private PowerupUtil powerupUtil;
@@ -73,7 +73,10 @@ public class JakeTeamClient extends TeamClient {
             if (actionable instanceof Ship) {
                 Ship ship = (Ship) actionable;
                 graphicsUtil.loadGraphicsFor(ship.getId());
-                SessionCollection sessionCollection = knowledge.getSessionsFor(ship.getId());
+                SessionCollection sessionCollection;
+                if(TRAINING_GA) {
+                    sessionCollection = knowledge.getSessionsFor(ship.getId());
+                }
 
                 // Retrieve ship's current target or pick a new one if needed
                 AbstractObject target = space.getObjectById(currentTargets.get(ship.getId()));
@@ -190,6 +193,12 @@ public class JakeTeamClient extends TeamClient {
         return space.getObjectById(maxEntry.getKey());
     }
 
+    /**
+     * Calculates distance to the obstacle to attempt to shoot
+     * @param space physics
+     * @param object where we wanna shoot
+     * @return
+     */
     private double distanceToOtherShip(Toroidal2DPhysics space, AbstractObject object) {
         return space.getShips().stream()
                 .filter(ship -> !getTeamName().equals(ship.getTeamName()))
@@ -226,6 +235,14 @@ public class JakeTeamClient extends TeamClient {
         return new MoveAction(space, currentPosition, adjustedTargetPosition, goalVelocity);
     }
 
+    /**
+     * Used when training our decision tree (we gather data on shooting).
+     * Heads towards the target ship, and slows down when it gets close to the ship (so we don't hit our target)
+     * @param space physics
+     * @param currentPosition where we are in space
+     * @param target target ship we attempt to shoot
+     * @return An action to collect data for our decision tree
+     */
     private MoveAction getMoveActionToShoot(Toroidal2DPhysics space, Position currentPosition, Position target) {
         Vector2D vectorToTarget = space.findShortestDistanceVector(currentPosition, target);
         double angleToTarget = vectorToTarget.getAngle();
@@ -247,6 +264,15 @@ public class JakeTeamClient extends TeamClient {
         return new MoveActionWithOrientation(space, currentPosition, positionForShot, goalVelocity);
     }
 
+    /**
+     * If we're using GA, train our GA. Otherwise use our best chromosome from our knowledge file.
+     * If this doesn't exist, fallback to our avoid action from project 2
+     * @param space physics
+     * @param obstacle which obstacle to avoid
+     * @param target where we're heading
+     * @param ship ship that's avoiding
+     * @return an action to avoid
+     */
     private AvoidAction avoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, AbstractObject target, Ship ship) {
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.YELLOW_CIRCLE, obstacle.getPosition());
 
@@ -273,6 +299,14 @@ public class JakeTeamClient extends TeamClient {
         }
     }
 
+    /**
+     * Our avoid action from project 2 (actually works pretty well)
+     * @param space physics
+     * @param obstacle which obstacle to avoid
+     * @param target where we're heading
+     * @param ship ship that's avoiding
+     * @return an action to avoid
+     */
     private AvoidAction oldAvoidCrashAction(Toroidal2DPhysics space, AbstractObject obstacle, AbstractObject target, Ship ship) {
         Position currentPosition = ship.getPosition();
         Vector2D currentVector = new Vector2D(currentPosition);
@@ -316,17 +350,20 @@ public class JakeTeamClient extends TeamClient {
             double distance = space.findShortestDistance(shipPosition, target.getPosition());
             int targetRadius = target.getRadius();
             boolean closeEnough = (target instanceof Base) && distance < targetRadius * 3;
-            SessionCollection currentSession = knowledge.getSessionsFor(shipId);
+            SessionCollection currentSession;
+            if(TRAINING_GA) {
+                currentSession = knowledge.getSessionsFor(shipId);
+            }
 
             // Handle when our target dies
             if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
-                if ((abstractAction instanceof AvoidAction) && !closeEnough) {
+                if (TRAINING_GA && (abstractAction instanceof AvoidAction) && !closeEnough) {
                     currentSession.invalidateLastSession();
                 }
                 targetsToRemove.add(shipId);
             }
 
-            if (ship.isAlive()) {
+            if (ship.isAlive() && TRAINING_GA) {
                 // Mark avoid actions unsuccessful if we get too close to the obstacle
                 if (abstractAction instanceof AvoidAction) {
                     AvoidAction action = (AvoidAction) abstractAction;
@@ -359,8 +396,9 @@ public class JakeTeamClient extends TeamClient {
                     }
                 }
             } else {
+                // Ship is ded :(
                 targetsToRemove.add(ship.getId());
-                if (abstractAction instanceof AvoidAction) {
+                if (TRAINING_GA && abstractAction instanceof AvoidAction) {
                     AvoidAction action = (AvoidAction) abstractAction;
                     AbstractObject obstacle = action.getObstacle();
                     currentSession.markAvoidanceAsUnsuccessful(space, obstacle);
@@ -514,11 +552,11 @@ public class JakeTeamClient extends TeamClient {
             powerupUtil = PowerupUtil.dummy(this, random);
         } else if (TRAINING_TREE) {
             powerupUtil = new TrainingPowerupUtil(this, random);
+            shotDistance = random.nextInt(MAX_SHOOT_DISTANCE);
         } else {
             powerupUtil = new PowerupUtil(this, random);
         }
         knowledge = new KnowledgeUtil(getKnowledgeFile());
-        shotDistance = random.nextInt(MAX_SHOOT_DISTANCE);
     }
 
     @Override
