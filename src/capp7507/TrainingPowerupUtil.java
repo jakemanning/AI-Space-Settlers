@@ -20,6 +20,9 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+/**
+ * Subclass of PowerupUtil for use in collecting training data for the decision tree learning algorithm
+ */
 public class TrainingPowerupUtil extends PowerupUtil {
     private static final String KNOWLEDGE_FILE = "capp7507/shooting_data.xml.gz";
     public static final int MAX_SHOOT_DISTANCE = 200;
@@ -87,6 +90,7 @@ public class TrainingPowerupUtil extends PowerupUtil {
             if (attempt.finished()) continue;
             if (attempt.getTurnFired() == space.getCurrentTimestep()) continue;
             if (attempt.missileNotSet()) {
+                // set the missile for an attempt by looking for recently shot missiles
                 List<AbstractWeapon> thisTurnMissiles = thisTurnMissiles(space);
                 if (thisTurnMissiles.size() == 0) {
                     removedShotAttempts.add(attempt);
@@ -99,6 +103,10 @@ public class TrainingPowerupUtil extends PowerupUtil {
             if (missile == null || !missile.isAlive() || target == null || !target.isAlive()) {
                 attempt.markFinished();
             }
+            // check if the missile is close enough to hit the target
+            // this is the best way I could find for detecting a collision between two objects when one dies upon impact
+            // we check if the missile and target are close and hope they collide soon after
+            // for learning purposes this is probably okay
             if (missile != null && target != null && space.findShortestDistance(missile.getPosition(), target.getPosition()) < 20) {
                 attempt.markHit();
             }
@@ -106,6 +114,12 @@ public class TrainingPowerupUtil extends PowerupUtil {
         shotAttempts.removeAll(removedShotAttempts);
     }
 
+    /**
+     * Returns missiles fired in this time step
+     *
+     * @param space physics
+     * @return List of AbstractWeapon objects
+     */
     private List<AbstractWeapon> thisTurnMissiles(Toroidal2DPhysics space) {
         return space.getWeapons().stream()
                 .filter(missile -> missilesShotThisTurn.get(missile.getId()))
@@ -128,26 +142,33 @@ public class TrainingPowerupUtil extends PowerupUtil {
         }
     }
 
-    private boolean weaponWasShot(UUID weaponId) {
-        for (ShotAttempt attempt : shotAttempts) {
-            if (weaponId.equals(attempt.getMissileId())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
+    /**
+     * When collecting training data, we want to shoot whenever the target is vaguely in front of the ship
+     * and within a relatively large distance
+     *
+     * @param space           physics
+     * @param currentPosition The current position of a ship
+     * @param target          The potential target for the ship to shoot
+     * @return whether the ship is in a reasonable position to shoot the target
+     */
     @Override
     boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition, AbstractObject target) {
+        double orientation = currentPosition.getOrientation();
         Vector2D vector = space.findShortestDistanceVector(currentPosition, target.getPosition());
-        boolean angle = vector.getAngle() < Math.PI;
+        boolean angle = vector.angleBetween(Vector2D.fromAngle(orientation, 1)) < Math.PI;
         boolean distance = vector.getMagnitude() < MAX_SHOOT_DISTANCE;
-        boolean inPosition = angle && distance;
-        if (inPosition) {
-        }
-        return inPosition;
+        return angle && distance;
     }
 
+    /**
+     * Fire a missile according to the probability in the parent method and add a shot attempt representing this attempt
+     *
+     * @param powerupMap A map from ship IDs to powerup types that is added to when shooting
+     * @param space      physics
+     * @param ship       The ship that will shoot
+     * @param target     The object we're aiming for
+     * @return Whether the ship will actually fire a shot
+     */
     @Override
     boolean shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Toroidal2DPhysics space, Ship ship, AbstractObject target) {
         boolean shot = super.shoot(powerupMap, space, ship, target);
@@ -157,6 +178,9 @@ public class TrainingPowerupUtil extends PowerupUtil {
         return shot;
     }
 
+    /**
+     * Save the loaded shot collection file for storing shot attempts or make a new shot collection
+     */
     private void loadKnowledge() {
         // try to load the population from the existing saved file.  If that fails, start from scratch
         try {
@@ -171,6 +195,13 @@ public class TrainingPowerupUtil extends PowerupUtil {
         }
     }
 
+    /**
+     * Load the file for storing shot attempts
+     *
+     * @param xStream xStream object
+     * @return ShotCollection from the filesystem
+     * @throws IOException file issues
+     */
     private ShotCollection loadFile(XStream xStream) throws IOException {
         try (FileInputStream inputStream = new FileInputStream(KNOWLEDGE_FILE); GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
             System.out.println("Loaded trainingData from " + KNOWLEDGE_FILE);
@@ -178,6 +209,9 @@ public class TrainingPowerupUtil extends PowerupUtil {
         }
     }
 
+    /**
+     * Saves the shot collection to disk
+     */
     @Override
     public void shutDown() {
         try {

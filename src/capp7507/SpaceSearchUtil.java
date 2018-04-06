@@ -101,7 +101,7 @@ class SpaceSearchUtil {
      * @param space physics
      * @return A set of all the unmineable asteroids
      */
-    static Set<Asteroid> getUnmineableAsteroids(Toroidal2DPhysics space) {
+    private static Set<Asteroid> getUnmineableAsteroids(Toroidal2DPhysics space) {
         Set<Asteroid> asteroids = new HashSet<>(space.getAsteroids());
         asteroids.removeAll(getMineableAsteroids(space));
         return asteroids;
@@ -113,7 +113,7 @@ class SpaceSearchUtil {
      * @param space physics
      * @return A set of all the mineable asteroids
      */
-    static Set<Asteroid> getMineableAsteroids(Toroidal2DPhysics space) {
+    private static Set<Asteroid> getMineableAsteroids(Toroidal2DPhysics space) {
         Set<Asteroid> results = new HashSet<>();
         for (Asteroid asteroid : space.getAsteroids()) {
             if (asteroid.isMineable()) {
@@ -154,7 +154,7 @@ class SpaceSearchUtil {
      * @param ship  The ship to use to get the ships on the same team
      * @return A set of all the ships on the same team as the given ship
      */
-    static Set<Ship> getFriendlyShips(Toroidal2DPhysics space, Ship ship) {
+    private static Set<Ship> getFriendlyShips(Toroidal2DPhysics space, Ship ship) {
         Set<Ship> results = new HashSet<>();
         for (Ship otherShip : space.getShips()) {
             // check that the team names match, but the ship IDs do not

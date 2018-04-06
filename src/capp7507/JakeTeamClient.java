@@ -34,7 +34,7 @@ import static capp7507.TrainingPowerupUtil.MAX_SHOOT_DISTANCE;
 public class JakeTeamClient extends TeamClient {
     private static final boolean DEBUG = true;
     static final boolean TRAINING_GA = false;
-    static final boolean TRAINING_TREE = true;
+    static final boolean TRAINING_TREE = false;
     private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
     private static final int SHIP_MAX_RESOURCES = 5000;
     private static final int MAX_ASTEROID_MASS = 2318;

@@ -6,6 +6,9 @@ import spacesettlers.simulator.Toroidal2DPhysics;
 
 import java.util.Stack;
 
+/**
+ * Stores a collection of avoid sessions
+ */
 public class SessionCollection {
     private Stack<AvoidSession> sessions;
 
@@ -21,6 +24,15 @@ public class SessionCollection {
         return sessions.push(session);
     }
 
+    /**
+     * Returns whether the last avoid session was to avoid the given obstacle.
+     * Also considers how long ago the last session was in case it
+     * has been a while and these sessions really should be considered separate.
+     *
+     * @param space    physics
+     * @param obstacle Candidate obstacle
+     * @return True if the last session is recent and for the last obstacle
+     */
     boolean lastSessionWasFor(Toroidal2DPhysics space, AbstractObject obstacle) {
         if (sessions.empty()) {
             return false;
@@ -34,7 +46,6 @@ public class SessionCollection {
         return obstacle.equals(lastSession.getObstacle(space));
     }
 
-
     void completeLastSession(Toroidal2DPhysics space, Ship ship) {
         if (sessions.empty()) {
             return;
@@ -43,6 +54,13 @@ public class SessionCollection {
         lastSession.completeSession(space, ship);
     }
 
+    /**
+     * Mark the avoid session avoiding the given obstacle as unsuccessful.
+     * Should be called when the ship collides with the obstacle.
+     *
+     * @param space    physics
+     * @param obstacle AbstractObject we were trying to avoid
+     */
     void markAvoidanceAsUnsuccessful(Toroidal2DPhysics space, AbstractObject obstacle) {
         sessions.stream()
                 .filter(AvoidSession::isValid)
@@ -59,12 +77,15 @@ public class SessionCollection {
         if (sessions.empty()) {
             return;
         }
-        // Get outta' America™️
         sessions.peek().invalidate();
     }
 
-    public double averageFitness() {
-        System.out.println("This is how many are valid: " + sessions.stream().filter(AvoidSession::isValid).count() + ", out of " + sessions.size());
+    /**
+     * Average fitness of all the avoid sessions in the collection
+     *
+     * @return double representing the average
+     */
+    double averageFitness() {
         return sessions.stream()
                 .filter(AvoidSession::isValid)
                 .filter(AvoidSession::isSessionComplete)

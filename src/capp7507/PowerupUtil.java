@@ -11,6 +11,7 @@ import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.objects.weapons.AbstractWeapon;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
+import spacesettlers.utilities.Vector2D;
 
 import java.util.*;
 import java.util.stream.DoubleStream;
@@ -212,9 +213,41 @@ public class PowerupUtil {
      */
     boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition,
                               AbstractObject target) {
-        // We don't want to worry about shooting anymore, let's be cooperative
-        // TODO: Replace with decision tree
-        return false;
+        double targetSpeed = target.getPosition().getTranslationalVelocity().getMagnitude();
+        double orientation = currentPosition.getOrientation();
+        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, target.getPosition());
+        double angle = Math.abs(Vector2D.fromAngle(orientation, 1).angleBetween(targetVector));
+        double distance = targetVector.getMagnitude();
+
+        if (angle < 0.174509659409523) {
+            if (distance < 111.35050289080861) {
+                if (targetSpeed < 64.66485818941423) {
+                    return true;
+                } else {
+                    return true;
+                }
+            } else {
+                if (targetSpeed < 141.56978592719528) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        } else {
+            if (distance < 46.54384657952563) {
+                if (targetSpeed < 40.070214270983705) {
+                    return false;
+                } else {
+                    return true;
+                }
+            } else {
+                if (targetSpeed < 92.8939393855356) {
+                    return false;
+                } else {
+                    return false;
+                }
+            }
+        }
     }
 
     /**
