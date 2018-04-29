@@ -6,6 +6,7 @@ import java.util.Random;
 import spacesettlers.clients.Team;
 import spacesettlers.graphics.BaseGraphics;
 import spacesettlers.graphics.FlagGraphics;
+import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
 
 /**
@@ -48,9 +49,9 @@ public class Flag extends AbstractObject {
 	boolean beingCarried;
 	
 	/**
-	 * Reference to the ship carrying the flag (if it is being carried)
+	 * Reference to the ship/drone carrying the flag (if it is being carried)
 	 */
-	Ship carryingShip;
+	AbstractObject carryingShipOrDrone;
 	
 	/**
 	 * Create a new flag
@@ -75,7 +76,7 @@ public class Flag extends AbstractObject {
 			this.startingLocations[i] = startingLocations[i].deepCopy();
 		}
 		this.beingCarried = false;
-		this.carryingShip = null;
+		this.carryingShipOrDrone = null;
 	}
 
 	@Override
@@ -87,8 +88,8 @@ public class Flag extends AbstractObject {
 		newFlag.setAlive(isAlive);
 		newFlag.setDrawable(isDrawable);
 		newFlag.beingCarried = this.beingCarried;
-		if (newFlag.carryingShip != null) {
-			newFlag.carryingShip = this.carryingShip.deepClone();
+		if (newFlag.carryingShipOrDrone != null) {
+			newFlag.carryingShipOrDrone = this.carryingShipOrDrone.deepClone();
 		}
 		newFlag.id = id;
 		return newFlag;
@@ -113,13 +114,29 @@ public class Flag extends AbstractObject {
 	}
 	
 	/**
+	 * Set the flag to being carried by this drone
+	 * Doing so removes it from any ship that may be carrying it.
+	 * 
+	 * @param ship
+	 */
+	public void pickupFlag(Drone drone) {
+		this.beingCarried = true;
+		this.carryingShipOrDrone = drone;
+		setPosition(drone.getPosition().deepCopy());
+		this.setDrawable(false);
+		this.setRespawn(false);
+		this.setAlive(false);
+		
+	}
+	
+	/**
 	 * Set the flag to being carried by this ship
 	 * 
 	 * @param ship
 	 */
 	public void pickupFlag(Ship ship) {
 		this.beingCarried = true;
-		this.carryingShip = ship;
+		this.carryingShipOrDrone = ship;
 		setPosition(ship.getPosition().deepCopy());
 		this.setDrawable(false);
 		this.setRespawn(false);
@@ -130,13 +147,20 @@ public class Flag extends AbstractObject {
 	/**
 	 * Drop the flag (likely the ship died)
 	 */
-	public void dropFlag() {
+	public void dropFlag(Random rand, Toroidal2DPhysics space) {
+		//System.out.println("Flag being dropped at " + carryingShip.getPosition());
 		this.beingCarried = false;
 		this.setDrawable(true);
 		this.setAlive(true);
 		this.setRespawn(false);
-		this.setPosition(carryingShip.getPosition());
-		this.carryingShip = null;
+		
+		Position newPosition = space.getRandomFreeLocationInRegion(rand, this.getRadius(), 
+				(int) carryingShipOrDrone.getPosition().getX(), 
+				(int) carryingShipOrDrone.getPosition().getY(), 200);
+		newPosition.setAngularVelocity(carryingShipOrDrone.getPosition().getAngularVelocity());
+		newPosition.setTranslationalVelocity(carryingShipOrDrone.getPosition().getTranslationalVelocity());
+		this.setPosition(newPosition);
+		this.carryingShipOrDrone = null;
 	}
 
 	/**

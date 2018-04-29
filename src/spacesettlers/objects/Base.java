@@ -86,16 +86,16 @@ public class Base extends AbstractActionableObject {
 	public Team getTeam() {
 		return team;
 	}
-
+	
 	/**
 	 * Increments the number of cores collected by this base by the number provided.
 	 * @param numCores
 	 */
-	public void incrementCores(int numCores) {
-		super.incrementCores();
+	public void incrementCores(int numCores) { 
+		super.incrementCores(numCores);
 		team.incrementCoresCollected(numCores);
 	}
-
+	
 	/**
 	 * Return half of the base's energy
 	 * @return the healingEnergy
