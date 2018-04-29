@@ -86,9 +86,7 @@ class SpaceSearchUtil {
         Set<Ship> friendlyShips = getFriendlyShips(space, ship);
         Set<Base> bases = new HashSet<>(space.getBases());
         Set<AbstractObject> obstacles = new HashSet<>();
-        if (!JakeTeamClient.TRAINING_TREE) {
-            obstacles.addAll(enemies);
-        }
+        obstacles.addAll(enemies);
         obstacles.addAll(asteroids);
         obstacles.addAll(friendlyShips);
         obstacles.addAll(bases);

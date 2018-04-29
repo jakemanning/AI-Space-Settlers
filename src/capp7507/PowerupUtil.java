@@ -23,8 +23,6 @@ public class PowerupUtil {
     private static final double RANDOM_SHOOT_THRESHOLD = 0.25;
     private static final double SHIP_NEEDS_ENERGY_FACTOR = 0.2;
     private static final int SHIELD_RADIUS = 3;
-    private static final double MAX_SHOT_ANGLE = Math.PI / 12;
-    private static final int MAX_SHOT_DISTANCE = 100;
 
     private final JakeTeamClient client;
     private final Random random;
@@ -33,10 +31,6 @@ public class PowerupUtil {
     PowerupUtil(JakeTeamClient client, Random random) {
         this.client = client;
         this.random = random;
-    }
-
-    public static PowerupUtil dummy(JakeTeamClient client, Random random) {
-        return new DummyPowerupUtil(client, random);
     }
 
     public HashMap<UUID, PurchaseTypes> getTeamPurchases(Toroidal2DPhysics space,
@@ -129,7 +123,7 @@ public class PowerupUtil {
                             powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.TOGGLE_SHIELD);
                         }
                     } else if (inPositionToShoot(space, ship.getPosition(), enemyShip) && !shipNeedsEnergy(ship)) { // shoot if we're in position and do not need energy
-                        shoot(powerupMap, space, ship, enemyShip);
+                        shoot(powerupMap, space, ship);
                     } else if (ship.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY)) {
                         // equip the double max energy powerup
                         powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY);
@@ -147,7 +141,7 @@ public class PowerupUtil {
      * @param ship The ship that may need more energy
      * @return True if the ship needs more energy, false otherwise
      */
-    boolean shipNeedsEnergy(Ship ship) {
+    private boolean shipNeedsEnergy(Ship ship) {
         return ship.getEnergy() < ship.getMaxEnergy() * SHIP_NEEDS_ENERGY_FACTOR;
     }
 
@@ -211,8 +205,8 @@ public class PowerupUtil {
      * @param target          The potential target for the ship to shoot
      * @return True if the target can be shot from the currentPosition, false otherwise
      */
-    boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition,
-                              AbstractObject target) {
+    private boolean inPositionToShoot(Toroidal2DPhysics space, Position currentPosition,
+                                      AbstractObject target) {
         double targetSpeed = target.getPosition().getTranslationalVelocity().getMagnitude();
         double orientation = currentPosition.getOrientation();
         Vector2D targetVector = space.findShortestDistanceVector(currentPosition, target.getPosition());
@@ -227,19 +221,11 @@ public class PowerupUtil {
                     return true;
                 }
             } else {
-                if (targetSpeed < 141.56978592719528) {
-                    return true;
-                } else {
-                    return false;
-                }
+                return targetSpeed < 141.56978592719528;
             }
         } else {
             if (distance < 46.54384657952563) {
-                if (targetSpeed < 40.070214270983705) {
-                    return false;
-                } else {
-                    return true;
-                }
+                return !(targetSpeed < 40.070214270983705);
             } else {
                 if (targetSpeed < 92.8939393855356) {
                     return false;
@@ -257,12 +243,10 @@ public class PowerupUtil {
      * @param powerupMap A map from ship IDs to powerup types that is added to when shooting
      * @param ship       The ship that will shoot
      */
-    boolean shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Toroidal2DPhysics space, Ship ship, AbstractObject target) {
+    private void shoot(HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap, Toroidal2DPhysics space, Ship ship) {
         if (space.getCurrentTimestep() % Math.round(1 / RANDOM_SHOOT_THRESHOLD) == 0) {
             powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.FIRE_MISSILE);
-            return true;
         }
-        return false;
     }
 
     public void shutDown() {
@@ -292,6 +276,7 @@ public class PowerupUtil {
         /**
          * Where all of the magic happens
          * Uses the probabilities array to bias towards a value
+         *
          * @param random random
          * @return which {@link Index} we want to bias towards
          */
@@ -324,29 +309,6 @@ public class PowerupUtil {
             public int getValue() {
                 return value;
             }
-        }
-    }
-
-    /**
-     * Dummy implementation used during training
-     */
-    private static class DummyPowerupUtil extends PowerupUtil {
-        DummyPowerupUtil(JakeTeamClient client, Random random) {
-            super(client, random);
-        }
-
-        @Override
-        public HashMap<UUID, PurchaseTypes> getTeamPurchases(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects, ResourcePile resourcesAvailable, PurchaseCosts purchaseCosts) {
-            return new HashMap<>();
-        }
-
-        @Override
-        Map<UUID, SpaceSettlersPowerupEnum> getPowerups(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
-            return new HashMap<>();
-        }
-
-        @Override
-        void shieldIfNeeded(Toroidal2DPhysics space, AbstractActionableObject actionable) {
         }
     }
 }
