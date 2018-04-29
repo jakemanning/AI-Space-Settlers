@@ -27,4 +27,4 @@ hs_err_pid*
 *.iml
 out/
 **/self-ladder.html
-dist/
+.DS_Store
