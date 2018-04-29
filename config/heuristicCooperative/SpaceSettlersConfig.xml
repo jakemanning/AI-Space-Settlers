@@ -5,7 +5,7 @@
 	<width>1600</width>
 	
 	<!-- Number of steps of simulation -->
-	<simulationSteps>20000</simulationSteps>
+	<simulationSteps>5000</simulationSteps>
 
 	<!-- Timestep for a simulation (in seconds for the physics equations) -->
 	<simulationTimeStep>0.05</simulationTimeStep>
@@ -21,7 +21,7 @@
 	<numBeacons>6</numBeacons>
 	
 	<!-- Specify the maximum number of ships in a team -->
-	<maximumShipsPerTeam>1</maximumShipsPerTeam>
+	<maximumShipsPerTeam>3</maximumShipsPerTeam>
 	<maximumInitialShipsPerTeam>1</maximumInitialShipsPerTeam>
 	
 	<!-- Specify any controllable clients in the simulator (this can include heuristics).  
@@ -35,21 +35,6 @@
 			<configFile>jakeinit.xml</configFile>
 		</HighLevelTeamConfig>
 		<HighLevelTeamConfig>
-			<teamName>RandomTeam</teamName>
-			<configFile>random-clientinit.xml</configFile>
-		</HighLevelTeamConfig>
-		<HighLevelTeamConfig>
-			<teamName>DoNothingTeam</teamName>
-			<configFile>donothing-clientinit.xml</configFile>
-		</HighLevelTeamConfig>		
-		<!-- you can uncomment the human team if you want to play against them in this environment.  Make sure to add their base below also. -->
-		<!-- 
-		<HighLevelTeamConfig>
-			<teamName>HumanTeam</teamName>
-			<configFile>human-clientinit.xml</configFile>
-		</HighLevelTeamConfig> 
-		-->
-		<HighLevelTeamConfig>
 			<teamName>HeuristicMinerTeam</teamName>
 			<!-- Pick the one you intend to play against (self versus other) -->
 			<configFile>passive-heuristic-clientinit.xml</configFile>
@@ -59,20 +44,8 @@
 	<!-- Each team needs a base.  Optionally, you can initialize the location of the base -->
 	<bases>
 		<BaseConfig>
-			<teamName>DoNothingTeam</teamName>
-		</BaseConfig>
-		<BaseConfig>
 			<teamName>Space Jam</teamName>
 		</BaseConfig>
-		<BaseConfig>
-			<teamName>RandomTeam</teamName>
-		</BaseConfig>
-		<!-- uncomment if you want to play human -->
-		<!-- 
-		<BaseConfig>
-			<teamName>HumanTeam</teamName>
-		</BaseConfig>
-		 -->
 		<BaseConfig>
 			<teamName>HeuristicMinerTeam</teamName>
 		</BaseConfig>
