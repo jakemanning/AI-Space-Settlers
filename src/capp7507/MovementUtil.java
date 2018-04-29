@@ -1,7 +1,11 @@
 package capp7507;
 
+import spacesettlers.objects.AbstractObject;
+import spacesettlers.objects.Asteroid;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
+
+import java.util.Collection;
 
 import static capp7507.JakeTeamClient.TARGET_SHIP_SPEED;
 
@@ -131,6 +135,35 @@ class MovementUtil {
     static double maxDistance(Toroidal2DPhysics space) {
         // Since the space wraps around, the furthest distance is from the center to a corner
         return Math.sqrt(Math.pow(space.getHeight(), 2) + Math.pow(space.getWidth(), 2)) / 2;
+    }
+
+    /**
+     * Find the closest of a collection of objects to a given position
+     *
+     * @param space           physics
+     * @param currentPosition The position from which to base the distance to the objects
+     * @param objects         The collection of objects to measure
+     * @param <T>             The type of objects
+     * @return The object in objects that is closest to currentPosition
+     */
+    static <T extends AbstractObject> T closest(Toroidal2DPhysics space, Position currentPosition,
+                                                Collection<T> objects) {
+        T closest = null;
+        double minimum = Double.MAX_VALUE;
+        for (T object : objects) {
+            Position interceptPosition = interceptPosition(space, object.getPosition(), currentPosition);
+            double distance = space.findShortestDistance(currentPosition, interceptPosition);
+            if (object instanceof Asteroid) {
+                // More heavily weigh asteroids with more resources
+                Asteroid asteroid = (Asteroid) object;
+                distance = distance / asteroid.getResources().getTotal();
+            }
+            if (distance < minimum) {
+                minimum = distance;
+                closest = object;
+            }
+        }
+        return closest;
     }
 
 }

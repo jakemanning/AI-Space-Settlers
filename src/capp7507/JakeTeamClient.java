@@ -11,10 +11,8 @@ import spacesettlers.utilities.Position;
 import spacesettlers.utilities.Vector2D;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
-import static capp7507.MovementUtil.*;
-import static capp7507.SpaceSearchUtil.getObstructions;
-import static capp7507.SpaceSearchUtil.obstructionInPath;
 
 /**
  * A model-based reflex agent for controlling a spacesettlers team client
@@ -41,6 +39,7 @@ public class JakeTeamClient extends TeamClient {
     private static final int NEIGHBORHOOD_RADIUS = 100;
     private static final double GAME_IS_ENDING_FACTOR = 0.98;
     private Map<UUID, UUID> currentTargets = new HashMap<>();
+    private Map<UUID, ShipRole> currentRoles = new HashMap<>();
     private GraphicsUtil graphicsUtil;
     private PowerupUtil powerupUtil;
 
@@ -59,37 +58,47 @@ public class JakeTeamClient extends TeamClient {
         for (AbstractActionableObject actionable : actionableObjects) {
             powerupUtil.shieldIfNeeded(space, actionable);
 
-            Position shipPos = actionable.getPosition();
-
             if (actionable instanceof Ship) {
                 Ship ship = (Ship) actionable;
-                graphicsUtil.loadGraphicsFor(ship.getId());
+                UUID shipId = ship.getId();
+                Position shipPos = actionable.getPosition();
+                graphicsUtil.loadGraphicsFor(shipId);
 
                 // Retrieve ship's current target or pick a new one if needed
-                AbstractObject target = space.getObjectById(currentTargets.get(ship.getId()));
+                AbstractObject target = space.getObjectById(currentTargets.get(shipId));
                 if (target == null || !target.isAlive()) {
-                    target = bestValue(space, ship, space.getAllObjects());
-                    currentTargets.put(ship.getId(), target.getId());
+                    ShipRole role = currentRoles.get(shipId);
+                    if (role == ShipRole.FLAG_RETURNER) {
+                        Set<Base> ourBases = space.getBases().stream()
+                                .filter(this::isOurBase)
+                                .collect(Collectors.toSet());
+                        target = MovementUtil.closest(space, shipPos, ourBases);
+                    } else if (role == ShipRole.FLAG_COLLECTOR) {
+                        target = getTargetFlag(space);
+                    } else {
+                        currentRoles.put(shipId, ShipRole.RESOURCE_COLLECTOR);
+                        target = bestValue(space, ship, space.getAllObjects());
+                    }
+                    currentTargets.put(shipId, target.getId());
                 }
                 Position targetPos = target.getPosition();
-                graphicsUtil.addTargetPreset(ship.getId(), GraphicsUtil.Preset.TARGET, targetPos);
+                graphicsUtil.addTargetPreset(shipId, GraphicsUtil.Preset.TARGET, targetPos);
 
                 // Look for an obstruction in the way to target and avoid if one is found
-                Set<AbstractObject> obstructions = getObstructions(space, ship);
+                Set<AbstractObject> obstructions = SpaceSearchUtil.getObstructions(space, ship);
                 int shipRadius = ship.getRadius();
-                AbstractObject obstruction = obstructionInPath(space, shipPos, targetPos, obstructions, shipRadius);
+                AbstractObject obstruction = SpaceSearchUtil.obstructionInPath(space, shipPos, targetPos, obstructions, shipRadius);
                 MoveAction action;
                 if (obstruction != null) {
                     // Begin/keep avoiding
                     action = avoidCrashAction(space, obstruction, target, ship);
-                    graphicsUtil.addObstaclePreset(ship.getId(), GraphicsUtil.Preset.YELLOW_CIRCLE, obstruction.getPosition());
+                    graphicsUtil.addObstaclePreset(shipId, GraphicsUtil.Preset.YELLOW_CIRCLE, obstruction.getPosition());
                 } else {
                     // Move towards goal, no more avoiding the issue at hand
-                    graphicsUtil.removeObstacle(ship.getId());
-
                     action = getMoveAction(space, shipPos, target.getPosition());
+                    graphicsUtil.removeObstacle(shipId);
                 }
-                actions.put(ship.getId(), action);
+                actions.put(shipId, action);
             } else if (actionable instanceof Base) {
                 Base base = (Base) actionable;
                 actions.put(base.getId(), new DoNothingAction());
@@ -120,7 +129,7 @@ public class JakeTeamClient extends TeamClient {
             if (object instanceof Asteroid) {
                 Asteroid asteroid = (Asteroid) object;
                 if (asteroid.isMineable()) {
-                    value = linearNormalize(MIN_ASTEROID_MASS, MAX_ASTEROID_MASS, 0, 1, asteroid.getMass());
+                    value = MovementUtil.linearNormalize(MIN_ASTEROID_MASS, MAX_ASTEROID_MASS, 0, 1, asteroid.getMass());
                 }
             } else if (object instanceof AbstractActionableObject) {
                 AbstractActionableObject actionableObject = (AbstractActionableObject) object;
@@ -129,19 +138,19 @@ public class JakeTeamClient extends TeamClient {
                     if (gameIsEnding(space)) {
                         value += REALLY_BIG_NAV_WEIGHT; // We really want to go back to a base and deposit resources
                     }
-                } else if (actionableObject.getId() == ship.getId()) {
-                    continue; // Don't ever set the target to our current ship
+                } else {
+                    continue; // Don't ever set the target to our ships or other ships/bases
                 }
             } else if (object instanceof Beacon) {
                 value = energyValue(ship);
             }
 
-            Set<AbstractObject> obstructions = getObstructions(space, ship);
+            Set<AbstractObject> obstructions = SpaceSearchUtil.getObstructions(space, ship);
             if (!space.isPathClearOfObstructions(ship.getPosition(), object.getPosition(), obstructions, ship.getRadius())) {
                 value *= OBSTRUCTED_PATH_PENALTY; // We should be less likely to go towards objects with obstacles in the way
             }
 
-            Position adjustedObjectPosition = interceptPosition(space, object.getPosition(), ship.getPosition());
+            Position adjustedObjectPosition = MovementUtil.interceptPosition(space, object.getPosition(), ship.getPosition());
             double rawDistance = space.findShortestDistance(ship.getPosition(), adjustedObjectPosition);
             double scaledDistance = scaleDistance(space, rawDistance) + angleValue(space, ship, object);
             double score = value / scaledDistance;
@@ -177,11 +186,11 @@ public class JakeTeamClient extends TeamClient {
      * @return An action to get the ship to the target's location
      */
     private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target) {
-        Position adjustedTargetPosition = interceptPosition(space, target, currentPosition);
+        Position adjustedTargetPosition = MovementUtil.interceptPosition(space, target, currentPosition);
         Vector2D vectorToTarget = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
         double angleToTarget = vectorToTarget.getAngle();
         double angleToTurn = vectorToTarget.angleBetween(currentPosition.getTranslationalVelocity());
-        double magnitude = linearNormalizeInverse(0.0, Math.PI, 2, TARGET_SHIP_SPEED, angleToTurn);
+        double magnitude = MovementUtil.linearNormalizeInverse(0.0, Math.PI, 2, TARGET_SHIP_SPEED, angleToTurn);
 
         Vector2D goalVelocity = Vector2D.fromAngle(angleToTarget, magnitude);
         graphicsUtil.addGraphicPreset(GraphicsUtil.Preset.RED_CIRCLE, target);
@@ -226,6 +235,7 @@ public class JakeTeamClient extends TeamClient {
 
     /**
      * Remove inconsistent objects from our space if died or if objects were removed
+     * Also do things based on targets going away like re-planning when we capture a flag or take it back to a base
      *
      * @param space             physics
      * @param actionableObjects current actionable objects we are working with
@@ -248,13 +258,63 @@ public class JakeTeamClient extends TeamClient {
                 targetsToRemove.add(shipId);
             }
 
-            // Ship is ded :(
-            targetsToRemove.add(ship.getId());
+            // Do role things
+            if (ship.isCarryingFlag()) {
+                // They're carrying a flag? Must be the flag returner
+                assignFlagReturner(space, shipId);
+            } else if (currentRoles.get(shipId) == ShipRole.FLAG_RETURNER) {
+                // Invalid state: flag returner does not have a flag
+                // Assign closest ship to a flag as the flag collector
+                Flag flag = getTargetFlag(space);
+                Ship flagCollector = MovementUtil.closest(space, flag.getPosition(), getOurShips(space));
+                assignFlagCollector(space, flagCollector.getId());
+            }
         }
 
         for (UUID key : targetsToRemove) {
             currentTargets.remove(key);
         }
+
+        boolean allShipsLookingForResources = getOurShips(space).stream()
+                .map(ship -> currentRoles.get(ship.getId()) == ShipRole.RESOURCE_COLLECTOR)
+                .reduce(true, (isCollector1, isCollector2) -> isCollector1 == isCollector2);
+        if (allShipsLookingForResources) {
+            Ship flagCollector = MovementUtil.closest(space, getTargetFlag(space).getPosition(), getOurShips(space));
+            assignFlagCollector(space, flagCollector.getId());
+        }
+    }
+
+    private Flag getTargetFlag(Toroidal2DPhysics space) {
+        return space.getFlags().stream()
+                .filter(f -> !f.getTeamName().equals(getTeamName()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Multiple flags belonging to other teams"));
+    }
+
+    private void assignFlagCollector(Toroidal2DPhysics space, UUID collectorId) {
+        for (Ship ship : getOurShips(space)) {
+            if (collectorId.equals(ship.getId())) {
+                currentRoles.put(collectorId, ShipRole.FLAG_COLLECTOR);
+            } else {
+                currentRoles.put(ship.getId(), ShipRole.RESOURCE_COLLECTOR);
+            }
+        }
+    }
+
+    private void assignFlagReturner(Toroidal2DPhysics space, UUID collectorId) {
+        for (Ship ship : getOurShips(space)) {
+            if (collectorId.equals(ship.getId())) {
+                currentRoles.put(collectorId, ShipRole.FLAG_RETURNER);
+            } else {
+                currentRoles.put(ship.getId(), ShipRole.RESOURCE_COLLECTOR);
+            }
+        }
+    }
+
+    private Set<Ship> getOurShips(Toroidal2DPhysics space) {
+        return space.getShips().stream()
+                .filter(s -> s.getTeamName().equals(getTeamName()))
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -277,8 +337,8 @@ public class JakeTeamClient extends TeamClient {
      * @return normalized distance, preserving ratio from 0 to 1
      */
     private double scaleDistance(Toroidal2DPhysics space, double rawDistance) {
-        double maxDistance = maxDistance(space);
-        return linearNormalizeInverse(0, maxDistance, 0, 1, maxDistance - rawDistance);
+        double maxDistance = MovementUtil.maxDistance(space);
+        return MovementUtil.linearNormalizeInverse(0, maxDistance, 0, 1, maxDistance - rawDistance);
     }
 
     /**
@@ -294,11 +354,11 @@ public class JakeTeamClient extends TeamClient {
         Position targetPosition = target.getPosition();
         Vector2D currentDirection = currentPosition.getTranslationalVelocity();
         double currentAngle = currentDirection.getAngle();
-        Position adjustedTargetPosition = interceptPosition(space, targetPosition, currentPosition);
+        Position adjustedTargetPosition = MovementUtil.interceptPosition(space, targetPosition, currentPosition);
         Vector2D targetDirection = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
         double targetAngle = targetDirection.getAngle();
         double angleDiff = Math.abs(currentAngle - targetAngle);
-        return linearNormalize(0, MAX_ANGLE, 0, 1, angleDiff);
+        return MovementUtil.linearNormalize(0, MAX_ANGLE, 0, 1, angleDiff);
     }
 
     /**
@@ -320,7 +380,7 @@ public class JakeTeamClient extends TeamClient {
      */
     private double energyValue(AbstractActionableObject ship) {
         double missingEnergy = ship.getMaxEnergy() - ship.getEnergy();
-        return linearNormalize(0, ship.getMaxEnergy(), 0, SHIP_ENERGY_VALUE_WEIGHT, missingEnergy);
+        return MovementUtil.linearNormalize(0, ship.getMaxEnergy(), 0, SHIP_ENERGY_VALUE_WEIGHT, missingEnergy);
     }
 
     /**
@@ -331,7 +391,7 @@ public class JakeTeamClient extends TeamClient {
      */
     private double cargoValue(Ship ship) {
         double total = ship.getResources().getTotal();
-        return linearNormalize(0, SHIP_MAX_RESOURCES, 0, SHIP_CARGO_VALUE_WEIGHT, total);
+        return MovementUtil.linearNormalize(0, SHIP_MAX_RESOURCES, 0, SHIP_CARGO_VALUE_WEIGHT, total);
     }
 
     /**
