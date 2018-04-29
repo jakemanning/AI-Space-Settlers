@@ -19,7 +19,7 @@ public class KnowledgeChromosome {
         Random rand = new Random();
         // randomly choose coefficients for the raw action
         if (coefficients == null) {
-            coefficients = new double[5];
+            coefficients = new double[KnowledgeState.ANGLE_NUMBER_OF_DIVISIONS + KnowledgeState.TRAJECTORY_NUMBER_OF_DIVISIONS];
             for (int i = 0; i < coefficients.length; i++) {
                 coefficients[i] = resetCoefficient(i, rand);
             }
@@ -43,16 +43,13 @@ public class KnowledgeChromosome {
      * @return
      */
     double resetCoefficient(int index, Random rand) {
-        double coeff;
-        if (index < 3) { // Angle calculations
-            double angleVariance = Math.PI / 3;
-            coeff = getGaussian(rand, angleVariance);
-            coeff = limitRange(-2 * Math.PI, 2 * Math.PI, coeff);
-        } else { // Distance calculations
-            double distanceVariance = 20;
-            coeff = getGaussian(rand, distanceVariance);
-            coeff = rand.nextInt(20) + coeff;
-            coeff = limitRange(-10, 40, coeff);
+        double coeff = 0;
+        if (index < KnowledgeState.ANGLE_NUMBER_OF_DIVISIONS) { // Angle to obstacle
+            coeff = getGaussian(rand, 0.0, 1);
+            coeff = limitRange(-2, 2, coeff);
+        } else { // Trajectory calculations
+            coeff = getGaussian(rand, 0.0 , 0.3);
+            coeff = limitRange(-0.75, 0.75, coeff);
         }
         return coeff;
     }
@@ -63,8 +60,8 @@ public class KnowledgeChromosome {
      * @param variance what our variance should be
      * @return a coefficient
      */
-    private double getGaussian(Random rand, double variance) {
-        return rand.nextGaussian() * variance;
+    private double getGaussian(Random rand, double mean, double variance) {
+        return mean + rand.nextGaussian() * variance;
     }
 
     /**
@@ -92,20 +89,16 @@ public class KnowledgeChromosome {
      * @return an action to hopefully avoid our object
      */
     private AvoidAction rawAction(Toroidal2DPhysics space, Ship ship, KnowledgeState state) {
-        double b = coefficients[0];
-        double c = coefficients[1];
-        double d = coefficients[2];
-        double e = coefficients[3];
-        double h = coefficients[4];
+        double a = coefficients[state.getAngleCategory()]; // Angle to obstacle
+        double b = coefficients[state.getTrajectoryCategory() + KnowledgeState.ANGLE_NUMBER_OF_DIVISIONS]; // offset to account for first coefficients (angle to obstacle)
 
-        double distanceToObstacle = state.getDistanceToObstacle();
+//        double distanceToObstacle = state.getDistanceToObstacle();
         double angleToObstacle = state.getObstacleLocationAngle();
         double angleToObstacleMovement = state.getObstacleTrajectoryAngle();
 
-        double angle = b * angleToObstacle + c * angleToObstacleMovement + d;
-        double distance = e * distanceToObstacle + h;
+        double angle = a * angleToObstacle + b * angleToObstacleMovement;
 
-        return AvoidAction.build(space, ship.getPosition(), angle, distance, state.getObstacle());
+        return AvoidAction.build(space, ship.getPosition(), angle, 1, state.getObstacle());
     }
 
     double[] getCoefficients() {

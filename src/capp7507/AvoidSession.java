@@ -3,8 +3,12 @@ package capp7507;
 import spacesettlers.objects.AbstractObject;
 import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
+import spacesettlers.utilities.Movement;
+import spacesettlers.utilities.Position;
+import spacesettlers.utilities.Vector2D;
 
 import java.util.UUID;
+import java.util.Vector;
 
 /**
  * Used when training GA. An Avoid Session is created whenever a ship begins avoiding.
@@ -19,11 +23,13 @@ import java.util.UUID;
  *
  */
 public class AvoidSession {
+    private final Position originalPosition;
     private boolean isValid;
     private double distanceAtAvoidBeginning;
     private double distanceAtAvoidEnd;
     private double energyAtAvoidBeginning;
     private double energyAtAvoidEnd;
+    private double difficulty;
 
     public boolean isSuccessfullyAvoided() {
         return successfullyAvoided;
@@ -40,9 +46,23 @@ public class AvoidSession {
         this.isValid = true;
         this.obstacleId = obstacle.getId();
         this.targetId = target.getId();
+        this.originalPosition = obstacle.getPosition();
         timestepStarted = space.getCurrentTimestep();
         energyAtAvoidBeginning = ship.getEnergy();
         distanceAtAvoidBeginning = space.findShortestDistance(ship.getPosition(), target.getPosition());
+
+        Vector2D goalVector = space.findShortestDistanceVector(ship.getPosition(), target.getPosition());
+        Position intercept = MovementUtil.interceptPosition(space, obstacle.getPosition(), ship.getPosition());
+        Vector2D collisionVector = space.findShortestDistanceVector(ship.getPosition(), intercept);
+        double distanceFromObstacleToTarget = space.findShortestDistance(intercept, target.getPosition());
+        double obstacleLocationAngle = goalVector.angleBetween(collisionVector);
+
+        // Higher difficulty means lower penalty
+        // Least hard: penalty = 3
+        // Most hard: penalty = 0
+        difficulty = MovementUtil.linearNormalize(0, MovementUtil.maxDistance(space), 0, 1.0, distanceFromObstacleToTarget); // The closer the obstacle is to the target, the harder it is to avoid
+        difficulty += MovementUtil.linearNormalize(0, MovementUtil.maxDistance(space), 0, 1.0, space.findShortestDistance(ship.getPosition(), intercept)); // The closer we are to the obstacle, the harder it is
+        difficulty += MovementUtil.linearNormalize(0, Math.PI / 2, 0, 1.0, Math.abs(obstacleLocationAngle)); // The higher the angle, the easier it is
     }
 
     /**
@@ -51,12 +71,12 @@ public class AvoidSession {
      * @param ship which ship to complete
      */
     void completeSession(Toroidal2DPhysics space, Ship ship) {
-        AbstractObject target = target(space);
-        if (target == null) {
-            invalidate();
-            return;
-        }
-        distanceAtAvoidEnd = space.findShortestDistance(ship.getPosition(), target.getPosition());
+//        AbstractObject target = target(space);
+//        if (target == null) {
+//            invalidate();
+//            return;
+//        }
+        distanceAtAvoidEnd = space.findShortestDistance(ship.getPosition(), originalPosition);
         energyAtAvoidEnd = ship.getEnergy();
         timestepCompleted = space.getCurrentTimestep();
     }
@@ -69,7 +89,7 @@ public class AvoidSession {
         double distanceChange = distanceAtAvoidBeginning - distanceAtAvoidEnd;
         double energySpent = energyAtAvoidBeginning - energyAtAvoidEnd;
         int timeSpent = timestepCompleted - timestepStarted;
-        return new AvoidResult(successfullyAvoided, distanceChange, energySpent, timeSpent);
+        return new AvoidResult(successfullyAvoided, distanceChange, distanceAtAvoidBeginning, energySpent, timeSpent, difficulty);
     }
 
     private AbstractObject target(Toroidal2DPhysics space) {
@@ -112,16 +132,20 @@ public class AvoidSession {
      * The result of our AvoidSession, to calculate our fitness score
      */
     public class AvoidResult {
+        private final double difficulty;
         private boolean successfullyAvoided;
         private double distanceChange;
         private double energySpent;
         private int timeSpent;
+        private double initialDistance;
 
-        private AvoidResult(boolean successfullyAvoided, double distanceChange, double energySpent, int timeSpent) {
+        private AvoidResult(boolean successfullyAvoided, double distanceChange, double initialDistance, double energySpent, int timeSpent, double difficulty) {
             this.successfullyAvoided = successfullyAvoided;
             this.distanceChange = distanceChange;
+            this.initialDistance = initialDistance;
             this.timeSpent = timeSpent;
             this.energySpent = energySpent;
+            this.difficulty = difficulty;
         }
 
         public boolean successfullyAvoided() {
@@ -140,24 +164,14 @@ public class AvoidSession {
             return distanceChange;
         }
 
-        /**
-         * Fitness score calculation
-         * @return the final fitness score
-         */
         double evaluate() {
             double fitness = 0;
             if (!successfullyAvoided) {
-                // penalize not avoiding the obstacle
-                fitness -= 200;
+                fitness -= difficulty;
             } else {
-                fitness += 200;
+                fitness += difficulty;
             }
-            // energy tends to be closeish to 10 times as much as distance or energy
-            // we don't really care what the raw value of evaluate is,
-            // but we do want to weigh these three values at a certain ratio
-            // energy is about 3 times as important as distance and time
-            fitness += distanceChange - energySpent / 3 - timeSpent;
-
+            fitness += distanceChange / initialDistance;
             return fitness;
         }
     }

@@ -2,6 +2,7 @@ package capp7507;
 
 import spacesettlers.actions.*;
 import spacesettlers.clients.TeamClient;
+import spacesettlers.graphics.LineGraphics;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.*;
 import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
@@ -32,7 +33,7 @@ import static capp7507.TrainingPowerupUtil.MAX_SHOOT_DISTANCE;
  * @author Jake Manning and Bryan Capps
  */
 public class JakeTeamClient extends TeamClient {
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
     static final boolean TRAINING_GA = false;
     static final boolean TRAINING_TREE = false;
     private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
@@ -286,10 +287,10 @@ public class JakeTeamClient extends TeamClient {
                 AvoidSession newAvoidSession = new AvoidSession(space, ship, target, obstacle);
                 currentSession.add(newAvoidSession);
             }
-            KnowledgeState state = KnowledgeState.build(space, ship, obstacle, target);
+            KnowledgeState state = KnowledgeState.build(space, ship, obstacle, target, graphicsUtil);
             return knowledge.getCurrentPolicy().getCurrentAction(space, ship, state);
         } else {
-            KnowledgeState state = KnowledgeState.build(space, ship, obstacle, target);
+            KnowledgeState state = KnowledgeState.build(space, ship, obstacle, target, graphicsUtil);
             KnowledgeChromosome bestChromosome = knowledge.bestPolicy();
             if (bestChromosome != null) {
                 return bestChromosome.getCurrentAction(space, ship, state);
@@ -401,7 +402,7 @@ public class JakeTeamClient extends TeamClient {
                 if (TRAINING_GA && abstractAction instanceof AvoidAction) {
                     AvoidAction action = (AvoidAction) abstractAction;
                     AbstractObject obstacle = action.getObstacle();
-                    currentSession.markAvoidanceAsUnsuccessful(space, obstacle);
+                    currentSession.invalidateLastSession();
                 }
             }
         }

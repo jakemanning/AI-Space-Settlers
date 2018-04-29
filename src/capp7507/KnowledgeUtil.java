@@ -2,6 +2,7 @@ package capp7507;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.XStreamException;
+import spacesettlers.simulator.Toroidal2DPhysics;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;

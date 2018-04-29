@@ -1,8 +1,6 @@
 package capp7507;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.DoubleStream;
 
 
@@ -12,6 +10,7 @@ import java.util.stream.DoubleStream;
 public class KnowledgePopulation {
     private Random random;
     private KnowledgeChromosome[] population;
+    private final static double ELITE_PERCENTAGE = 0.1;
 
     private int currentPopulationCounter;
 
@@ -76,11 +75,36 @@ public class KnowledgePopulation {
      * Does crossover, selection, and mutation using our current population
      */
     void makeNextGeneration() {
+        TreeSet<ChromosomeFitness> eliteTree = buildEliteTree(population);
         KnowledgeChromosome[] parents = parentSelection(population);
         KnowledgeChromosome[] crossed = crossover(parents);
         KnowledgeChromosome[] mutated = mutate(crossed);
-        population = mutated;
+        population = carryElitesOverTo(mutated, eliteTree);
         currentPopulationCounter = 0;
+    }
+
+    private TreeSet<ChromosomeFitness> buildEliteTree(KnowledgeChromosome[] population) {
+        // Group them together
+        ChromosomeFitness chromosomeFitnesses[] = new ChromosomeFitness[population.length];
+        for(int i = 0; i < population.length; ++i) {
+            chromosomeFitnesses[i] = new ChromosomeFitness(population[i], fitnessScores[i], i);
+        }
+
+        return new TreeSet<>(Comparator.comparingDouble(chromosome -> chromosome.fitnessScore));
+    }
+
+    private KnowledgeChromosome[] carryElitesOverTo(KnowledgeChromosome[] mutated, TreeSet<ChromosomeFitness> eliteTree) {
+        int howManyToTake = (int) (population.length * ELITE_PERCENTAGE) + 1;
+
+        Iterator<ChromosomeFitness> worstIterator = eliteTree.iterator();
+        Iterator<ChromosomeFitness> bestIterator = eliteTree.descendingIterator();
+
+        for(int i = 0; i < howManyToTake && worstIterator.hasNext() && bestIterator.hasNext(); ++i) {
+            ChromosomeFitness best = bestIterator.next();
+            ChromosomeFitness worst = worstIterator.next();
+            mutated[worst.index] = best.chromosome; // Replace worst with best
+        }
+        return mutated;
     }
 
     /**
@@ -140,7 +164,7 @@ public class KnowledgePopulation {
      * @return chromosomes with whole arithmetic crossover calculation
      */
     private KnowledgeChromosome[] crossover(KnowledgeChromosome[] parents) {
-        final double alpha = 0.4; // Some value a ϵ [0, 1]
+        final double alpha = 0.5; // Some value a ϵ [0, 1]
         KnowledgeChromosome[] newPopulation = deepCopyOfPopulation(parents);
         for (int i = 0; i < newPopulation.length; i++) {
             KnowledgeChromosome mom = newPopulation[i];
@@ -156,7 +180,7 @@ public class KnowledgePopulation {
     }
 
     /**
-     * We mutate ~10% of the time
+     * We mutate ~1.5% of the time
      * @param population population to mutate
      * @return mutated population
      */
@@ -164,7 +188,7 @@ public class KnowledgePopulation {
         KnowledgeChromosome[] newPopulation = deepCopyOfPopulation(population);
         for (KnowledgeChromosome chromosome : newPopulation) {
             for (int j = 0; j < chromosome.getCoefficients().length; j++) {
-                if (random.nextDouble() < (1 / chromosome.getCoefficients().length)) {
+                if (random.nextDouble() < (0.015)) {
                     chromosome.getCoefficients()[j] = chromosome.resetCoefficient(j, random);
                 }
             }
@@ -206,5 +230,17 @@ public class KnowledgePopulation {
             }
         }
         return best;
+    }
+
+    private class ChromosomeFitness {
+        KnowledgeChromosome chromosome;
+        double fitnessScore;
+        int index;
+
+        ChromosomeFitness(KnowledgeChromosome chromosome, double fitnessScore, int index) {
+            this.chromosome = chromosome;
+            this.fitnessScore = fitnessScore;
+            this.index = index;
+        }
     }
 }
