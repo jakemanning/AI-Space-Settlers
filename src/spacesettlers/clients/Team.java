@@ -24,6 +24,7 @@ import spacesettlers.actions.PurchaseTypes;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.AbstractActionableObject;
 import spacesettlers.objects.Base;
+import spacesettlers.objects.Drone;
 import spacesettlers.objects.Ship;
 import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
 import spacesettlers.objects.resources.ResourcePile;
@@ -44,11 +45,18 @@ public class Team {
 	Set<Ship> teamShips;
 	
 	/**
+	 * herr0861 edit
+	 * The set of drones owned by this team
+	 */
+	Set<UUID> teamDroneIDs;
+	
+	/**
 	 * The set of bases associated with this team (bases are not
 	 * stored directly because they point to team and then cloning
 	 * causes a stack overflow)
 	 */
 	Set<UUID> teamBaseIDs;
+	
 	
 	/**
 	 * A set of all the ids associated with the team (used to verify
@@ -80,6 +88,11 @@ public class Team {
 	 * The number of flags collected by this team
 	 */
 	int totalFlagsCollected;
+
+	/**
+	 * The number of AiCores collected by this team
+	 */
+	int totalCoresCollected;
 	
 	/**
 	 * available (unspent) resourcesAvailable from the asteroids and the total resourcesAvailable earned
@@ -133,10 +146,11 @@ public class Team {
 	ExecutorService executor;
 	
 	/**
-	 * Initialize the team client to have an empty list of ships.
+	 * Initialize the team client to have an empty list of ships and drones.
 	 */
 	public Team(TeamClient teamClient, String ladderName, int maxNumberShips) {
 		this.teamShips = new LinkedHashSet<Ship>();
+		this.teamDroneIDs = new LinkedHashSet<UUID>(); //herr0861 edit
 		this.teamBaseIDs = new LinkedHashSet<UUID>();
 		this.teamIDs = new LinkedHashSet<UUID>();
 		this.teamClient = teamClient;
@@ -154,6 +168,7 @@ public class Team {
 		this.totalDamageInflicted = 0;
 		this.totalDamageReceived = 0;
 		this.totalFlagsCollected = 0;
+		this.totalCoresCollected = 0; 
 		executor = null;
 	}
 	
@@ -176,6 +191,7 @@ public class Team {
 			newTeam.addShip(ship.deepClone());
 		}
 		
+		newTeam.teamDroneIDs.addAll(this.teamDroneIDs);
 		newTeam.teamBaseIDs.addAll(this.teamBaseIDs);
 		newTeam.costToPurchase = costToPurchase.deepCopy();
 		newTeam.totalResources = new ResourcePile(totalResources);
@@ -186,6 +202,7 @@ public class Team {
 		newTeam.totalDamageInflicted = this.totalDamageInflicted;
 		newTeam.totalDamageReceived = this.totalDamageReceived;
 		newTeam.totalFlagsCollected = this.totalFlagsCollected;
+		newTeam.totalCoresCollected = this.totalCoresCollected; 
 		return newTeam;
 	}
 	
@@ -214,6 +231,10 @@ public class Team {
 			clones.add((Base)space.getObjectById(baseId).deepClone());
 		}
 		
+		for (UUID droneId : teamDroneIDs) {
+			clones.add((Drone)space.getObjectById(droneId).deepClone()); //herr0861 edit
+		}
+		
 		return clones;
 	}
 
@@ -234,6 +255,35 @@ public class Team {
 	 */
 	public Set<Ship> getShips() {
 		return teamShips;
+	}
+	
+	/**
+	 * herr0861 edit
+	 * Add a drone to the team
+	 * @param drone
+	 */
+	public void addDrone (Drone drone) {
+		teamDroneIDs.add(drone.getId());
+		addTeamID(drone.getId());
+	}
+	
+	/**
+	 * herr0861 edit
+	 * Return the list of drones.
+	 * @return
+	 */
+	public Set<UUID> getDrones() {
+		return teamDroneIDs;
+	}
+	
+	/**
+	 * herr0861 edit
+	 * Remove the drone because it died
+	 * @param drone
+	 */
+	public void removeDrone(Drone drone) {
+		teamDroneIDs.remove(drone.getId());
+		removeTeamID(drone.getId());
 	}
 
 	/**
@@ -715,6 +765,22 @@ public class Team {
 	
 	
 	/**
+	 * Increases the amount of cores collected by the team by the specified amount.
+	 * @param numCores
+	 */
+	public void incrementCoresCollected (int numCores) {
+		this.totalCoresCollected += numCores;
+	}
+	
+	/**
+	 * This returns the amount of cores that the team has collected as an integer.
+	 * @return int
+	 */
+	public int getTotalCoresCollected() { 
+		return this.totalCoresCollected;
+	}
+	
+	/**
 	 * Return the currently available resources
 	 * 
 	 * @return
@@ -847,6 +913,5 @@ public class Team {
 		this.totalFlagsCollected++;
 	}
 
-	
 	
 }

@@ -20,8 +20,8 @@
 			<initialRegionLRY>300</initialRegionLRY>
 		</HighLevelTeamConfig>
 		<HighLevelTeamConfig>
-			<teamName>DoNothingTeam</teamName>
-			<configFile>donothing-clientinit.xml</configFile>
+			<teamName>BeaconCollectorTeam</teamName>
+			<configFile>beacon-clientinit.xml</configFile>
 			<initialRegionULX>724</initialRegionULX>
 			<initialRegionULY>300</initialRegionULY>
 			<initialRegionLRX>1024</initialRegionLRX>
@@ -41,9 +41,9 @@
 		 each other and the static teams. -->
 	<variableTeams>
 		<HighLevelTeamConfig>
-            <teamName>Jake</teamName>
-            <configFile>jakeinit.xml</configFile>
-        </HighLevelTeamConfig>
+			<teamName>GATeam</teamName>
+			<configFile>hirs5742-spacesettlersinit.xml</configFile>
+		</HighLevelTeamConfig>
 	</variableTeams>
 
 </LadderConfig>

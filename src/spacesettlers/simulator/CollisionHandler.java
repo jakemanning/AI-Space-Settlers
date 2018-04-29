@@ -3,9 +3,14 @@ package spacesettlers.simulator;
 import spacesettlers.objects.Asteroid;
 import spacesettlers.objects.Base;
 import spacesettlers.objects.Beacon;
+import spacesettlers.objects.Drone;
 import spacesettlers.objects.Flag;
 import spacesettlers.objects.Ship;
+
+import java.util.concurrent.ThreadLocalRandom;
+
 import spacesettlers.objects.AbstractObject;
+import spacesettlers.objects.AiCore;
 import spacesettlers.objects.weapons.EMP;
 import spacesettlers.objects.weapons.Missile;
 import spacesettlers.utilities.Position;
@@ -89,6 +94,60 @@ public class CollisionHandler {
 				return;
 			}
 		}
+		
+		//Handle AiCore Collisions with ships (Destroy them if same team, collect them if different team) and don't elastically collide
+		if (object1 instanceof AiCore && object2 instanceof Ship) {
+			collectCore((AiCore)object1, (Ship)object2);
+			return;
+		} else if (object2 instanceof AiCore && object1 instanceof Ship) {
+			collectCore((AiCore)object2, (Ship)object1);
+			return;
+		}
+		
+		//Handle AiCore collisions with Beacons (Restoring the energy of the AiCore) and don't elastically collide
+		if (object1 instanceof AiCore && object2 instanceof Beacon) {
+			healAiCore((AiCore)object1, (Beacon)object2);
+			return;
+		} else if (object2 instanceof AiCore && object1 instanceof Beacon) {
+			healAiCore((AiCore)object2, (Beacon)object1);
+			return;
+		}
+		
+		//Handle AiCore collisions with bases (core is collected) and then collides if it is an enemy
+		if (object1 instanceof AiCore && object2 instanceof Base) {
+			baseCoreCollide((AiCore)object1, (Base)object2);
+		} else if (object2 instanceof AiCore && object1 instanceof Base) {
+			baseCoreCollide((AiCore)object2, (Base)object1);
+		}
+		
+		//Handle AiCore collisions with Asteroids (Damaging the energy of the AiCore)
+		if (object1 instanceof AiCore && object2 instanceof Asteroid) {
+			damageAiCore((AiCore)object1);
+		} else if (object2 instanceof AiCore && object1 instanceof Asteroid) {
+			damageAiCore((AiCore)object2);
+			//no return because we still want to collide
+		}
+		
+		//Handle Drones colliding with ships - herr0861 edit
+		if (object1 instanceof Drone && object2 instanceof Ship) {
+			droneCollision((Drone)object1, (Ship)object2);
+//			Drone drone = (Drone) object1;
+//			Ship ship = (Ship) object2;
+//			if (drone.getTeamName().equalsIgnoreCase(ship.getTeamName())) {
+//				return;
+//			}
+		} else if (object2 instanceof Drone && object1 instanceof Ship) {
+			droneCollision((Drone)object2, (Ship)object1);
+			//no return because we still want to collide
+		}
+		
+		//Handle AiCore collisions with AiCores (Damaging the energy of the AiCore)
+		if (object1 instanceof AiCore && object2 instanceof AiCore) {
+			damageAiCore((AiCore)object1);
+			damageAiCore((AiCore)object2);
+			//no return because we still want to collide
+		}
+		
 
 		// only elastically collide if it isn't a beacon, missile, or other weapon
 		if (!object1.isMoveable()) {
@@ -107,6 +166,16 @@ public class CollisionHandler {
 		// handle ships running into ships
 		if (object2.getClass() == Ship.class) {
 			shipCollision((Ship) object2);
+		}
+		
+		//If it is a drone, damage it for running into an object - herr0861 edit
+		if (object1.getClass() == Drone.class) {
+			droneCollision((Drone)object1);
+		}
+		
+		//Drone on drone violence is no laughing matter.
+		if (object2.getClass() == Drone.class) {
+			droneCollision((Drone)object2);
 		}
 
 		
@@ -139,6 +208,32 @@ public class CollisionHandler {
 			flag.pickupFlag(ship);
 		}
 		
+	}
+	
+	/**
+	 * Collide a ship and a drone.
+	 * If it is a friendly ship, the friendly ship will beam over their resources, cores, and held flags.
+	 * @param drone
+	 * @param ship
+	 */
+	private void droneCollision(Drone drone, Ship ship) { //herr0861 edit
+		if (ship.getTeamName().equalsIgnoreCase(drone.getTeamName())) {
+			//This is a friendly ship, so we should offload resources and cores.
+			
+			//add cores and resources to the drone and remove from the ship
+			drone.incrementCores(ship.getNumCores()); 
+			ship.resetAiCores();
+			drone.addResources(ship.getResources());
+			ship.resetResources();
+			
+			//Transfer the flag if the ship has it
+			if (ship.isCarryingFlag()) {
+				drone.addFlag(ship.getFlag());
+				ship.depositFlag(); //make the ship drop the flag
+				drone.getFlag().pickupFlag(drone); //the pickup method in the flag will automatically cause it to not be carried by the ship when the drone has it
+			}
+		
+		}
 	}
 
 	/**
@@ -184,6 +279,24 @@ public class CollisionHandler {
 
 		}
 		
+		if (object2.getClass() == Drone.class) {//herr0861
+			Drone drone = (Drone) object2;
+			
+			double initialEnergy = drone.getEnergy();
+			drone.updateEnergy(missile.getDamage());				
+			if (drone.getEnergy() <= 0) {
+				// if you killed the ship, only count the final amount of damage needed to kill it 
+				firingShip.incrementDamageInflicted((int) initialEnergy);
+			} else {
+				// otherwise a missile is a fixed amount of damage
+				firingShip.incrementDamageInflicted(-missile.getDamage());
+			}
+
+			// it hit a ship
+			firingShip.incrementHitsInflicted();
+			
+		}
+		
 		// did it hit a base?
 		if (object2.getClass() == Base.class) {
 			Base base = (Base) object2;
@@ -215,6 +328,12 @@ public class CollisionHandler {
 			object2.setAlive(false);
 			Ship otherFiringShip = ((Missile) object2).getFiringShip();
 			otherFiringShip.decrementWeaponCount();
+		}
+		
+		//Did the missile hit an AiCore? If so, damage the AiCore.
+		if(object2.getClass() == AiCore.class) {
+			AiCore core = (AiCore) object2;
+			core.updateEnergy(-missile.getDamage());
 		}
 		
 		// make the missile die
@@ -268,8 +387,79 @@ public class CollisionHandler {
 			otherFiringShip.decrementWeaponCount();
 		}
 		
+		//Did the EMP hit an AiCore? If so, destroy the AiCore.
+		if(object2.getClass() == AiCore.class) {
+			AiCore core = (AiCore) object2;
+			core.setAlive(false); //Kill the core!
+		}
+		
+		//Did the EMP hit an Drone? If so, destroy the Drone.
+		if(object2.getClass() == Drone.class) {
+			Drone drone = (Drone) object2;
+			drone.setAlive(false); //Kill the drone!
+		}
+		
 		emp.setAlive(false);
 		
+	}
+
+	/**
+	 * Collide with an AI Core
+	 * 
+	 * @param AiCore
+	 * @param Ship
+	 */
+	public void collectCore(AiCore core, Ship ship) {
+		if (ship.getTeamName().equalsIgnoreCase(core.getTeamName())) {
+			core.setAlive(false); //Destroy your own core to prevent it from being captured
+		} else {
+			// someone else's core so collect it
+			core.setAlive(false);
+			
+			//Bonus energy of random amount between 0 and the core's energy;		
+			ship.updateEnergy(ThreadLocalRandom.current().nextInt(core.getCoreEnergy()));
+			
+			ship.incrementCores();
+			ship.setMass(ship.getMass() + core.getMass());
+		}
+	}
+	
+	/**
+	 * If a base and core collide, the core destroyed if it is a friendly core 
+	 * and elastically collides if it is an enemy.  Collision is handled higher up in the function
+	 * @param core
+	 * @param base
+	 */
+	public void baseCoreCollide(AiCore core, Base base) {
+		if (base.getTeamName().equalsIgnoreCase(core.getTeamName())) {
+			core.setAlive(false); //Destroy your core to prevent it from being captured
+		} else {
+			//core.setAlive(false);
+			//base.incrementCores(); //Collect the core.
+			
+			damageAiCore(core);
+		}
+		
+	}
+	
+	/**
+	 * If a beacon collides with an AiCore, the energy of the core is restored.
+	 * @param core
+	 * @param beacon
+	 */
+	public void healAiCore (AiCore core, Beacon beacon) {
+		core.resetCoreEnergy();
+		beacon.setAlive(false);
+	}
+	
+	/**
+	 * If something solid collides with an AiCore, it takes damage.
+	 * @param core
+	 */
+	public void damageAiCore(AiCore core) {
+		//double penalty = -Math.abs(COLLISION_PENALTY * core.getPosition().getTotalTranslationalVelocity());
+		double penalty = -AiCore.CORE_MAX_ENERGY * 0.2;
+		core.updateEnergy((int)(penalty));
 	}
 
 	
@@ -301,6 +491,18 @@ public class CollisionHandler {
 		ship.updateEnergy((int)(penalty));
 		ship.incrementDamageReceived((int)(penalty));
 	}
+	
+	/**
+	 * Give the drone an energy penalty for running into the object.
+	 * 
+	 * @param drone
+	 */
+	public void droneCollision(Drone drone) {
+		double penalty = -Math.abs((COLLISION_PENALTY / 3) * drone.getPosition().getTotalTranslationalVelocity()); //The drone is made of materials that can withstand low mass impacts much better than ships. Less of a penalty for colliding.
+		drone.updateEnergy((int)(penalty));
+		//Currently no need to track how much damage the drone took for now, but  we should implement it into damage done for aggressive clients.
+		drone.incrementDamageReceived((int)(penalty));
+	}
 
 	/**
 	 * Collide with a beacon
@@ -315,6 +517,9 @@ public class CollisionHandler {
 			Ship ship = (Ship) object;
 			ship.incrementBeaconCount();
 			ship.updateEnergy(Beacon.BEACON_ENERGY_BOOST);
+		} else if(object.getClass() == Drone.class) {//herr0861
+			Drone drone = (Drone) object;
+			drone.updateEnergy(Beacon.BEACON_ENERGY_BOOST);
 		}
 	}
 	
@@ -339,12 +544,37 @@ public class CollisionHandler {
 					ship.depositFlag();
 				}
 
+				// deposit any AI Cores
+				base.incrementCores(ship.getNumCores());
+				ship.resetAiCores();
+
 				// heal the ship 
 				double origEnergy = ship.getEnergy();
 				ship.updateEnergy(base.getHealingEnergy());
 				double energyChange = ship.getEnergy() - origEnergy;
 				base.updateEnergy(-(int)energyChange);
 				//System.out.println("ship " + ship.getTeamName() + ship.getId() + " left resourcesAvailable at base and now has resourcesAvailable " + ship.getMoney());
+			}
+		} else if(object.getClass() == Drone.class) {//herr0861 edit
+			Drone drone = (Drone) object;
+			if (drone.getTeamName().equalsIgnoreCase(base.getTeamName())) {
+				base.addResources(drone.getResources());
+				drone.resetResources();
+				
+				if (drone.isCarryingFlag()) {
+					base.addFlag(drone.getFlag());
+					drone.depositFlag();
+				}
+				
+				//deposit AI Cores
+				base.incrementCores(drone.getNumCores());
+				drone.resetAiCores();
+				
+				//heal the drone
+				double origEnergy = drone.getEnergy();
+				drone.updateEnergy(base.getHealingEnergy());
+				double energyChange = drone.getEnergy() - origEnergy;
+				base.updateEnergy(-(int)(energyChange));
 			}
 		}
 	}
@@ -543,10 +773,12 @@ public class CollisionHandler {
 		
 		//determine which solution is correct
 		//t must lie between 0 and the length of a simulator time step
+		// Amy McGovern: added 2.0 * duration instead of just duration because of double precision issues
 		double time = 0;
-		if(Math.abs(tPlus) < space.getTimestepDuration())
+		//System.out.println("Time adjustment solutions tplus = " + tPlus + " tminus = " + tMinus);
+		if(Math.abs(tPlus) < (2.0 * space.getTimestepDuration()))
 			time = tPlus;
-		else if(Math.abs(tMinus) < space.getTimestepDuration())
+		else if(Math.abs(tMinus) < (2.0* space.getTimestepDuration()))
 			time = tMinus;
 		
 		//System.out.println("time adjustment is " + time);

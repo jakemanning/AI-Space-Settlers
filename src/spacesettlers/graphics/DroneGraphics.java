@@ -9,9 +9,8 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 
 import spacesettlers.gui.JSpaceSettlersComponent;
+import spacesettlers.objects.Drone;
 import spacesettlers.objects.Flag;
-import spacesettlers.objects.Ship;
-import spacesettlers.objects.resources.ResourceTypes;
 import spacesettlers.utilities.Position;
 
 /**
@@ -20,31 +19,29 @@ import spacesettlers.utilities.Position;
  * 
  * @author amy
  */
-public class ShipGraphics extends SpacewarGraphics {
+public class DroneGraphics extends SpacewarGraphics {
     public static final Color THRUST_COLOR = new Color(255, 242, 23);
     public static final Color THRUST_SPUTTER_COLOR = new Color(193, 72, 8);
     public static final Color SHIELD_COLOR = new Color(190, 40, 140);
-    public static final Shape SHIP_SHAPE = new Polygon(new int[]{54, 108, 100, 141, 85, 73, 106, 89, 80, 40, 54, -54,
-            -40, -80, -89, -106, -73, -85, -141, -100, -108, -54, 54}, new int[]{-89, 3, 18, 89, 89, 69, 69, 38, 53, 53,
-            75, 75, 53, 53, 38, 69, 69, 89, 89, 18, 3, -89, -89}, 23);
+    public static final Shape DRONE_SHAPE = new Polygon(new int[]{81, 81, 41, 41, 51, 51, -51, -51, -41, -41, -81, -81, 81}, new int[]{-93, 93, 93, 71, 71, -22, -22, 71, 71, 93, 93, -93, -93}, 13);
     public static final Shape THRUST_SHAPE = new Polygon(new int[]{44, -44, 0}, new int[]{65, 65, 200}, 3);
     public static final Shape THRUST_SPUTTER_SHAPE = new Polygon(new int[]{30, -30, 0}, new int[]{65, 65, 170}, 3);
-	public static final Color SHIP_SHIELD_COLOR = Color.WHITE;
+	public static final Color DRONE_SHIELD_COLOR = Color.WHITE;
 
-    private Ship ship;
-    Color shipColor, idColor;
+    private Drone drone;
+    Color droneColor, idColor;
 
     /**
-     * Create a new ship graphic and specify the ship and the color for the team
+     * Create a new drone graphic and specify the drone and the color for the team
      * 
-     * @param shipColor
-     * @param ship
+     * @param droneColor
+     * @param drone
      */
-    public ShipGraphics(Ship ship, Color shipColor) {
-    	super(ship.getRadius(), ship.getRadius());
-    	this.shipColor = shipColor;
-    	this.ship = ship;
-        this.idColor = new Color(255 - shipColor.getRed(), 255 - shipColor.getGreen(), 255 - shipColor.getBlue());
+    public DroneGraphics(Drone drone, Color droneColor) {
+    	super(drone.getRadius(), drone.getRadius());
+    	this.droneColor = droneColor;
+    	this.drone = drone;
+        this.idColor = new Color(255 - droneColor.getRed(), 255 - droneColor.getGreen(), 255 - droneColor.getBlue());
 
     }
     
@@ -55,7 +52,7 @@ public class ShipGraphics extends SpacewarGraphics {
 				
         final AffineTransform transform =
                 AffineTransform.getTranslateInstance(drawLocation.getX(), drawLocation.getY());
-        transform.rotate(ship.getPosition().getOrientation() + Math.PI / 2);
+        transform.rotate(drone.getPosition().getOrientation() + Math.PI / 2);
         transform.scale(.10, .10);
 
 //        if (ship.getActiveCommand().thrust) {
@@ -68,20 +65,20 @@ public class ShipGraphics extends SpacewarGraphics {
 //            g.fill(newThrustShape);
 //        }
 
-        Shape newShipShape = transform.createTransformedShape(SHIP_SHAPE);
+        Shape newDroneShape = transform.createTransformedShape(DRONE_SHAPE);
 
-        // color the ship to match the team
-        graphics.setPaint(shipColor);
-        graphics.fill(newShipShape);
+        // color the drone to match the team
+        graphics.setPaint(droneColor);
+        graphics.fill(newDroneShape);
 
-        // now show the information about the ship
+        // now show the information about the drone
         graphics.setFont(JSpaceSettlersComponent.FONT12);
         
-        // show the id of the ship inside the ship
+        // show the id of the drone inside the drone
        // graphics.setPaint(idColor);
         //graphics.drawString(ship.getId().toString(), (int) drawLocation.getX() - 3, (int) drawLocation.getY() + 3);
 
-        String number = Integer.toString((int)ship.getEnergy());
+        String number = Integer.toString((int)drone.getEnergy());
         graphics.setPaint(idColor);
         graphics.drawString(number, (int) drawLocation.getX() + 12, (int) drawLocation.getY() + 12);
         
@@ -97,8 +94,8 @@ public class ShipGraphics extends SpacewarGraphics {
         graphics.drawLine(
                 (int) drawLocation.getX(),
                 (int) drawLocation.getY(),
-                (int) (drawLocation.getX() + ship.getPosition().getTranslationalVelocityX()),
-                (int) (drawLocation.getY() + ship.getPosition().getTranslationalVelocityY()));
+                (int) (drawLocation.getX() + drone.getPosition().getTranslationalVelocityX()),
+                (int) (drawLocation.getY() + drone.getPosition().getTranslationalVelocityY()));
 
 //        number = Integer.toString(ship.getKills());
 //        g.setPaint(Color.PINK);
@@ -107,45 +104,40 @@ public class ShipGraphics extends SpacewarGraphics {
 //        number = Integer.toString(ship.getHits());
 //        g.setPaint(Color.GRAY);
 //        g.drawString(number, ship.getPosition().getX() - 24, ship.getPosition().getY() + 1);
-//
-        // paint the number of beacons
-        number = Integer.toString(ship.getNumBeacons());
-        graphics.setPaint(BeaconGraphics.BEACON_COLOR);
-        graphics.drawString(number, (int) drawLocation.getX() - 24, (int) drawLocation.getY() + 23);
 
-        // paint the number of cores currently held by the ship
-        number = Integer.toString(ship.getNumCores());
-        graphics.setPaint(this.shipColor);
+        // paint the number of cores currently held by the drone
+        number = Integer.toString(drone.getNumCores());
+        graphics.setPaint(this.droneColor);
         graphics.drawString(number, (int) drawLocation.getX() + 24, (int) drawLocation.getY() + 23);
         
         
-        // if the ship is shielded, show the shield around it
-        if (ship.isShielded()) {
-	        double shieldRadius = ship.getRadius() + 4;
+        // if the drone is shielded, show the shield around it
+        if (drone.isShielded()) {
+	        double shieldRadius = drone.getRadius() + 4;
 	        final Ellipse2D.Double shieldShape = new Ellipse2D.Double(drawLocation.getX() - shieldRadius,
 	        		drawLocation.getY() - shieldRadius, 2 * shieldRadius, 2 * shieldRadius);
 	        graphics.setStroke(JSpaceSettlersComponent.THIN_STROKE);
-	    	graphics.setColor(SHIP_SHIELD_COLOR);
+	    	graphics.setColor(DRONE_SHIELD_COLOR);
 	        graphics.draw(shieldShape);
         }
 
-        // if the ship is frozen from an EMP, show a ring around it (in the ship's own color)
-        if (ship.getFreezeCount() > 0) {
-	        double shieldRadius = ship.getRadius() + 2;
+        // if the drone is frozen from an EMP, show a ring around it (in the drone's own color)
+        if (drone.getFreezeCount() > 0) {
+	        double shieldRadius = drone.getRadius() + 2;
 	        final Ellipse2D.Double shieldShape = new Ellipse2D.Double(drawLocation.getX() - shieldRadius,
 	        		drawLocation.getY() - shieldRadius, 2 * shieldRadius, 2 * shieldRadius);
 	        graphics.setStroke(JSpaceSettlersComponent.THIN_STROKE);
-	    	graphics.setColor(shipColor);
+	    	graphics.setColor(droneColor);
 	        graphics.draw(shieldShape);
         }
         
-        // if the ship has a flag, put a tiny flag inside the ship
-        if (ship.isCarryingFlag()) {
+        // if the drone has a flag, put a tiny flag inside the drone
+        if (drone.isCarryingFlag()) {
         	AffineTransform transformFlag =
                     AffineTransform.getTranslateInstance(drawLocation.getX(), drawLocation.getY());
         	transformFlag.scale(Flag.FLAG_RADIUS / 2.0, Flag.FLAG_RADIUS / 2.0);
         	Shape tinyFlag = transformFlag.createTransformedShape(FlagGraphics.FLAG_SHAPE);
-        	if (shipColor.equals(Color.WHITE)) {
+        	if (droneColor.equals(Color.WHITE)) {
             	graphics.setColor(Color.BLACK);
         	} else {
             	graphics.setColor(Color.WHITE);
@@ -156,10 +148,10 @@ public class ShipGraphics extends SpacewarGraphics {
 	}
 
 	/**
-	 * Only draw a ship if it is alive and drawable (ships should always be drawable)
+	 * Only draw a drone if it is alive and drawable (drones should always be drawable)
 	 */
 	public boolean isDrawable() {
-		if (ship.isAlive() && ship.isDrawable()) {
+		if (drone.isAlive() && drone.isDrawable()) {
 			return true;
 		} else {
 			return false;
@@ -168,10 +160,10 @@ public class ShipGraphics extends SpacewarGraphics {
 
 
 	/**
-	 * Return the location of the center of the ship
+	 * Return the location of the center of the drone
 	 */
 	public Position getActualLocation() {
-		return ship.getPosition();
+		return drone.getPosition();
 	}
 
 }

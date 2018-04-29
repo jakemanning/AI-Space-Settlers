@@ -1,5 +1,6 @@
 package spacesettlers.actions;
 
+import spacesettlers.objects.Drone;
 import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Movement;
@@ -264,6 +265,8 @@ public class MoveAction extends AbstractAction {
 		double yError = shortestDist.getYValue();
 		//System.out.println("xerror is " + xError + " yError is " + yError);
 		
+		//System.out.println("Goal velocity is " + goalVelocity);
+		//System.out.println("Current velocity is " + currentLoc.getTranslationalVelocity());
 		double velocityErrorX = (goalVelocity.getXValue() - currentLoc.getTranslationalVelocityX());
 		double velocityErrorY = (goalVelocity.getYValue() - currentLoc.getTranslationalVelocityY());
 		//System.out.println("Velocity error is " + velocityErrorX + " ," + velocityErrorY);
@@ -272,6 +275,7 @@ public class MoveAction extends AbstractAction {
 		double yAccel = pdControlTranslate(yError, velocityErrorY);
 		
 		//System.out.println("Translation accel is " + xAccel + ", " + yAccel);
+		//System.out.println("Orienting to goal with " + xAccel + ", " + yAccel);
 		return new Vector2D(xAccel, yAccel);
 	}
 
@@ -297,6 +301,35 @@ public class MoveAction extends AbstractAction {
 		// figure out if it has reached the goal
 		if ((goalAccel.getMagnitude() < TARGET_REACHED_ACCEL) ||
 				(space.findShortestDistance(targetLocation, ship.getPosition()) < TARGET_REACHED_ERROR)) {
+			isFinished = true;
+		}
+
+		return movement;
+	}
+	
+	/**
+	 * Herr0861 edit.
+	 * Overloading getMovement() to allow for handling of multiple object types. In this case, Drone.
+	 * Move the drone to the goal by turning and moving to the goal at the same time.
+	 * 
+	 */
+	public Movement getMovement(Toroidal2DPhysics space, Drone drone) {
+		// isOrientedToGoal, isAtGoal, isOrientedAtGoal, isOrientingAtGoal
+		Movement movement = new Movement();
+
+		if (isFinished) {
+			return movement;
+		}
+
+		// set the angular and translational velocity at the same time
+		double angularAccel = pdControlOrientToGoal(space, targetLocation, drone.getPosition(), 0);
+		movement.setAngularAccleration(angularAccel);
+		Vector2D goalAccel = pdControlMoveToGoal(space, targetLocation, drone.getPosition(), targetVelocity);
+		movement.setTranslationalAcceleration(goalAccel);
+
+		// figure out if it has reached the goal
+		if ((goalAccel.getMagnitude() < TARGET_REACHED_ACCEL) ||
+				(space.findShortestDistance(targetLocation, drone.getPosition()) < TARGET_REACHED_ERROR)) {
 			isFinished = true;
 		}
 
