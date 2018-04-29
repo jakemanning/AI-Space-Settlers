@@ -18,15 +18,12 @@ import static capp7507.SpaceSearchUtil.obstructionInPath;
 
 /**
  * A model-based reflex agent for controlling a spacesettlers team client
- * <p>
- * Set TRAINING_GA to true to train the genetic algorithm for avoiding asteroids
- * Set TRAINING_TREE to true to collect data about shooting other ships
- * <p>
+ *
  * The ships use the bestValue function while keeping track of targets between
  * calls to getMovementStart. It assigns values based on distance from a ship to a target,
  * angle between ship and target, asteroid resources, energy value, obstructions. It also
- * factors in the target with the highest scoring neighbors around it. The ships use
- * A* algorithm to determine the best path to a given target, choosing a path with no obstacles in way.
+ * factors in the target with the highest scoring neighbors around it. If an obstruction
+ * is found between the ship and the target, then the ship attempts to avoid it.
  *
  * @author Jake Manning and Bryan Capps
  */
