@@ -11,9 +11,9 @@ import java.util.*;
 import java.util.List;
 
 /**
- * An abstract Plan, using a heuristic and routing algorithm to determine the best route from a ship to a goal.
+ * An abstract Route, using a heuristic and routing algorithm to determine the best route from a ship to a goal.
  */
-public abstract class Plan {
+public abstract class Route {
     private int nextStep = 0;
     private Position initialShipPosition;
     private static final int N_DISTANCES = 10;
@@ -25,7 +25,7 @@ public abstract class Plan {
     Toroidal2DPhysics space;
     private static Set<Position> baseCandidates;
 
-    Plan(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
+    Route(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
         this.ship = ship;
         this.goal = goal;
         this.space = space;
@@ -172,7 +172,7 @@ public abstract class Plan {
      *
      * @param start The beginning position
      * @param end   The ending position
-     * @return an estimate of the cost to get from start to end position, based on the {@link Plan}'s implementation
+     * @return an estimate of the cost to get from start to end position, based on the {@link Route}'s implementation
      */
     abstract double heuristicCostEstimate(Position start, Position end);
 

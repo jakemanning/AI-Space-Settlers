@@ -9,7 +9,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 
-public class AStar extends Plan {
+public class AStar extends Route {
 
     public static AStar forObject(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
         return new AStar(goal, ship, space);

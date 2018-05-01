@@ -38,7 +38,7 @@ public class JakeTeamClient extends TeamClient {
     private static final int REALLY_BIG_NAV_WEIGHT = 100;
     private static final int NEIGHBORHOOD_RADIUS = 100;
     private static final double GAME_IS_ENDING_FACTOR = 0.98;
-    private Map<UUID, Plan> currentPlans = new HashMap<>();
+    private Map<UUID, Route> currentRoutes = new HashMap<>();
     private Map<UUID, ShipRole> currentRoles = new HashMap<>();
     private GraphicsUtil graphicsUtil;
     private PowerupUtil powerupUtil;
@@ -65,10 +65,10 @@ public class JakeTeamClient extends TeamClient {
                 graphicsUtil.loadGraphicsFor(shipId);
 
                 // Retrieve ship's current target or pick a new one if needed
-                Plan currentPlan = currentPlans.get(actionable.getId());
-                if (currentPlan == null
-                        || currentPlan.isDone()
-                        || pathBlocked(space, ship, currentPlan.getStep(), currentPlan.getGoal())) {
+                Route currentRoute = currentRoutes.get(actionable.getId());
+                if (currentRoute == null
+                        || currentRoute.isDone()
+                        || pathBlocked(space, ship, currentRoute.getStep(), currentRoute.getGoal())) {
                     AbstractObject target;
                     ShipRole role = currentRoles.get(shipId);
                     if (role == ShipRole.FLAG_RETURNER) {
@@ -79,7 +79,7 @@ public class JakeTeamClient extends TeamClient {
                     } else if (role == ShipRole.FLAG_COLLECTOR) {
                         target = getTargetFlag(space);
                     } else {
-                        AbstractObject oldGoal = currentPlan == null ? null : currentPlan.getGoal();
+                        AbstractObject oldGoal = currentRoute == null ? null : currentRoute.getGoal();
                         Set<AbstractObject> objectsToEvaluate = space.getAllObjects();
                         if (oldGoal != null) {
                             objectsToEvaluate.remove(oldGoal);
@@ -87,12 +87,12 @@ public class JakeTeamClient extends TeamClient {
                         currentRoles.put(shipId, ShipRole.RESOURCE_COLLECTOR);
                         target = bestValue(space, ship, objectsToEvaluate);
                     }
-                    currentPlan = AStar.forObject(target, ship, space);
-                    currentPlans.put(shipId, currentPlan);
+                    currentRoute = AStar.forObject(target, ship, space);
+                    currentRoutes.put(shipId, currentRoute);
                 }
-                Position currentStep = currentPlan.getStep();
+                Position currentStep = currentRoute.getStep();
                 graphicsUtil.addTargetPreset(shipId, GraphicsUtil.Preset.TARGET, currentStep);
-                currentPlan.getGraphics().forEach(graphicsUtil::addGraphic);
+                currentRoute.getGraphics().forEach(graphicsUtil::addGraphic);
 
                 if (currentStep == null) {
                     System.out.println(space.getCurrentTimestep()
@@ -101,7 +101,7 @@ public class JakeTeamClient extends TeamClient {
                     continue;
                 }
 
-                Position nextStep = currentPlan.getNextStep();
+                Position nextStep = currentRoute.getNextStep();
                 MoveAction action = getMoveAction(space, shipPos, currentStep, nextStep);
                 action.setKvRotational(4);
                 action.setKpRotational(4);
@@ -208,7 +208,7 @@ public class JakeTeamClient extends TeamClient {
      * @param space           physics
      * @param currentPosition The position of the ship at the starting time interval
      * @param target          The target object the action should aim for
-     * @param nextStep        the nextStep our plan contains
+     * @param nextStep        the nextStep our route contains
      * @return An action to get the ship to the target's location
      */
     private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target, Position nextStep) {
@@ -239,12 +239,12 @@ public class JakeTeamClient extends TeamClient {
      */
     @Override
     public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
-        Set<UUID> plansToRemove = new HashSet<>();
+        Set<UUID> routesToRemove = new HashSet<>();
 
-        for (Map.Entry<UUID, Plan> entry : currentPlans.entrySet()) {
+        for (Map.Entry<UUID, Route> entry : currentRoutes.entrySet()) {
             UUID shipId = entry.getKey();
-            Plan plan = entry.getValue();
-            AbstractObject target = space.getObjectById(plan.getGoal().getId());
+            Route route = entry.getValue();
+            AbstractObject target = space.getObjectById(route.getGoal().getId());
             Ship ship = (Ship) space.getObjectById(shipId);
             Position shipPosition = ship.getPosition();
             double distance = space.findShortestDistance(shipPosition, target.getPosition());
@@ -254,12 +254,12 @@ public class JakeTeamClient extends TeamClient {
 
             // Handle when our target dies
             if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough || flagAcquired) {
-                plansToRemove.add(shipId);
+                routesToRemove.add(shipId);
             }
 
-            Position step = plan.getStep();
+            Position step = route.getStep();
             if (step != null && space.findShortestDistance(shipPosition, step) < ship.getRadius() * 1.5) {
-                plan.completeStep();
+                route.completeStep();
             }
 
             // Do role things
@@ -273,8 +273,8 @@ public class JakeTeamClient extends TeamClient {
             }
         }
 
-        for (UUID key : plansToRemove) {
-            currentPlans.remove(key);
+        for (UUID key : routesToRemove) {
+            currentRoutes.remove(key);
         }
 
         if (!shipResponsibleForFlags(space)) {
