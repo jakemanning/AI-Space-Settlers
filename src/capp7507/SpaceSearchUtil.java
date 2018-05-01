@@ -24,7 +24,7 @@ class SpaceSearchUtil {
      * @return The closest obstacle between a start and goal position, if exists
      * @author Andrew and Thibault
      */
-    static AbstractObject obstructionInPath(Toroidal2DPhysics space, Position startPosition, Position goalPosition, Set<AbstractObject> obstructions, int freeRadius) {
+    static AbstractObject obstructionInPath(Toroidal2DPhysics space, Position startPosition, Position goalPosition, Set<? extends AbstractObject> obstructions, int freeRadius) {
         Vector2D pathToGoal = space.findShortestDistanceVector(startPosition, goalPosition);    // Shortest straight line path from startPosition to goalPosition
         double distanceToGoal = pathToGoal.getMagnitude();                                        // Distance of straight line path
 
@@ -99,7 +99,7 @@ class SpaceSearchUtil {
      * @param space physics
      * @return A set of all the unmineable asteroids
      */
-    private static Set<Asteroid> getUnmineableAsteroids(Toroidal2DPhysics space) {
+    static Set<Asteroid> getUnmineableAsteroids(Toroidal2DPhysics space) {
         Set<Asteroid> asteroids = new HashSet<>(space.getAsteroids());
         asteroids.removeAll(getMineableAsteroids(space));
         return asteroids;

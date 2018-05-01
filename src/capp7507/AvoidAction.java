@@ -10,9 +10,14 @@ import spacesettlers.utilities.Vector2D;
  * Stores obstacle as state as well
  */
 class AvoidAction extends MoveAction {
+    private Position targetLoc;
 
     AvoidAction(Toroidal2DPhysics space, Position currentLocation, Position targetLocation, Vector2D targetVelocity) {
         super(space, currentLocation, targetLocation, targetVelocity);
+        targetLoc = targetLocation;
     }
 
+    public Position getTargetLoc() {
+        return targetLoc;
+    }
 }

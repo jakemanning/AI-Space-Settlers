@@ -1,7 +1,6 @@
 package capp7507;
 
 import spacesettlers.objects.AbstractObject;
-import spacesettlers.objects.Asteroid;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
 
@@ -153,11 +152,6 @@ class MovementUtil {
         for (T object : objects) {
             Position interceptPosition = interceptPosition(space, object.getPosition(), currentPosition);
             double distance = space.findShortestDistance(currentPosition, interceptPosition);
-            if (object instanceof Asteroid) {
-                // More heavily weigh asteroids with more resources
-                Asteroid asteroid = (Asteroid) object;
-                distance = distance / asteroid.getResources().getTotal();
-            }
             if (distance < minimum) {
                 minimum = distance;
                 closest = object;
