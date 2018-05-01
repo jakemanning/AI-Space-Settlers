@@ -6,8 +6,8 @@ RELATIONS: HasFlag(ship), At(ship, location), FlagScore, NumShips, NumResources,
 possible roles: flag collector, flag returner, resource collector
 ACTIONS: BuyPowerup(ship, powerup), GoTo(ship, location)
 
-Initial state: FlagScore = 0, ~HasFlag(s), At(s, random dot) for all s in ships
-Goal state: FlagScore = 50, NumShips = 6
+Initial state: FlagScore = 0, ~HasFlag(s), At(s, random dot), Energy(5000) for all s in ships
+Goal state: FlagScore = 50, NumShips = 6, Energy(s) = 5000 for all s in ships
 
 BuyPowerup(ship, powerup)
 pre: enough resources to purchase ^ (powerup != drone v HasFlag(ship))
@@ -23,8 +23,8 @@ v (Role(ship) = flag returner ^ location = our base ^ HasFlag(ship))
 v (Role(ship) = resource collector ^ location = a mineable asteroid ^ ~HasFlag(ship)))
 ^ (Energy(ship) > 1500 v location = beacon v location = our base)
 effect:
-Energy(ship)-- ^ At(ship, location) ^
+Energy(ship) -= 1500 ^ At(ship, location) ^
 when Role(ship) = flag collector : HasFlag(ship) ^ Role(ship) = flag returner
 when Role(ship) = flag returner : ~HasFlag(ship) ^ FlagScore++
 when Role(ship) = resource collector ^ location = mineable asteroid : NumResources++
-when location = beacon : Energy(ship)++
+when location = beacon : Energy(ship) += 2500
