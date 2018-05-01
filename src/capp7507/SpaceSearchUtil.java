@@ -8,11 +8,14 @@ import spacesettlers.utilities.Vector2D;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static capp7507.MovementUtil.interceptPosition;
 
 class SpaceSearchUtil {
     private static final int MAX_OBSTRUCTION_DETECTION = 150;
+    private static Position upperFlagPosition;
+    private static Position lowerFlagPosition;
 
     /**
      * Check to see if following a straight line path between two given locations would result in a collision with a provided set of obstructions
@@ -99,7 +102,7 @@ class SpaceSearchUtil {
      * @param space physics
      * @return A set of all the unmineable asteroids
      */
-    static Set<Asteroid> getUnmineableAsteroids(Toroidal2DPhysics space) {
+    private static Set<Asteroid> getUnmineableAsteroids(Toroidal2DPhysics space) {
         Set<Asteroid> asteroids = new HashSet<>(space.getAsteroids());
         asteroids.removeAll(getMineableAsteroids(space));
         return asteroids;
@@ -179,5 +182,45 @@ class SpaceSearchUtil {
             }
         }
         return results;
+    }
+
+    static Position getUpperFlagPosition(Toroidal2DPhysics space, String teamName) {
+        if (upperFlagPosition == null) {
+            initFlagPositions(space, teamName);
+        }
+        return upperFlagPosition;
+    }
+
+    static Position getLowerFlagPosition(Toroidal2DPhysics space, String teamName) {
+        if (lowerFlagPosition == null) {
+            initFlagPositions(space, teamName);
+        }
+        return lowerFlagPosition;
+    }
+
+    private static void initFlagPositions(Toroidal2DPhysics space, String teamName) {
+        Position flagPosition = getTargetFlag(space, teamName).getPosition();
+        if (flagPosition.getY() > space.getHeight() / 2) {
+            upperFlagPosition = flagPosition;
+            lowerFlagPosition = flagPosition.deepCopy();
+            lowerFlagPosition.setY(flagPosition.getY() + 550);
+        } else {
+            lowerFlagPosition = flagPosition;
+            upperFlagPosition = flagPosition.deepCopy();
+            upperFlagPosition.setY(flagPosition.getY() - 550);
+        }
+    }
+
+    static Flag getTargetFlag(Toroidal2DPhysics space, String teamName) {
+        return space.getFlags().stream()
+                .filter(f -> !f.getTeamName().equals(teamName))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Multiple flags belonging to other teams"));
+    }
+
+    static Set<Ship> getOurShips(Toroidal2DPhysics space, String teamName) {
+        return space.getShips().stream()
+                .filter(s -> s.getTeamName().equals(teamName))
+                .collect(Collectors.toSet());
     }
 }

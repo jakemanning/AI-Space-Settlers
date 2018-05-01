@@ -39,9 +39,9 @@ public class JakeTeamClient extends TeamClient {
     private static final int NEIGHBORHOOD_RADIUS = 100;
     private static final double GAME_IS_ENDING_FACTOR = 0.98;
     private Map<UUID, Route> currentRoutes = new HashMap<>();
-    private Map<UUID, ShipRole> currentRoles = new HashMap<>();
     private GraphicsUtil graphicsUtil;
     private PowerupUtil powerupUtil;
+    private PlanningUtil planningUtil;
 
     /**
      * Called before movement begins. Fill a HashMap with actions depending on the bestValue
@@ -70,21 +70,24 @@ public class JakeTeamClient extends TeamClient {
                         || currentRoute.isDone()
                         || pathBlocked(space, ship, currentRoute.getStep(), currentRoute.getGoal())) {
                     AbstractObject target;
-                    ShipRole role = currentRoles.get(shipId);
-                    if (role == ShipRole.FLAG_RETURNER) {
-                        Set<Base> ourBases = space.getBases().stream()
-                                .filter(this::isOurBase)
-                                .collect(Collectors.toSet());
-                        target = MovementUtil.closest(space, shipPos, ourBases);
-                    } else if (role == ShipRole.FLAG_COLLECTOR) {
-                        target = getTargetFlag(space);
+                    ShipRole role = planningUtil.getRole(ship);
+                    if (role == ShipRole.FLAG_COLLECTOR) {
+                        if (ship.isCarryingFlag()) {
+                            Set<AbstractObject> ourBases = space.getBases().stream()
+                                    .filter(this::isOurBase)
+                                    .collect(Collectors.toSet());
+                            ourBases.removeAll(planningUtil.otherShipGoals(ship));
+                            target = MovementUtil.closest(space, shipPos, ourBases);
+                        } else {
+                            target = planningUtil.flagTarget(space, ship);
+                        }
                     } else {
                         AbstractObject oldGoal = currentRoute == null ? null : currentRoute.getGoal();
                         Set<AbstractObject> objectsToEvaluate = space.getAllObjects();
                         if (oldGoal != null) {
                             objectsToEvaluate.remove(oldGoal);
                         }
-                        currentRoles.put(shipId, ShipRole.RESOURCE_COLLECTOR);
+                        planningUtil.setRole(ship, ShipRole.RESOURCE_COLLECTOR);
                         target = bestValue(space, ship, objectsToEvaluate);
                     }
                     currentRoute = AStar.forObject(target, ship, space);
@@ -261,75 +264,13 @@ public class JakeTeamClient extends TeamClient {
             if (step != null && space.findShortestDistance(shipPosition, step) < ship.getRadius() * 1.5) {
                 route.completeStep();
             }
-
-            // Do role things
-            if (ship.isCarryingFlag()) {
-                // They're carrying a flag? Must be the flag returner
-                assignFlagReturner(space, shipId);
-            } else if (currentRoles.get(shipId) == ShipRole.FLAG_RETURNER) {
-                // Invalid state: flag returner does not have a flag
-                // Assign closest ship to a flag as the flag collector
-                findAndAssignClosestFlagCollector(space);
-            }
         }
 
         for (UUID key : routesToRemove) {
             currentRoutes.remove(key);
         }
 
-        if (!shipResponsibleForFlags(space)) {
-            findAndAssignClosestFlagCollector(space);
-        }
-    }
-
-    private void findAndAssignClosestFlagCollector(Toroidal2DPhysics space) {
-        Ship flagCollector = MovementUtil.closest(space, getTargetFlag(space).getPosition(), getOurShips(space));
-        assignFlagCollector(space, flagCollector.getId());
-    }
-
-    private boolean shipResponsibleForFlags(Toroidal2DPhysics space) {
-        boolean result = false;
-        for (Ship ship : getOurShips(space)) {
-            if (currentRoles.get(ship.getId()) == ShipRole.FLAG_COLLECTOR
-                    || currentRoles.get(ship.getId()) == ShipRole.FLAG_RETURNER) {
-                result = true;
-                break;
-            }
-        }
-        return result;
-    }
-
-    private Flag getTargetFlag(Toroidal2DPhysics space) {
-        return space.getFlags().stream()
-                .filter(f -> !f.getTeamName().equals(getTeamName()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Multiple flags belonging to other teams"));
-    }
-
-    private void assignFlagCollector(Toroidal2DPhysics space, UUID collectorId) {
-        for (Ship ship : getOurShips(space)) {
-            if (collectorId.equals(ship.getId())) {
-                currentRoles.put(collectorId, ShipRole.FLAG_COLLECTOR);
-            } else {
-                currentRoles.put(ship.getId(), ShipRole.RESOURCE_COLLECTOR);
-            }
-        }
-    }
-
-    private void assignFlagReturner(Toroidal2DPhysics space, UUID collectorId) {
-        for (Ship ship : getOurShips(space)) {
-            if (collectorId.equals(ship.getId())) {
-                currentRoles.put(collectorId, ShipRole.FLAG_RETURNER);
-            } else {
-                currentRoles.put(ship.getId(), ShipRole.RESOURCE_COLLECTOR);
-            }
-        }
-    }
-
-    private Set<Ship> getOurShips(Toroidal2DPhysics space) {
-        return space.getShips().stream()
-                .filter(s -> s.getTeamName().equals(getTeamName()))
-                .collect(Collectors.toSet());
+        planningUtil.assignClosestFlagCollectors(space);
     }
 
     /**
@@ -470,6 +411,7 @@ public class JakeTeamClient extends TeamClient {
     public void initialize(Toroidal2DPhysics space) {
         graphicsUtil = new GraphicsUtil(DEBUG);
         powerupUtil = new PowerupUtil(this, random);
+        planningUtil = new PlanningUtil(getTeamName());
     }
 
     @Override
