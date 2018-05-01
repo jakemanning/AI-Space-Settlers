@@ -32,7 +32,7 @@ public class JakeTeamClient extends TeamClient {
     private static final int MAX_ASTEROID_MASS = 2318;
     private static final int MIN_ASTEROID_MASS = 2000;
     static final double TARGET_SHIP_SPEED = 60;
-    private static final int SHIP_ENERGY_VALUE_WEIGHT = 6;
+    private static final int SHIP_ENERGY_VALUE_WEIGHT = 8;
     private static final int SHIP_CARGO_VALUE_WEIGHT = 6;
     private static final double MAX_ANGLE = Math.PI / 2;
     private static final int REALLY_BIG_NAV_WEIGHT = 100;
