@@ -68,7 +68,7 @@ public class JakeTeamClient extends TeamClient {
                 Plan currentPlan = currentPlans.get(actionable.getId());
                 if (currentPlan == null
                         || currentPlan.isDone()
-                        || pathBlocked(space, ship, currentPlan.getStep())) {
+                        || pathBlocked(space, ship, currentPlan.getStep(), currentPlan.getGoal())) {
                     AbstractObject target;
                     ShipRole role = currentRoles.get(shipId);
                     if (role == ShipRole.FLAG_RETURNER) {
@@ -126,9 +126,11 @@ public class JakeTeamClient extends TeamClient {
      * @param stepPosition the target of our path
      * @return true if an obstacle is in the way
      */
-    private boolean pathBlocked(Toroidal2DPhysics space, Ship ship, Position stepPosition) {
+    private boolean pathBlocked(Toroidal2DPhysics space, Ship ship, Position stepPosition, AbstractObject target) {
+        Set<AbstractObject> obstructions = SpaceSearchUtil.getObstructions(space, ship);
+        obstructions.remove(target);
         return stepPosition != null && !space.isPathClearOfObstructions(ship.getPosition(), stepPosition,
-                SpaceSearchUtil.getObstructions(space, ship), ship.getRadius());
+                obstructions, ship.getRadius());
     }
 
     /**
@@ -246,8 +248,7 @@ public class JakeTeamClient extends TeamClient {
             Position shipPosition = ship.getPosition();
             double distance = space.findShortestDistance(shipPosition, target.getPosition());
             int targetRadius = target.getRadius();
-//            boolean closeEnough = (target instanceof Base) && distance < targetRadius * 1.5;
-            boolean closeEnough = false;
+            boolean closeEnough = (target instanceof Base) && distance < targetRadius + ship.getRadius() + 10;
             boolean flagAcquired = (target instanceof Flag) && ship.isCarryingFlag();
 
             // Handle when our target dies
