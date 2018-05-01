@@ -33,7 +33,7 @@
  		<!-- The there are only two teams for CTF and the heuristic is a Flag Collector team (similar to beacons) -->
 		<HighLevelTeamConfig>
 			<teamName>Space Jam</teamName>
-			<configFile>jakeinit.xml</configFile>
+			<configFile>spacesettlersinit.xml</configFile>
 		</HighLevelTeamConfig>
 		<HighLevelTeamConfig>
 			<teamName>Team2</teamName>
