@@ -212,7 +212,8 @@ public class JakeTeamClient extends TeamClient {
      * @return An action to get the ship to the target's location
      */
     private MoveAction getMoveAction(Toroidal2DPhysics space, Position currentPosition, Position target, Position nextStep) {
-        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, target);
+        Position adjustedTargetPosition = MovementUtil.interceptPosition(space, target, currentPosition);
+        Vector2D targetVector = space.findShortestDistanceVector(currentPosition, adjustedTargetPosition);
         double magnitude;
         if (nextStep == null) {
             double angle = targetVector.angleBetween(currentPosition.getTranslationalVelocity());
@@ -268,9 +269,7 @@ public class JakeTeamClient extends TeamClient {
             } else if (currentRoles.get(shipId) == ShipRole.FLAG_RETURNER) {
                 // Invalid state: flag returner does not have a flag
                 // Assign closest ship to a flag as the flag collector
-                Flag flag = getTargetFlag(space);
-                Ship flagCollector = MovementUtil.closest(space, flag.getPosition(), getOurShips(space));
-                assignFlagCollector(space, flagCollector.getId());
+                findAndAssignClosestFlagCollector(space);
             }
         }
 
@@ -278,13 +277,26 @@ public class JakeTeamClient extends TeamClient {
             currentPlans.remove(key);
         }
 
-        boolean allShipsLookingForResources = getOurShips(space).stream()
-                .map(ship -> currentRoles.get(ship.getId()) == ShipRole.RESOURCE_COLLECTOR)
-                .reduce(true, (isCollector1, isCollector2) -> isCollector1 == isCollector2);
-        if (allShipsLookingForResources) {
-            Ship flagCollector = MovementUtil.closest(space, getTargetFlag(space).getPosition(), getOurShips(space));
-            assignFlagCollector(space, flagCollector.getId());
+        if (!shipResponsibleForFlags(space)) {
+            findAndAssignClosestFlagCollector(space);
         }
+    }
+
+    private void findAndAssignClosestFlagCollector(Toroidal2DPhysics space) {
+        Ship flagCollector = MovementUtil.closest(space, getTargetFlag(space).getPosition(), getOurShips(space));
+        assignFlagCollector(space, flagCollector.getId());
+    }
+
+    private boolean shipResponsibleForFlags(Toroidal2DPhysics space) {
+        boolean result = false;
+        for (Ship ship : getOurShips(space)) {
+            if (currentRoles.get(ship.getId()) == ShipRole.FLAG_COLLECTOR
+                    || currentRoles.get(ship.getId()) == ShipRole.FLAG_RETURNER) {
+                result = true;
+                break;
+            }
+        }
+        return result;
     }
 
     private Flag getTargetFlag(Toroidal2DPhysics space) {
