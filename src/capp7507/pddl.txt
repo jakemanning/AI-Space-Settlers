@@ -1,30 +1,30 @@
 CONSTANTS:
-ships: ship1, ship2, ship3, ...
-flags: our flag, their flag
+ships: ship1, ship2, ship3, ship4, ship5, ship6
 powerups: extra ship, double energy, drone
-ai cores
 LOCATIONS: 100 grid dots and any mineable asteroids, beacons, our bases, and their flags location/last location
-RELATIONS: HasFlag(ship), At(ship, location), FlagScore, NumShips, NumResources, Energy(ship), Role(ship)
+RELATIONS: HasFlag(ship), At(ship, location), FlagScore, NumShips, NumResources, Energy(ship), Role(ship), MaxEnergy(ship)
 possible roles: flag collector, flag returner, resource collector
 ACTIONS: BuyPowerup(ship, powerup), GoTo(ship, location)
 
 Initial state: FlagScore = 0, ~HasFlag(s), At(s, random dot) for all s in ships
-Goal state: FlagScore = 50, ~HasFlag(s)
+Goal state: FlagScore = 50, NumShips = 6
 
 BuyPowerup(ship, powerup)
-pre: enough resources to purchase
+pre: enough resources to purchase ^ (powerup != drone v HasFlag(ship))
 effect:
-when powerup = extra ship : NumShips++ ^ NumResources++
-when powerup = double energy :
+when powerup = extra ship : NumShips++ ^ NumResources--
+when powerup = double energy : MaxEnergy(ship) * 2 ^ NumResources--
+when powerup = drone : NumResources-- ^ FlagScore++
 
 GoTo(ship, location)
 pre:
-((ship = flag collector ^ location = their flag ^ ~HasFlag(ship))
-v (ship = flag returner ^ location = our base ^ HasFlag(ship))
-v (ship = resource collector ^ location = a mineable asteroid ^ ~HasFlag(ship)))
+((Role(ship) = flag collector ^ location = their flag ^ ~HasFlag(ship))
+v (Role(ship) = flag returner ^ location = our base ^ HasFlag(ship))
+v (Role(ship) = resource collector ^ location = a mineable asteroid ^ ~HasFlag(ship)))
 ^ (Energy(ship) > 1500 v location = beacon v location = our base)
 effect:
-Energy(ship)-- ^
-when ship = flag collector : HasFlag(ship) ^ At(ship, location)
-when ship = flag returner : ~HasFlag(ship) ^ At(ship, location) ^ FlagScore++
-when ship = resource collector : At(ship, location) ^ NumResources++
+Energy(ship)-- ^ At(ship, location) ^
+when Role(ship) = flag collector : HasFlag(ship) ^ Role(ship) = flag returner
+when Role(ship) = flag returner : ~HasFlag(ship) ^ FlagScore++
+when Role(ship) = resource collector ^ location = mineable asteroid : NumResources++
+when location = beacon : Energy(ship)++
