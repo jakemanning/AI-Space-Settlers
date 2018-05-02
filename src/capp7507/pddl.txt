@@ -1,30 +1,44 @@
-CONSTANTS:
-ships: ship1, ship2, ship3, ship4, ship5, ship6
-powerups: extra ship, double energy, drone
-LOCATIONS: 100 grid dots and any mineable asteroids, beacons, our bases, and their flags location/last location
-RELATIONS: HasFlag(ship), At(ship, location), FlagScore, NumShips, NumResources, Energy(ship), Role(ship), MaxEnergy(ship)
-possible roles: flag collector, flag returner, resource collector
-ACTIONS: BuyPowerup(ship, powerup), GoTo(ship, location)
+constants: shipN, flag
+Initial state: Waiter(ship1) ^ Waiter(ship2) ^ Waiter(ship3)
 
-Initial state: FlagScore = 0, ~HasFlag(s), At(s, random dot), Energy(5000) for all s in ships
-Goal state: FlagScore = 50, NumShips = 6, Energy(s) = 5000 for all s in ships
+roles: flagger, miner, waiter, baseboy, thirstyboy, homesickboy
 
-BuyPowerup(ship, powerup)
-pre: enough resources to purchase ^ (powerup != drone v HasFlag(ship))
-effect:
-when powerup = extra ship : NumShips++ ^ NumResources--
-when powerup = double energy : MaxEnergy(ship) * 2 ^ NumResources--
-when powerup = drone : NumResources-- ^ FlagScore++
+goal: FlagScore > 50, ShipCount = 6, CloseBases = 3, Energy(s) > 3000 for all s in ships
 
-GoTo(ship, location)
-pre:
-((Role(ship) = flag collector ^ location = their flag ^ ~HasFlag(ship))
-v (Role(ship) = flag returner ^ location = our base ^ HasFlag(ship))
-v (Role(ship) = resource collector ^ location = a mineable asteroid ^ ~HasFlag(ship)))
-^ (Energy(ship) > 1500 v location = beacon v location = our base)
-effect:
-Energy(ship) -= 1500 ^ At(ship, location) ^
-when Role(ship) = flag collector : HasFlag(ship) ^ Role(ship) = flag returner
-when Role(ship) = flag returner : ~HasFlag(ship) ^ FlagScore++
-when Role(ship) = resource collector ^ location = mineable asteroid : NumResources++
-when location = beacon : Energy(ship) += 2500
+Thirsty(ship) means ship has less than some amount of energy (1500?)
+Homesick(ship) means ship has greater than some amount of resources (5000?)
+NextBaseBoy(ship) means we need a base boy and ship is the closest ship to the appropriate alcove
+CloseBases returns the number of times a base boy has been deployed and dropped a base close to the target flag alcoves
+
+Actions:
+MakeFlagger(ship)
+pre: AlcoveWaiter(ship) ^ Closest(ship, flag) ^ ~Thirsty(ship) ^ ~Homesick(ship) ^ ~Flagger(s) for all s in ships ^ ~NextBaseBoy(ship)
+effect: Flagger(ship) ^ Energy(ship) -= 1500 ^ FlagScore++ ^ ~Waiter(ship)
+
+MakeMiner(ship)
+pre: Waiter(ship) ^ ~Thirsty(ship) ^ ~Homesick(ship) ^ ~NextBaseBoy(ship)
+effect: Miner(ship) ^ ResourcesInShip(ship) += 1000 ^ Energy(ship) -= 1500 ^ ~Waiter(ship)
+
+MakeAlcoveWaiter(ship)
+pre: Waiter(ship) ^ Flagger(s) for some other s in ships ^ ~Thirsty(ship) ^ ~Homesick(ship) ^ ~NextBaseBoy(ship)
+effect: AlcoveWaiter(ship) ^ Energy(ship) -= 1500 ^ ~Waiter(ship)
+
+MakeBaseboy(ship)
+pre: Waiter(ship) ^ NextBaseBoy(ship) ^ ~Thirsty(ship) ^ ~Homesick(ship)
+effect: CloseBase++, Energy(ship) -= 1500 ^ ~Waiter(ship)
+
+GoDrink(ship)
+pre: Waiter(ship)
+effect: Energy(ship) += 1000 ^ ~Waiter(ship)
+
+GoHome(ship)
+pre: Waiter(ship)
+effect: Resources += ResourcesInShip(ship) ^ ResourcesInShip(ship) = 0 ^ ~Waiter(ship)
+when CloseBases > 2 : Energy(ship) += 2000
+when CloseBases > 1 : Energy(ship) += 1500
+when CloseBases > 0 : Energy(ship) += 1000
+when CloseBases = 0 : Energy(ship) += 500
+
+BuyShip
+pre: Resources > some number
+effect: ShipCount++
