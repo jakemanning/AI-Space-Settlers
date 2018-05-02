@@ -11,10 +11,10 @@ import java.util.Set;
 public class Graph<T> {
     private final Set<T> nodes;
     private final Map<T, Set<T>> edges;
-    private final Node start;
-    private final Node end;
+    private final T start;
+    private final T end;
 
-    Graph(Set<T> nodes, Map<T, Set<T>> edges, Node start, Node end) {
+    Graph(Set<T> nodes, Map<T, Set<T>> edges, T start, T end) {
         this.nodes = nodes;
         this.edges = edges;
         this.start = start;
@@ -56,7 +56,7 @@ public class Graph<T> {
      *
      * @return The start node
      */
-    public Node getStart() {
+    public T getStart() {
         return start;
     }
 
@@ -66,7 +66,7 @@ public class Graph<T> {
      *
      * @return The goal node
      */
-    public Node getEnd() {
+    public T getEnd() {
         return end;
     }
 }

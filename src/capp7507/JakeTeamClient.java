@@ -84,6 +84,7 @@ public class JakeTeamClient extends TeamClient {
                     } else {
                         AbstractObject oldGoal = currentRoute == null ? null : currentRoute.getGoal();
                         Set<AbstractObject> objectsToEvaluate = space.getAllObjects();
+                        objectsToEvaluate.removeAll(planningUtil.otherShipGoals(ship));
                         if (oldGoal != null) {
                             objectsToEvaluate.remove(oldGoal);
                         }

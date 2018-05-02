@@ -17,7 +17,7 @@ public class AStar extends Route {
 
     private AStar(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
         super(goal, ship, space);
-        Graph<Node> searchGraph = createSearchGraph();
+        Graph<RouteNode> searchGraph = createSearchGraph();
         steps = search(searchGraph);
     }
 
@@ -36,14 +36,14 @@ public class AStar extends Route {
      * @see #heuristicCostEstimate(Position, Position) for h(n)
      */
     @Override
-    List<Position> search(Graph<Node> searchGraph) {
-        PriorityQueue<Node> frontier = new PriorityQueue<>(Comparator.comparingDouble(Node::getCost));
+    List<Position> search(Graph<RouteNode> searchGraph) {
+        PriorityQueue<RouteNode> frontier = new PriorityQueue<>(Comparator.comparingDouble(RouteNode::getCost));
         frontier.add(searchGraph.getStart());
 
         while (!frontier.isEmpty()) {
-            Node node = frontier.poll();
+            RouteNode node = frontier.poll();
             if (node == null) {
-                System.out.println("Node null somehow");
+                System.out.println("RouteNode null somehow");
                 return null;
             }
             Position nodePosition = node.getPosition();
@@ -52,7 +52,7 @@ public class AStar extends Route {
             }
 
             node.setExplored(true);
-            for (Node neighbor : searchGraph.adjacentNodes(node)) {
+            for (RouteNode neighbor : searchGraph.adjacentNodes(node)) {
                 if (neighbor.isExplored()) {
                     continue;
                 }

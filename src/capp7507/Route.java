@@ -76,22 +76,22 @@ public abstract class Route {
     }
 
     /**
-     * Creates a search graph by fanning out multiple {@link Node} objects. We did this by calculating the distance
+     * Creates a search graph by fanning out multiple {@link RouteNode} objects. We did this by calculating the distance
      * from the ship to the goal, and chose {@value N_DISTANCES} as the number of points to divide this distance up by,
      * forming a line of nodes. Next we created a semi-circle by replicating this line multiple times, choosing {@value N_ANGLES} angles.
      * There are also additional nodes placed around the target.
      * We connect all of the nodes only if there's no obstacle in the way, and only if the distance between them is smaller than
-     * half of our goal distance. Finally, we fill the {@link Graph} with these {@link Node}s iff there is no obstacle nearby.
+     * half of our goal distance. Finally, we fill the {@link Graph} with these {@link RouteNode}s iff there is no obstacle nearby.
      *
      * @return the completed {@link Graph}
      */
-    Graph<Node> createSearchGraph() {
+    Graph<RouteNode> createSearchGraph() {
         Position goalPosition = goal.getPosition();
-        Node rootNode = new Node(initialShipPosition, 0, heuristicCostEstimate(initialShipPosition, goalPosition));
-        Node goalNode = new Node(goalPosition);
+        RouteNode rootNode = new RouteNode(initialShipPosition, 0, heuristicCostEstimate(initialShipPosition, goalPosition));
+        RouteNode goalNode = new RouteNode(goalPosition);
 
-        Set<Node> nodes = new HashSet<>();
-        Map<Node, Set<Node>> edges = new HashMap<>();
+        Set<RouteNode> nodes = new HashSet<>();
+        Map<RouteNode, Set<RouteNode>> edges = new HashMap<>();
 
         nodes.add(rootNode);
         nodes.add(goalNode);
@@ -137,15 +137,15 @@ public abstract class Route {
             }
 
             if (!isObstructionNear) {
-                Node node = new Node(position);
+                RouteNode node = new RouteNode(position);
                 nodes.add(node);
             }
         }
 
         // connect neighbors
-        for (Node node1 : nodes) {
-            HashSet<Node> neighbors = new HashSet<>();
-            for (Node node2 : nodes) {
+        for (RouteNode node1 : nodes) {
+            HashSet<RouteNode> neighbors = new HashSet<>();
+            for (RouteNode node2 : nodes) {
                 // only connect nodes if they are not equal and the path is clear between them
                 if (node1 != node2 && space.isPathClearOfObstructions(node1.getPosition(),
                         node2.getPosition(), obstructions, ship.getRadius() * 2)) {
@@ -165,7 +165,7 @@ public abstract class Route {
      *
      * @param searchGraph The graph of positions to search through
      */
-    abstract List<Position> search(Graph<Node> searchGraph);
+    abstract List<Position> search(Graph<RouteNode> searchGraph);
 
     /**
      * An estimate of the cost to get from the start to end position
@@ -182,10 +182,10 @@ public abstract class Route {
      * @param current The node to work backwards from
      * @return The correctly ordered a* search path from start to current node
      */
-    List<Position> reconstructPath(Node current) {
+    List<Position> reconstructPath(RouteNode current) {
         List<Position> path = new ArrayList<>();
         path.add(current.getPosition());
-        Node previous = current.getPrevious();
+        RouteNode previous = current.getPrevious();
         while (previous != null) {
             path.add(previous.getPosition());
             previous = previous.getPrevious();

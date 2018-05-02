@@ -4,20 +4,20 @@ import spacesettlers.utilities.Position;
 
 import java.util.Objects;
 
-public class Node {
-    private Node cameFrom;
+public class RouteNode {
+    private RouteNode cameFrom;
     private Position position;
     private double currentPathCost;
     private double distanceToGoal;
     private boolean explored;
 
-    Node(Position position) {
+    RouteNode(Position position) {
         this.position = position;
         this.currentPathCost = Double.MAX_VALUE;
         this.distanceToGoal = Double.MAX_VALUE;
     }
 
-    Node(Position position, double currentPathCost, double distanceToGoal) {
+    RouteNode(Position position, double currentPathCost, double distanceToGoal) {
         this.position = position;
         this.currentPathCost = currentPathCost;
         this.distanceToGoal = distanceToGoal;
@@ -62,8 +62,8 @@ public class Node {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Node)) return false;
-        Node node = (Node) o;
+        if (!(o instanceof RouteNode)) return false;
+        RouteNode node = (RouteNode) o;
         return position.equalsLocationOnly(node.position);
     }
 
@@ -72,11 +72,11 @@ public class Node {
         return Objects.hash(position.getX(), position.getY());
     }
 
-    public Node getPrevious() {
+    public RouteNode getPrevious() {
         return cameFrom;
     }
 
-    public void setPrevious(Node cameFrom) {
+    public void setPrevious(RouteNode cameFrom) {
         this.cameFrom = cameFrom;
     }
 }
