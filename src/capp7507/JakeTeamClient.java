@@ -223,10 +223,9 @@ public class JakeTeamClient extends TeamClient {
             magnitude = MovementUtil.linearNormalizeInverse(0, Math.PI, 10, TARGET_SHIP_SPEED, angle);
         } else {
             Vector2D nextTargetVector = space.findShortestDistanceVector(target, nextStep);
-            double nextGoalAngle = Math.abs(targetVector.getAngle() - nextTargetVector.getAngle());
+            double nextGoalAngle = Math.abs(targetVector.angleBetween(nextTargetVector));
             magnitude = MovementUtil.linearNormalizeInverse(0, Math.PI, 15, TARGET_SHIP_SPEED, nextGoalAngle);
         }
-
 
         double goalAngle = targetVector.getAngle();
         Vector2D goalVelocity = Vector2D.fromAngle(goalAngle, magnitude);
