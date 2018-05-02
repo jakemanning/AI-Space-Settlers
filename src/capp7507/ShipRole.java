@@ -1,8 +1,11 @@
 package capp7507;
 
 public enum ShipRole {
-    FLAG_COLLECTOR,
-    RESOURCE_COLLECTOR,
+    FLAGGER,
+    MINER,
+    ALCOVE_WAITER,
+    WAITER,
     BASE_PLACER,
-    WAITER
+    DRINKER,
+    HOMEWARD_BOUND
 }

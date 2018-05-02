@@ -19,6 +19,12 @@ class PlanningUtil {
         this.teamName = teamName;
     }
 
+    List<RoleAssignment> search(PlanningState initialState) {
+        // TODO
+        // returns a list of role assignments
+        return new ArrayList<>();
+    }
+
     ShipRole getRole(Ship ship) {
         return currentRoles.get(ship.getId());
     }
@@ -50,13 +56,13 @@ class PlanningUtil {
     private void assignFlagCollectors(Toroidal2DPhysics space, Ship collector1, Ship collector2) {
         for (Ship ship : SpaceSearchUtil.getOurShips(space, teamName)) {
             UUID shipId = ship.getId();
-            if (currentRoles.get(shipId) == ShipRole.FLAG_COLLECTOR) {
-                currentRoles.put(shipId, ShipRole.RESOURCE_COLLECTOR);
+            if (currentRoles.get(shipId) == ShipRole.FLAGGER) {
+                currentRoles.put(shipId, ShipRole.MINER);
             }
             UUID collector1Id = collector1.getId();
             UUID collector2Id = collector2.getId();
             if (collector1Id.equals(shipId) || collector2Id.equals(shipId)) {
-                currentRoles.put(collector1Id, ShipRole.FLAG_COLLECTOR);
+                currentRoles.put(collector1Id, ShipRole.FLAGGER);
             }
         }
     }

@@ -70,7 +70,7 @@ public class JakeTeamClient extends TeamClient {
                         || pathBlocked(space, ship, currentRoute.getStep(), currentRoute.getGoal())) {
                     AbstractObject target;
                     ShipRole role = planningUtil.getRole(ship);
-                    if (role == ShipRole.FLAG_COLLECTOR) {
+                    if (role == ShipRole.FLAGGER) {
                         if (ship.isCarryingFlag()) {
                             Set<AbstractObject> ourBases = space.getBases().stream()
                                     .filter(this::isOurBase)
@@ -87,7 +87,7 @@ public class JakeTeamClient extends TeamClient {
                         if (oldGoal != null) {
                             objectsToEvaluate.remove(oldGoal);
                         }
-                        planningUtil.setRole(ship, ShipRole.RESOURCE_COLLECTOR);
+                        planningUtil.setRole(ship, ShipRole.MINER);
                         target = bestValue(space, ship, objectsToEvaluate);
                     }
                     currentRoute = AStar.forObject(target, ship, space);
