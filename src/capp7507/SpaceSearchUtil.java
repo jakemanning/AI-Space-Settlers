@@ -16,6 +16,9 @@ class SpaceSearchUtil {
     private static final int MAX_OBSTRUCTION_DETECTION = 150;
     private static Position upperFlagPosition;
     private static Position lowerFlagPosition;
+    static Position baseLeftHalfPosition;
+    static Position baseRightHalfPosition;
+    static Boolean targetFlagIsOnLeftSide;
 
     /**
      * Check to see if following a straight line path between two given locations would result in a collision with a provided set of obstructions
@@ -200,6 +203,9 @@ class SpaceSearchUtil {
 
     private static void initFlagPositions(Toroidal2DPhysics space, String teamName) {
         Position flagPosition = getTargetFlag(space, teamName).getPosition();
+        baseLeftHalfPosition = new Position(space.getWidth() * 0.1, space.getHeight() * 0.5);
+        baseRightHalfPosition = new Position(space.getWidth() * 0.9, space.getHeight() * 0.5);
+        targetFlagIsOnLeftSide = space.findShortestDistance(baseLeftHalfPosition, flagPosition) < space.findShortestDistance(baseRightHalfPosition, flagPosition);
         if (flagPosition.getY() > space.getHeight() / 2) {
             upperFlagPosition = flagPosition;
             lowerFlagPosition = flagPosition.deepCopy();

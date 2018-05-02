@@ -56,7 +56,6 @@ public class JakeTeamClient extends TeamClient {
         HashMap<UUID, AbstractAction> actions = new HashMap<>();
 
         for (AbstractActionableObject actionable : actionableObjects) {
-            powerupUtil.shieldIfNeeded(space, actionable);
 
             if (actionable instanceof Ship) {
                 Ship ship = (Ship) actionable;
@@ -389,7 +388,10 @@ public class JakeTeamClient extends TeamClient {
                                                      Set<AbstractActionableObject> actionableObjects,
                                                      ResourcePile resourcesAvailable,
                                                      PurchaseCosts purchaseCosts) {
-        return powerupUtil.getTeamPurchases(space, actionableObjects, resourcesAvailable, purchaseCosts);
+        // We need to do some more before we can actually purchase some stuff
+
+//        return powerupUtil.getTeamPurchases(space, actionableObjects, resourcesAvailable, purchaseCosts);
+        return new HashMap<>();
     }
 
     /**
@@ -411,7 +413,7 @@ public class JakeTeamClient extends TeamClient {
     @Override
     public void initialize(Toroidal2DPhysics space) {
         graphicsUtil = new GraphicsUtil(DEBUG);
-        powerupUtil = new PowerupUtil(this, random);
+        powerupUtil = new PowerupUtil(this, space, random);
         planningUtil = new PlanningUtil(getTeamName());
     }
 
