@@ -27,6 +27,12 @@ public class RoleAssignment {
         return role;
     }
 
+    /**
+     * Checks if the role assignment is valid for the given state
+     *
+     * @param state The PlanningState before this role assignment
+     * @return True if role assignment is possible under the preconditions, false otherwise
+     */
     public boolean isValid(PlanningState state) {
         switch (role) {
             case FLAGGER:
@@ -43,8 +49,9 @@ public class RoleAssignment {
                 return validForDrinker(state);
             case HOMEWARD_BOUND:
                 return validForHomewardBound(state);
+            default:
+                return false;
         }
-        return false;
     }
 
     private boolean validForFlagger(PlanningState state) {
@@ -64,7 +71,7 @@ public class RoleAssignment {
                 flagger = true;
             }
         }
-        return !thirsty(state) && !homesick(state) && !flagger && !closestToAlcove(state);
+        return notThirsty(state) && notHomesick(state) && !flagger && !closestToAlcove(state);
     }
 
     private boolean validForMiner(PlanningState state) {
@@ -72,10 +79,11 @@ public class RoleAssignment {
         if (state.getRoles().get(shipId) != ShipRole.WAITER) {
             return false;
         }
-        return !thirsty(state) && !homesick(state) && !closestToAlcove(state);
+        return notThirsty(state) && notHomesick(state) && !closestToAlcove(state);
     }
 
     private boolean validForAlcoveWaiter(PlanningState state) {
+        // pre: Waiter(ship) ^ Flagger(s) for some other s in ships ^ ~Thirsty(ship) ^ ~Homesick(ship) ^ ~NextBaseBoy(ship)
         if (state.getRoles().get(shipId) != ShipRole.WAITER) {
             return false;
         }
@@ -85,7 +93,7 @@ public class RoleAssignment {
                 flagger = true;
             }
         }
-        return flagger && !thirsty(state) && !homesick(state) && !closestToAlcove(state);
+        return flagger && notThirsty(state) && notHomesick(state) && !closestToAlcove(state);
     }
 
     private boolean validForWaiter(PlanningState state) {
@@ -93,56 +101,166 @@ public class RoleAssignment {
     }
 
     private boolean validForBasePlacer(PlanningState state) {
+        // pre: Waiter(ship) ^ NextBaseBoy(ship) ^ ~Thirsty(ship) ^ ~Homesick(ship)
         return state.getRoles().get(shipId) == ShipRole.WAITER
-                && closestToAlcove(state) && !thirsty(state) && !homesick(state);
+                && closestToAlcove(state) && notThirsty(state) && notHomesick(state);
     }
 
     private boolean validForDrinker(PlanningState state) {
+        // pre: Waiter(ship)
         return state.getRoles().get(shipId) == ShipRole.WAITER;
     }
 
     private boolean validForHomewardBound(PlanningState state) {
+        // pre: Waiter(ship)
         return state.getRoles().get(shipId) == ShipRole.WAITER;
     }
 
     /**
      * Applies the effect of this role assignment to a copy of the given state and returns the resulting state
      *
-     * @param prevState
-     * @return
+     * @param prevState The PlanningState before this role assignment
+     * @return The PlanningState after this role assignment
      */
     public PlanningState nextState(PlanningState prevState) {
-        PlanningState nextState = prevState.copy();
-        // TODO
+        PlanningState nextState;
         switch (role) {
             case FLAGGER:
+                nextState = applyFlaggerAssignment(prevState);
                 break;
             case MINER:
+                nextState = applyMinerAssignment(prevState);
                 break;
             case ALCOVE_WAITER:
+                nextState = applyAlcoveWaiterAssignment(prevState);
                 break;
             case WAITER:
+                nextState = applyWaiterAssignment(prevState);
                 break;
             case BASE_PLACER:
+                nextState = applyBasePlacerAssignment(prevState);
                 break;
             case DRINKER:
+                nextState = applyDrinkerAssignment(prevState);
                 break;
             case HOMEWARD_BOUND:
+                nextState = applyHomewardBoundAssignment(prevState);
                 break;
+            default:
+                nextState = prevState;
         }
         return nextState;
     }
 
-    private boolean thirsty(PlanningState state) {
-        Toroidal2DPhysics space = state.getSpace();
-        Ship ship = (Ship) space.getObjectById(shipId);
-        return ship.getEnergy() < 1500;
+    private PlanningState applyFlaggerAssignment(PlanningState prevState) {
+        // effect: Flagger(ship) ^ Energy(ship) -= 1500 ^ FlagScore++ ^ ~Waiter(ship)
+        PlanningState.Builder builder = new PlanningState.Builder(prevState);
+
+        builder.setFlagScore(prevState.getFlagScore() + 1);
+
+        int energy = prevState.getShipEnergies().get(shipId);
+        builder.setShipEnergy(shipId, energy - 1500);
+
+        builder.setRole(shipId, ShipRole.FLAGGER);
+        return builder.build();
     }
 
-    private boolean homesick(PlanningState state) {
+    private PlanningState applyMinerAssignment(PlanningState prevState) {
+        // effect: Miner(ship) ^ ResourcesInShip(ship) += 1000 ^ Energy(ship) -= 1500 ^ ~Waiter(ship)
+        PlanningState.Builder builder = new PlanningState.Builder(prevState);
+
+        int resourcesInShip = prevState.getResourcesAboard().get(shipId);
+        builder.setResourcesAboard(shipId, resourcesInShip + 1000);
+
+        int energy = prevState.getShipEnergies().get(shipId);
+        builder.setShipEnergy(shipId, energy - 1500);
+
+        builder.setRole(shipId, ShipRole.MINER);
+        return builder.build();
+    }
+
+    private PlanningState applyAlcoveWaiterAssignment(PlanningState prevState) {
+        // effect: AlcoveWaiter(ship) ^ Energy(ship) -= 1500 ^ ~Waiter(ship)
+        PlanningState.Builder builder = new PlanningState.Builder(prevState);
+
+        int energy = prevState.getShipEnergies().get(shipId);
+        builder.setShipEnergy(shipId, energy - 1500);
+
+        builder.setRole(shipId, ShipRole.ALCOVE_WAITER);
+        return builder.build();
+    }
+
+    private PlanningState applyWaiterAssignment(PlanningState prevState) {
+        PlanningState.Builder builder = new PlanningState.Builder(prevState);
+        builder.setRole(shipId, ShipRole.WAITER);
+        return builder.build();
+    }
+
+    private PlanningState applyBasePlacerAssignment(PlanningState prevState) {
+        // effect: CloseBase++, Energy(ship) -= 1500 ^ ~Waiter(ship)
+        PlanningState.Builder builder = new PlanningState.Builder(prevState);
+
+        builder.setCloseBases(prevState.getCloseBases() + 1);
+
+        int energy = prevState.getShipEnergies().get(shipId);
+        builder.setShipEnergy(shipId, energy - 1500);
+
+        builder.setRole(shipId, ShipRole.BASE_PLACER);
+        return builder.build();
+    }
+
+    private PlanningState applyDrinkerAssignment(PlanningState prevState) {
+        // effect: Energy(ship) += 1000 ^ ~Waiter(ship)
+        PlanningState.Builder builder = new PlanningState.Builder(prevState);
+
+        int energy = prevState.getShipEnergies().get(shipId);
+        builder.setShipEnergy(shipId, energy + 1000);
+
+        builder.setRole(shipId, ShipRole.DRINKER);
+        return builder.build();
+    }
+
+    private PlanningState applyHomewardBoundAssignment(PlanningState prevState) {
+        //effect: Resources += ResourcesInShip(ship) ^ ResourcesInShip(ship) = 0 ^ ~Waiter(ship)
+        //when CloseBases > 2 : Energy(ship) += 2000
+        //when CloseBases > 1 : Energy(ship) += 1500
+        //when CloseBases > 0 : Energy(ship) += 1000
+        //when CloseBases = 0 : Energy(ship) += 500
+
+        PlanningState.Builder builder = new PlanningState.Builder(prevState);
+
+        int resourcesInShip = prevState.getResourcesAboard().get(shipId);
+        builder.setResourcesAvailable(prevState.getResourcesAvailable() + resourcesInShip);
+
+        builder.setResourcesAboard(shipId, 0);
+
+        int closeBases = prevState.getCloseBases();
+        int energy = prevState.getShipEnergies().get(shipId);
+        if (closeBases > 2) {
+            energy += 2000;
+        } else if (closeBases > 1) {
+            energy += 1500;
+        } else if (closeBases > 0) {
+            energy += 1000;
+        } else {
+            energy += 500;
+        }
+        builder.setShipEnergy(shipId, energy);
+
+        builder.setRole(shipId, ShipRole.HOMEWARD_BOUND);
+        return builder.build();
+    }
+
+    private boolean notThirsty(PlanningState state) {
         Toroidal2DPhysics space = state.getSpace();
         Ship ship = (Ship) space.getObjectById(shipId);
-        return ship.getResources().getTotal() > 5000;
+        return ship.getEnergy() > 1500;
+    }
+
+    private boolean notHomesick(PlanningState state) {
+        Toroidal2DPhysics space = state.getSpace();
+        Ship ship = (Ship) space.getObjectById(shipId);
+        return ship.getResources().getTotal() < 5000;
     }
 
     private boolean closestToAlcove(PlanningState state) {

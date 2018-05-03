@@ -99,4 +99,68 @@ public class PlanningState {
 
         return Objects.hash(flagScore, shipCount, closeBases, resourcesAvailable, shipEnergies, resourcesAboard, roles);
     }
+
+    public static class Builder {
+        private Toroidal2DPhysics space;
+        private int flagScore;
+        private int shipCount;
+        private int closeBases;
+        private int resourcesAvailable;
+        private Map<UUID, Integer> shipEnergies;
+        private Map<UUID, Integer> resourcesAboard;
+        private Map<UUID, ShipRole> roles;
+        private String teamName;
+
+        public Builder(PlanningState prevState) {
+            this.space = prevState.space;
+            this.flagScore = prevState.flagScore;
+            this.shipCount = prevState.shipCount;
+            this.closeBases = prevState.closeBases;
+            this.resourcesAvailable = prevState.resourcesAvailable;
+            this.shipEnergies = new HashMap<>(prevState.shipEnergies);
+            this.resourcesAboard = new HashMap<>(prevState.resourcesAboard);
+            this.roles = new HashMap<>(prevState.roles);
+            this.teamName = prevState.teamName;
+        }
+
+        public void setSpace(Toroidal2DPhysics space) {
+            this.space = space;
+        }
+
+        public void setFlagScore(int flagScore) {
+            this.flagScore = flagScore;
+        }
+
+        public void setShipCount(int shipCount) {
+            this.shipCount = shipCount;
+        }
+
+        public void setCloseBases(int closeBases) {
+            this.closeBases = closeBases;
+        }
+
+        public void setResourcesAvailable(int resourcesAvailable) {
+            this.resourcesAvailable = resourcesAvailable;
+        }
+
+        public void setShipEnergy(UUID shipId, int energy) {
+            shipEnergies.put(shipId, energy);
+        }
+
+        public void setResourcesAboard(UUID shipId, int resourcesAboard) {
+            this.resourcesAboard.put(shipId, resourcesAboard);
+        }
+
+        public void setRole(UUID shipId, ShipRole role) {
+            roles.put(shipId, role);
+        }
+
+        public void setTeamName(String teamName) {
+            this.teamName = teamName;
+        }
+
+        public PlanningState build() {
+            return new PlanningState(space, flagScore, shipCount, closeBases, resourcesAvailable, shipEnergies, resourcesAboard, roles);
+        }
+    }
 }
