@@ -19,7 +19,9 @@ public class PlanningState {
     private final Map<UUID, ShipRole> roles;
     private final String teamName;
 
-    public PlanningState(Toroidal2DPhysics space, int flagScore, int shipCount, int closeBases, int resourcesAvailable, Map<UUID, Integer> shipEnergies, Map<UUID, Integer> resourcesAboard, Map<UUID, ShipRole> roles) {
+    public PlanningState(Toroidal2DPhysics space, int flagScore, int shipCount, int closeBases,
+                         int resourcesAvailable, Map<UUID, Integer> shipEnergies, Map<UUID, Integer> resourcesAboard,
+                         Map<UUID, ShipRole> roles) {
         this.space = space;
         this.flagScore = flagScore;
         this.shipCount = shipCount;
@@ -77,7 +79,8 @@ public class PlanningState {
         Map<UUID, Integer> shipEnergies = new HashMap<>(this.shipEnergies);
         Map<UUID, Integer> resourcesAboard = new HashMap<>(this.resourcesAboard);
         Map<UUID, ShipRole> roles = new HashMap<>(this.roles);
-        return new PlanningState(space, flagScore, shipCount, closeBases, resourcesAvailable, shipEnergies, resourcesAboard, roles);
+        return new PlanningState(space, flagScore, shipCount, closeBases, resourcesAvailable, shipEnergies,
+                resourcesAboard, roles);
     }
 
     @Override
@@ -160,7 +163,8 @@ public class PlanningState {
         }
 
         public PlanningState build() {
-            return new PlanningState(space, flagScore, shipCount, closeBases, resourcesAvailable, shipEnergies, resourcesAboard, roles);
+            return new PlanningState(space, flagScore, shipCount, closeBases, resourcesAvailable, shipEnergies,
+                    resourcesAboard, roles);
         }
     }
 }
