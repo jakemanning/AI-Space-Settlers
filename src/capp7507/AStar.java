@@ -9,15 +9,15 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 
-public class AStar extends Route {
+class AStar extends Route {
 
-    public static AStar forObject(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
+    static AStar forObject(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
         return new AStar(goal, ship, space);
     }
 
     private AStar(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
         super(goal, ship, space);
-        Graph<RouteNode> searchGraph = createSearchGraph();
+        Graph<RouteNode> searchGraph = createSearchGraph(ship, ship.getPosition(), goal.getPosition());
         steps = search(searchGraph);
     }
 
@@ -46,8 +46,8 @@ public class AStar extends Route {
                 System.out.println("RouteNode null somehow");
                 return null;
             }
-            Position nodePosition = node.getPosition();
-            if (nodePosition.equalsLocationOnly(searchGraph.getEnd().getPosition())) {
+            Position nodePosition = node.getCenter();
+            if (nodePosition.equalsLocationOnly(searchGraph.getEnd().getCenter())) {
                 return reconstructPath(node);
             }
 
@@ -61,13 +61,13 @@ public class AStar extends Route {
                     frontier.add(neighbor);
                 }
 
-                double distanceToNeighbor = space.findShortestDistance(nodePosition, neighbor.getPosition());
+                double distanceToNeighbor = space.findShortestDistance(nodePosition, neighbor.getCenter());
                 double tentativeGScore = node.getCurrentPathCost() + distanceToNeighbor;
 
                 if (tentativeGScore >= neighbor.getCurrentPathCost()) {
                     continue;
                 }
-                double distanceToGoal = heuristicCostEstimate(neighbor.getPosition(), searchGraph.getEnd().getPosition());
+                double distanceToGoal = heuristicCostEstimate(neighbor.getCenter(), searchGraph.getEnd().getCenter());
                 neighbor.setPrevious(node);
                 neighbor.setCurrentPathCost(tentativeGScore);
                 neighbor.setDistanceToGoal(distanceToGoal);

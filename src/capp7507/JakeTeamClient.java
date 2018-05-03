@@ -67,7 +67,7 @@ public class JakeTeamClient extends TeamClient {
                 Route currentRoute = currentRoutes.get(actionable.getId());
                 if (currentRoute == null
                         || currentRoute.isDone()
-                        || pathBlocked(space, ship, currentRoute.getStep(), currentRoute.getGoal())) {
+                        || pathBlocked(space, ship, currentRoute) != -1) {
                     AbstractObject target;
                     ShipRole role = planningUtil.getRole(ship);
                     if (role == ShipRole.FLAGGER) {
@@ -90,6 +90,8 @@ public class JakeTeamClient extends TeamClient {
                         planningUtil.setRole(ship, ShipRole.MINER);
                         target = bestValue(space, ship, objectsToEvaluate);
                     }
+                    // Splice here if we want? We'll see.
+                    // There's more important things to do
                     currentRoute = AStar.forObject(target, ship, space);
                     currentRoutes.put(shipId, currentRoute);
                 }
@@ -106,6 +108,8 @@ public class JakeTeamClient extends TeamClient {
 
                 Position nextStep = currentRoute.getNextStep();
                 MoveAction action = getMoveAction(space, shipPos, currentStep, nextStep);
+
+                // Some configuration to help ships turn/move better
                 action.setKvRotational(4);
                 action.setKpRotational(4);
                 action.setKvTranslational(2);
@@ -126,14 +130,11 @@ public class JakeTeamClient extends TeamClient {
      *
      * @param space        physics
      * @param ship         The ship we are moving from
-     * @param stepPosition the target of our path
      * @return true if an obstacle is in the way
      */
-    private boolean pathBlocked(Toroidal2DPhysics space, Ship ship, Position stepPosition, AbstractObject target) {
-        Set<AbstractObject> obstructions = SpaceSearchUtil.getObstructions(space, ship);
-        obstructions.remove(target);
-        return stepPosition != null && !space.isPathClearOfObstructions(ship.getPosition(), stepPosition,
-                obstructions, ship.getRadius());
+    private int pathBlocked(Toroidal2DPhysics space, Ship ship, Route currentRoute) {
+        Set<AbstractObject> obstructions = SpaceSearchUtil.getObstructions(space, ship, currentRoute.getGoal());
+        return currentRoute.pathBlockedAtStep(space, ship, obstructions);
     }
 
     /**
@@ -173,7 +174,7 @@ public class JakeTeamClient extends TeamClient {
                 value = energyValue(ship);
             }
 
-            Set<AbstractObject> obstructions = SpaceSearchUtil.getObstructions(space, ship);
+            Set<AbstractObject> obstructions = SpaceSearchUtil.getObstructions(space, ship, null);
             if (!space.isPathClearOfObstructions(ship.getPosition(), object.getPosition(), obstructions, ship.getRadius())) {
                 value *= OBSTRUCTED_PATH_PENALTY; // We should be less likely to go towards objects with obstacles in the way
             }
