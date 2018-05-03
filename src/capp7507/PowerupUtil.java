@@ -64,7 +64,7 @@ public class PowerupUtil {
                 RandomDistribution.removeAndDistribute(RandomDistribution.Index.MORE_BASES_INDEX.value);
             }
             System.out.println("We need to buy a base");
-//            PlanningUtil.powerupLocation = nextBaseLocation;
+            PlanningUtil.powerupLocation = nextBaseLocation;
         // We're unable to have more than 6 ships. If we have less, we might buy this
         } else if (RandomDistribution.Index.MORE_SHIPS_INDEX.value != null && action == RandomDistribution.Index.MORE_SHIPS_INDEX.getValue() && purchaseCosts.canAfford(PurchaseTypes.SHIP, resourcesAvailable)) {
             if (ships.size() < client.getMaxNumberShips()) {

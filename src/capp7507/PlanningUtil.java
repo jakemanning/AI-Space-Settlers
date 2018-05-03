@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 class PlanningUtil {
     public static final int GOAL_BUFFER_SPACE = 30;
+    public static Position powerupLocation = null;
     private final String teamName;
     private Map<UUID, ShipRole> currentRoles = new HashMap<>();
     private Map<UUID, AbstractObject> currentGoals = new HashMap<>();
