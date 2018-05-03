@@ -21,6 +21,10 @@
 		 each other and the static teams. -->
 	<variableTeams>
 		<HighLevelTeamConfig>
+			<teamName>Space Jam</teamName>
+			<configFile>spacesettlersinit.xml</configFile>
+		</HighLevelTeamConfig>
+		<HighLevelTeamConfig>
 			<teamName>SecondSimpleFlag2</teamName>
 			<configFile>passive-flag3ships-clientinit.xml</configFile>
 		</HighLevelTeamConfig>

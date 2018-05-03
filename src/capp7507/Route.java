@@ -189,9 +189,6 @@ public abstract class Route {
             }
         }
 
-        nodes.stream()
-                .filter(RouteNode::containsObstruction)
-                .forEach(node -> searchGraphGraphics.add(new RectangleGraphics((int)widthDiff, (int)heightDiff, Color.BLUE, node.getTopLeftPosition())));
 
         RouteNode goalNode = nodeForPosition(goalPosition);
         return new Graph<>(nodes, edges, rootNode, goalNode);

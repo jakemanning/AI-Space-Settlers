@@ -2,6 +2,7 @@ package capp7507;
 
 import spacesettlers.actions.PurchaseCosts;
 import spacesettlers.actions.PurchaseTypes;
+import spacesettlers.clients.Team;
 import spacesettlers.objects.AbstractActionableObject;
 import spacesettlers.objects.AbstractObject;
 import spacesettlers.objects.Base;
@@ -40,30 +41,30 @@ public class PowerupUtil {
         Set<AbstractActionableObject> bases = actionableObjects.stream()
                 .filter(o -> o instanceof Base)
                 .collect(Collectors.toSet());
-
         // We always want to buy that first base, and we might want to buy that 2-4th base. No more after that since we don't want to get in the way of the enemy team
 //        if (PlanningUtil.powerupLocation == null)
         if (RandomDistribution.Index.MORE_BASES_INDEX.value != null && action == RandomDistribution.Index.MORE_BASES_INDEX.getValue() && purchaseCosts.canAfford(PurchaseTypes.BASE, resourcesAvailable)) {
-            Position nextBaseLocation;
-            if (SpaceSearchUtil.targetFlagIsOnLeftSide) {
-                nextBaseLocation = SpaceSearchUtil.baseLeftHalfPosition.deepCopy();
-            } else {
-                nextBaseLocation = SpaceSearchUtil.baseRightHalfPosition.deepCopy();
-            }
-
-            if (bases.size() == 1) {
-                RandomDistribution.redistribute(RandomDistribution.Index.MORE_BASES_INDEX.value, 3/4);
-            } else if (bases.size() == 2) {
-                nextBaseLocation.setY(space.getHeight() * 0.25);
-                RandomDistribution.redistribute(RandomDistribution.Index.MORE_BASES_INDEX.value, 2/3);
-            } else if (bases.size() == 3) {
-                nextBaseLocation.setY(space.getHeight() * 0.75);
-                RandomDistribution.redistribute(RandomDistribution.Index.MORE_BASES_INDEX.value, 2/3);
-            } else if (bases.size() == 4) {
-                nextBaseLocation.setX(space.getWidth() * 0.25);
-                RandomDistribution.removeAndDistribute(RandomDistribution.Index.MORE_BASES_INDEX.value);
-            }
-            System.out.println("We need to buy a base");
+//            Position nextBaseLocation;
+//            if (SpaceSearchUtil.targetFlagIsOnLeftSide != null && SpaceSearchUtil.) {
+//                nextBaseLocation = SpaceSearchUtil.baseLeftHalfPosition.deepCopy();
+//            } else {
+//                nextBaseLocation = SpaceSearchUtil.baseRightHalfPosition.deepCopy();
+//            }
+//
+//            if (bases.size() == 1) {
+//                RandomDistribution.redistribute(RandomDistribution.Index.MORE_BASES_INDEX.value, 3/4);
+//            } else if (bases.size() == 2) {
+//                nextBaseLocation.setY(space.getHeight() * 0.25);
+//                RandomDistribution.redistribute(RandomDistribution.Index.MORE_BASES_INDEX.value, 2/3);
+//            } else if (bases.size() == 3) {
+//                nextBaseLocation.setY(space.getHeight() * 0.75);
+//                RandomDistribution.redistribute(RandomDistribution.Index.MORE_BASES_INDEX.value, 2/3);
+//            } else if (bases.size() == 4) {
+//                nextBaseLocation.setX(space.getWidth() * 0.25);
+//                RandomDistribution.removeAndDistribute(RandomDistribution.Index.MORE_BASES_INDEX.value);
+//            }
+//            System.out.println("We need to buy a base");
+            ships.forEach(ship -> purchases.put(ship.getId(), PurchaseTypes.BASE));
 //            PlanningUtil.powerupLocation = nextBaseLocation;
         // We're unable to have more than 6 ships. If we have less, we might buy this
         } else if (RandomDistribution.Index.MORE_SHIPS_INDEX.value != null && action == RandomDistribution.Index.MORE_SHIPS_INDEX.getValue() && purchaseCosts.canAfford(PurchaseTypes.SHIP, resourcesAvailable)) {
@@ -103,6 +104,7 @@ public class PowerupUtil {
                 Set<AbstractActionableObject> enemyShips = getEnemyTargets(space, client.getTeamName());
                 for (AbstractActionableObject ignored : enemyShips) {
                     if (ship.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY)) {
+                        System.out.println("Purhcasing double max energy");
                         // equip the double max energy powerup
                         powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY);
                     }

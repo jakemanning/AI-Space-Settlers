@@ -256,7 +256,7 @@ public class JakeTeamClient extends TeamClient {
             boolean flagAcquired = (target instanceof Flag) && ship.isCarryingFlag();
 
             // Handle when our target dies
-            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough || flagAcquired) {
+            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough || flagAcquired || !ship.isAlive()) {
                 routesToRemove.add(shipId);
             }
 
@@ -389,9 +389,7 @@ public class JakeTeamClient extends TeamClient {
                                                      ResourcePile resourcesAvailable,
                                                      PurchaseCosts purchaseCosts) {
         // We need to do some more before we can actually purchase some stuff
-
-//        return powerupUtil.getTeamPurchases(space, actionableObjects, resourcesAvailable, purchaseCosts);
-        return new HashMap<>();
+        return powerupUtil.getTeamPurchases(space, actionableObjects, resourcesAvailable, purchaseCosts);
     }
 
     /**
