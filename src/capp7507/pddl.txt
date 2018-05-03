@@ -3,7 +3,7 @@ Initial state: Waiter(ship1) ^ Waiter(ship2) ^ Waiter(ship3)
 
 roles: flagger, miner, waiter, baseboy, thirstyboy, homesickboy
 
-goal: FlagScore > 50, ShipCount = 6, CloseBases = 3, Energy(s) > 3000 for all s in ships
+goal: FlagScore += 10, ShipCount += 1 up to 6, CloseBases = 3, Energy(s) > 3000 for all s in ships
 
 Thirsty(ship) means ship has less than some amount of energy (1500?)
 Homesick(ship) means ship has greater than some amount of resources (5000?)
