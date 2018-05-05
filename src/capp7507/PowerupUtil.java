@@ -3,7 +3,6 @@ package capp7507;
 import spacesettlers.actions.PurchaseCosts;
 import spacesettlers.actions.PurchaseTypes;
 import spacesettlers.objects.AbstractActionableObject;
-import spacesettlers.objects.AbstractObject;
 import spacesettlers.objects.Base;
 import spacesettlers.objects.Ship;
 import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
@@ -15,14 +14,15 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
-import static capp7507.SpaceSearchUtil.getEnemyTargets;
-
 public class PowerupUtil {
 
     private final JakeTeamClient client;
     private final Random random;
+    private final int BASE_PURCHASE_PERIOD = 5000;
+    private final int MIN_BASE_DISTANCE = 100;
+    private final int MAX_BASE_DISTANCE = 150;
 
-    PowerupUtil(JakeTeamClient client, Toroidal2DPhysics space, Random random) {
+    PowerupUtil(JakeTeamClient client, Random random) {
         this.client = client;
         this.random = random;
     }
@@ -33,7 +33,6 @@ public class PowerupUtil {
                                                          PurchaseCosts purchaseCosts) {
 
         HashMap<UUID, PurchaseTypes> purchases = new HashMap<>();
-        int action = RandomDistribution.biasTowards(random);
         Set<AbstractActionableObject> ships = actionableObjects.stream()
                 .filter(o -> o instanceof Ship)
                 .collect(Collectors.toSet());
@@ -41,72 +40,82 @@ public class PowerupUtil {
                 .filter(o -> o instanceof Base)
                 .collect(Collectors.toSet());
 
-        // We always want to buy that first base, and we might want to buy that 2-4th base. No more after that since we don't want to get in the way of the enemy team
-//        if (PlanningUtil.powerupLocation == null)
-        if (RandomDistribution.Index.MORE_BASES_INDEX.value != null && action == RandomDistribution.Index.MORE_BASES_INDEX.getValue() && purchaseCosts.canAfford(PurchaseTypes.BASE, resourcesAvailable)) {
-            Position nextBaseLocation;
-            if (SpaceSearchUtil.targetFlagIsOnLeftSide) {
-                nextBaseLocation = SpaceSearchUtil.baseLeftHalfPosition.deepCopy();
-            } else {
-                nextBaseLocation = SpaceSearchUtil.baseRightHalfPosition.deepCopy();
+        if (space.getCurrentTimestep() < BASE_PURCHASE_PERIOD) {
+            Position lower = SpaceSearchUtil.getLowerFlagPosition(space, client.getTeamName());
+            Position upper = SpaceSearchUtil.getUpperFlagPosition(space, client.getTeamName());
+
+            ships.forEach(s -> {
+                double distanceToLower = space.findShortestDistance(s.getPosition(), lower);
+                double distanceToUpper = space.findShortestDistance(s.getPosition(), upper);
+                if (MIN_BASE_DISTANCE < distanceToLower && distanceToLower < MAX_BASE_DISTANCE || MIN_BASE_DISTANCE < distanceToUpper && distanceToUpper < MAX_BASE_DISTANCE) {
+                    purchases.put(s.getId(), PurchaseTypes.BASE);
+                }
+            });
+        } else {
+            if (random.nextBoolean()) {
+                ships.forEach(s -> purchases.put(s.getId(), PurchaseTypes.BASE));
             }
 
-            if (bases.size() == 1) {
-                RandomDistribution.redistribute(RandomDistribution.Index.MORE_BASES_INDEX.value, 3/4);
-            } else if (bases.size() == 2) {
-                nextBaseLocation.setY(space.getHeight() * 0.25);
-                RandomDistribution.redistribute(RandomDistribution.Index.MORE_BASES_INDEX.value, 2/3);
-            } else if (bases.size() == 3) {
-                nextBaseLocation.setY(space.getHeight() * 0.75);
-                RandomDistribution.redistribute(RandomDistribution.Index.MORE_BASES_INDEX.value, 2/3);
-            } else if (bases.size() == 4) {
-                nextBaseLocation.setX(space.getWidth() * 0.25);
-                RandomDistribution.removeAndDistribute(RandomDistribution.Index.MORE_BASES_INDEX.value);
-            }
-            System.out.println("We need to buy a base");
-            PlanningUtil.powerupLocation = nextBaseLocation;
-        // We're unable to have more than 6 ships. If we have less, we might buy this
-        } else if (RandomDistribution.Index.MORE_SHIPS_INDEX.value != null && action == RandomDistribution.Index.MORE_SHIPS_INDEX.getValue() && purchaseCosts.canAfford(PurchaseTypes.SHIP, resourcesAvailable)) {
-            if (ships.size() < client.getMaxNumberShips()) {
+            if (random.nextBoolean() && ships.size() < client.getMaxNumberShips()) {
                 for (AbstractActionableObject actionableObject : bases) {
                     Base base = (Base) actionableObject;
                     purchases.put(base.getId(), PurchaseTypes.SHIP);
                 }
-                RandomDistribution.redistribute(RandomDistribution.Index.MORE_SHIPS_INDEX.value, 0.1);
-            } else if (ships.size() == client.getMaxNumberShips()) {
-                RandomDistribution.removeAndDistribute(RandomDistribution.Index.MORE_SHIPS_INDEX.value);
+            }
+
+            if (random.nextBoolean()) {
                 purchaseEnergy(purchases, ships);
             }
-        // If we have six ships or we didn't decide to purchase bases/ships, buy some energy
-        } else if (action == RandomDistribution.Index.ENERGY_INDEX.getValue() && purchaseCosts.canAfford(PurchaseTypes.POWERUP_DOUBLE_MAX_ENERGY, resourcesAvailable)) {
-            purchaseEnergy(purchases, ships);
-        } else if (action == RandomDistribution.Index.INVALID.getValue()) {
-            System.out.println("Invalid random distribution. This shouldn't happen.");
+
+            if (random.nextBoolean()) {
+                purchaseEnergyBases(purchases, bases);
+            }
         }
 
         return purchases;
     }
 
-    private void purchaseEnergy(HashMap<UUID, PurchaseTypes> purchases, Set<AbstractActionableObject> ships) {
-        ships.stream()
+    private void purchaseEnergy(HashMap<UUID, PurchaseTypes> purchases, Set<AbstractActionableObject> objects) {
+        objects.stream()
                 .min(Comparator.comparingInt(AbstractActionableObject::getMaxEnergy))
-                .ifPresent(ship -> purchases.put(ship.getId(), PurchaseTypes.POWERUP_DOUBLE_MAX_ENERGY));
+                .ifPresent(obj -> purchases.put(obj.getId(), PurchaseTypes.POWERUP_DOUBLE_MAX_ENERGY));
+    }
+
+    private void purchaseEnergyBases(HashMap<UUID, PurchaseTypes> purchases, Set<AbstractActionableObject> bases) {
+        PurchaseTypes type;
+        if (random.nextBoolean()) {
+            type = PurchaseTypes.POWERUP_DOUBLE_BASE_HEALING_SPEED;
+        } else {
+            type = PurchaseTypes.POWERUP_DOUBLE_MAX_ENERGY;
+        }
+
+        bases.stream()
+                .min(Comparator.comparingInt(a -> (int) a.getEnergy()))
+                .ifPresent(base -> purchases.put(base.getId(), type));
     }
 
     Map<UUID, SpaceSettlersPowerupEnum> getPowerups(Toroidal2DPhysics space,
                                                     Set<AbstractActionableObject> actionableObjects) {
         HashMap<UUID, SpaceSettlersPowerupEnum> powerupMap = new HashMap<>();
 
-        for (AbstractObject actionable : actionableObjects) {
-            if (actionable instanceof Ship) {
-                Ship ship = (Ship) actionable;
-                Set<AbstractActionableObject> enemyShips = getEnemyTargets(space, client.getTeamName());
-                for (AbstractActionableObject ignored : enemyShips) {
-                    if (ship.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY)) {
-                        // equip the double max energy powerup
-                        powerupMap.put(ship.getId(), SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY);
-                    }
+        for (AbstractActionableObject actionable : actionableObjects) {
+            if (actionable instanceof Base) {
+                Base base = (Base) actionable;
+                if (base.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_BASE_HEALING_SPEED)) {
+                    System.out.println("Base double heal speed");
+                    // equip the double max energy powerup
+                    powerupMap.put(base.getId(), SpaceSettlersPowerupEnum.DOUBLE_BASE_HEALING_SPEED);
                 }
+            }
+
+            if (actionable.isValidPowerup(SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY)) {
+                if (actionable instanceof Ship) {
+                    System.out.println("Ship max energy doubling");
+                } else {
+                    System.out.println("Base max energy doubling");
+                }
+                // equip the double max energy powerup
+                powerupMap.put(actionable.getId(), SpaceSettlersPowerupEnum.DOUBLE_MAX_ENERGY);
             }
         }
         return powerupMap;

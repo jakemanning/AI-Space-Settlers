@@ -5,41 +5,42 @@ import spacesettlers.utilities.Position;
 import java.util.Objects;
 
 public class RouteNode {
+    private final Position center;
+    private Position topLeftPosition;
     private RouteNode cameFrom;
-    private Position position;
+    private boolean containsObstruction;
     private double currentPathCost;
     private double distanceToGoal;
     private boolean explored;
 
-    RouteNode(Position position) {
-        this.position = position;
-        this.currentPathCost = Double.MAX_VALUE;
-        this.distanceToGoal = Double.MAX_VALUE;
+    RouteNode(Position topLeftPosition, Position center) {
+        this(topLeftPosition, Double.MAX_VALUE, Double.MAX_VALUE, center);
     }
 
-    RouteNode(Position position, double currentPathCost, double distanceToGoal) {
-        this.position = position;
+    private RouteNode(Position topLeftPosition, double currentPathCost, double distanceToGoal, Position center) {
+        this.topLeftPosition = topLeftPosition;
         this.currentPathCost = currentPathCost;
         this.distanceToGoal = distanceToGoal;
+        this.center = center;
     }
 
-    public Position getPosition() {
-        return position;
+    Position getTopLeftPosition() {
+        return topLeftPosition;
     }
 
-    public void setPosition(Position position) {
-        this.position = position;
+    public Position getCenter() {
+        return center;
     }
 
     public double getCost() {
         return currentPathCost + distanceToGoal;
     }
 
-    public double getCurrentPathCost() {
+    double getCurrentPathCost() {
         return currentPathCost;
     }
 
-    public void setCurrentPathCost(double currentPathCost) {
+    void setCurrentPathCost(double currentPathCost) {
         this.currentPathCost = currentPathCost;
     }
 
@@ -47,16 +48,40 @@ public class RouteNode {
         return distanceToGoal;
     }
 
-    public void setDistanceToGoal(double distanceToGoal) {
+    void setDistanceToGoal(double distanceToGoal) {
         this.distanceToGoal = distanceToGoal;
     }
 
-    public boolean isExplored() {
+    boolean isExplored() {
         return explored;
     }
 
-    public void setExplored(boolean explored) {
+    void setExplored(boolean explored) {
         this.explored = explored;
+    }
+
+    RouteNode getPrevious() {
+        return cameFrom;
+    }
+
+    void setPrevious(RouteNode cameFrom) {
+        this.cameFrom = cameFrom;
+    }
+
+    boolean containsObstruction() {
+        return containsObstruction;
+    }
+
+    void setContainsObstruction(boolean containsObstruction) {
+        this.containsObstruction = containsObstruction;
+    }
+
+    void resetState() {
+        this.cameFrom = null;
+        this.containsObstruction = false;
+        this.currentPathCost = Double.MAX_VALUE;
+        this.distanceToGoal = Double.MAX_VALUE;
+        this.explored = false;
     }
 
     @Override
@@ -64,19 +89,11 @@ public class RouteNode {
         if (this == o) return true;
         if (!(o instanceof RouteNode)) return false;
         RouteNode node = (RouteNode) o;
-        return position.equalsLocationOnly(node.position);
+        return topLeftPosition.equalsLocationOnly(node.topLeftPosition);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(position.getX(), position.getY());
-    }
-
-    public RouteNode getPrevious() {
-        return cameFrom;
-    }
-
-    public void setPrevious(RouteNode cameFrom) {
-        this.cameFrom = cameFrom;
+        return Objects.hash(topLeftPosition.getX(), topLeftPosition.getY());
     }
 }

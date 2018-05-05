@@ -14,22 +14,21 @@ import java.util.List;
  * An abstract Route, using a heuristic and routing algorithm to determine the best route from a ship to a goal.
  */
 public abstract class Route {
+    private final Ship ship;
+    private final int MIN_LOOK_BEHIND_TO_REPLAN = 2;
     private int nextStep = 0;
-    private Position initialShipPosition;
-    private static final int N_DISTANCES = 10;
-    private static final int N_ANGLES = 11;
-    private Set<CircleGraphics> searchGraphGraphics = new HashSet<>();
+    private static int LOOK_AHEAD_FROM_SHIP = 5;
+    private static int NUM_DIVISIONS_X = 100; // Divisible by 1600
+    private static int NUM_DIVISIONS_Y = 60; // Divisible by 1080
+    private Set<SpacewarGraphics> searchGraphGraphics = new HashSet<>();
     List<Position> steps;
-    private Ship ship;
-    private AbstractObject goal;
-    Toroidal2DPhysics space;
-    private static Set<Position> baseCandidates;
+    private UUID goal;
+    private static List<List<RouteNode>> baseCandidates;
+    private int LOOK_BEHIND_FROM_GOAL = 15;
 
-    Route(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
+    Route(UUID goalID, Ship ship) {
+        this.goal = goalID;
         this.ship = ship;
-        this.goal = goal;
-        this.space = space;
-        this.initialShipPosition = ship.getPosition();
     }
 
     /**
@@ -49,7 +48,7 @@ public abstract class Route {
      *
      * @return the next step of the plan, null if plan is finished (or search failed)
      */
-    public Position getNextStep() {
+    Position getNextStep() {
         if (steps == null || nextStep + 1 >= steps.size()) {
             return null;
         }
@@ -59,7 +58,7 @@ public abstract class Route {
     /**
      * Increments the step counter once we have completed a step
      */
-    public void completeStep() {
+    void completeStep() {
         if (steps == null) {
             return;
         }
@@ -67,97 +66,197 @@ public abstract class Route {
     }
 
     /**
+     *  Determine whether a path between the ship and
+     *  the next {@value LOOK_AHEAD_FROM_SHIP} nodes is blocked
+     */
+    boolean pathBlockedAtStep(Toroidal2DPhysics space, Ship ship, Set<AbstractObject> obstructions) {
+        for (int i = nextStep + 1, count = 0; i < steps.size() - 1 && count < LOOK_AHEAD_FROM_SHIP; ++i, ++count) {
+            Position currentStep = steps.get(i - 1);
+            Position nextStep = steps.get(i);
+
+            if (!space.isPathClearOfObstructions(currentStep, nextStep, obstructions, ship.getRadius())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Whether or not we have completed our plan
      *
      * @return true if our plan is finished (or search failed)
      */
-    public boolean isDone() {
+    boolean isDone() {
         return getStep() == null;
     }
 
     /**
-     * Creates a search graph by fanning out multiple {@link RouteNode} objects. We did this by calculating the distance
-     * from the ship to the goal, and chose {@value N_DISTANCES} as the number of points to divide this distance up by,
-     * forming a line of nodes. Next we created a semi-circle by replicating this line multiple times, choosing {@value N_ANGLES} angles.
-     * There are also additional nodes placed around the target.
-     * We connect all of the nodes only if there's no obstacle in the way, and only if the distance between them is smaller than
-     * half of our goal distance. Finally, we fill the {@link Graph} with these {@link RouteNode}s iff there is no obstacle nearby.
+     * Creates a search graph by creating a grid of {@link RouteNode} objects {@value NUM_DIVISIONS_X} wide,
+     * and {@value NUM_DIVISIONS_Y} high. Each {@link RouteNode} will not be included if it has an obstruction in its grid.
+     * Finally for each node, we look at the 8 surrounding nodes and connect if no obstacles in those grids.
+     * We construct a graph based off of these nodes/connections
      *
      * @return the completed {@link Graph}
      */
-    Graph<RouteNode> createSearchGraph() {
-        Position goalPosition = goal.getPosition();
-        RouteNode rootNode = new RouteNode(initialShipPosition, 0, heuristicCostEstimate(initialShipPosition, goalPosition));
-        RouteNode goalNode = new RouteNode(goalPosition);
-
+    Graph<RouteNode> createSearchGraph(Toroidal2DPhysics space, Ship ship, Position initialShipPosition, Position goalPosition) {
         Set<RouteNode> nodes = new HashSet<>();
         Map<RouteNode, Set<RouteNode>> edges = new HashMap<>();
 
-        nodes.add(rootNode);
-        nodes.add(goalNode);
+        Set<AbstractObject> obstructions = SpaceSearchUtil.getObstructions(space, ship, getGoal(space));
 
-        Set<AbstractObject> obstructions = SpaceSearchUtil.getObstructions(space, ship);
-        obstructions.remove(goal);
+        double widthDiff = space.getWidth() / NUM_DIVISIONS_X;
+        double heightDiff = space.getHeight() / NUM_DIVISIONS_Y;
 
+        // Initialize RouteNode positions
         if (baseCandidates == null) {
-            baseCandidates = new HashSet<>(100);
-            int widthDiff = space.getWidth() / 10;
-            int heightDiff = space.getHeight() / 10;
-            for (int x = 0; x < space.getWidth(); x += widthDiff) {
-                for (int y = 0; y < space.getHeight(); y += heightDiff) {
-                    Position position = new Position(x, y);
-                    baseCandidates.add(position);
+            baseCandidates = new ArrayList<>(NUM_DIVISIONS_X);
+
+            for (double x = 0; x < space.getWidth(); x += widthDiff) {
+                List<RouteNode> routeNodes = new ArrayList<>(NUM_DIVISIONS_Y);
+                baseCandidates.add(routeNodes);
+                for (double y = 0; y < space.getHeight(); y += heightDiff) {
+                    Position topLeft = new Position(x, y);
+                    Position center = new Position(topLeft.getX() + widthDiff / 2, topLeft.getY() + heightDiff / 2);
+                    space.toroidalWrap(center);
+                    RouteNode node = new RouteNode(topLeft, center);
+                    routeNodes.add(node);
                 }
             }
         }
 
-        Set<Position> candidates = new HashSet<>(baseCandidates);
-
-        // add a few more nodes around the goal
-//        int nNodesAroundGoal = N_ANGLES * 2;
-//        for (int i = 0; i < nNodesAroundGoal; i++) {
-//            double angleDiff = 2 * i * Math.PI / nNodesAroundGoal;
-//            double magnitude = space.findShortestDistance(initialShipPosition, goalPosition) / N_DISTANCES;
-//            Vector2D diff = Vector2D.fromAngle(angleDiff, magnitude);
-//            Vector2D goalVector = new Vector2D(goalPosition);
-//            Vector2D goalPlusDiffVector = goalVector.add(diff);
-//            Position goalPlusDiff = new Position(goalPlusDiffVector);
-//            candidates.add(goalPlusDiff);
-//        }
-
-        // determine whether there is an obstacle nearby for all positions
-        for (Position position : candidates) {
-            boolean isObstructionNear = false;
-            for (AbstractObject obstruction : obstructions) {
-                double obstructionDistance = space.findShortestDistance(position, obstruction.getPosition());
-                if (obstructionDistance <= ship.getRadius() * 2) {
-                    isObstructionNear = true;
-                    break;
-                }
-            }
-
-            if (!isObstructionNear) {
-                RouteNode node = new RouteNode(position);
-                nodes.add(node);
+        // Reset all nodes to their default configuration
+        for (List<RouteNode> baseCandidate : baseCandidates) {
+            for (RouteNode node : baseCandidate) {
+                node.resetState();
             }
         }
 
-        // connect neighbors
-        for (RouteNode node1 : nodes) {
-            HashSet<RouteNode> neighbors = new HashSet<>();
-            for (RouteNode node2 : nodes) {
-                // only connect nodes if they are not equal and the path is clear between them
-                if (node1 != node2 && space.isPathClearOfObstructions(node1.getPosition(),
-                        node2.getPosition(), obstructions, ship.getRadius() * 2)) {
-                    neighbors.add(node2);
-                }
+        // Setup initial node
+        RouteNode rootNode = nodeForPosition(space, initialShipPosition);
+        rootNode.setCurrentPathCost(0);
+        rootNode.setDistanceToGoal(heuristicCostEstimate(space, initialShipPosition, goalPosition));
+
+        // Mark nodes as invalid if contains an obstruction
+        for (AbstractObject obstruction : obstructions) {
+            if (obstruction.getPosition().equalsLocationOnly(goalPosition)) {
+                continue;
             }
-            edges.put(node1, neighbors);
+            Position obstructionPos = obstruction.getPosition();
+            double buffer = obstruction.getRadius();
+            if (!obstruction.isMoveable()) {
+                buffer += ship.getRadius() * 1.3;
+            }
+            markArea(space, widthDiff, heightDiff, obstructionPos, buffer, true);
         }
 
-        nodes.forEach(node -> searchGraphGraphics.add(new CircleGraphics(2, Color.GRAY, node.getPosition())));
+        markArea(space, widthDiff, heightDiff, ship.getPosition(), ship.getRadius() * 1.3, false);
+        markArea(space, widthDiff, heightDiff, getGoal(space).getPosition(), getGoal(space).getRadius(), false);
 
+        // Look at the 8 adjacent locations to find a connection
+        for (int x = 0; x < baseCandidates.size(); ++x) { // Skip every other row
+            for (int y = 0; y < baseCandidates.get(x).size(); ++y) { // Skip every other column
+                RouteNode me = baseCandidates.get(x).get(y);
+                HashSet<RouteNode> neighbors = new HashSet<>(8);
+                edges.put(me, neighbors);
+                nodes.add(me);
+                if (me.containsObstruction()) {
+                    continue;
+                }
+
+                RouteNode arr[] = {
+                        baseCandidates.get(intRingMod(x - 1, NUM_DIVISIONS_X)).get(intRingMod(y - 1, NUM_DIVISIONS_Y)), // northwest
+                        baseCandidates.get(x).get(intRingMod(y - 1, NUM_DIVISIONS_Y)),                                     // north
+                        baseCandidates.get(intRingMod(x + 1, NUM_DIVISIONS_X)).get(intRingMod(y - 1, NUM_DIVISIONS_Y)), // northeast
+                        baseCandidates.get(intRingMod(x + 1, NUM_DIVISIONS_X)).get(y),                                     // east
+                        baseCandidates.get(intRingMod(x + 1, NUM_DIVISIONS_X)).get(intRingMod(y + 1, NUM_DIVISIONS_Y)), // southeast
+                        baseCandidates.get(x).get(intRingMod(y + 1, NUM_DIVISIONS_Y)),                                     // south
+                        baseCandidates.get(intRingMod(x - 1, NUM_DIVISIONS_X)).get(intRingMod(y + 1, NUM_DIVISIONS_Y)), // southwest
+                        baseCandidates.get(intRingMod(x - 1, NUM_DIVISIONS_X)).get(y)                                      // west
+                };
+
+                for (RouteNode neighbor : arr) {
+                    if (neighbor.containsObstruction()) {
+                        continue;
+                    }
+                    neighbors.add(neighbor);
+                }
+            }
+        }
+
+        RouteNode goalNode = nodeForPosition(space, goalPosition);
         return new Graph<>(nodes, edges, rootNode, goalNode);
+    }
+
+    /**
+     * Shows which areas are blocked off
+     * WARNING: Slows project considerably
+     */
+    private void displayBlockedAreas(Set<RouteNode> nodes, int widthDiff, int heightDiff) {
+        nodes.stream()
+                .filter(RouteNode::containsObstruction)
+                .forEach(node -> searchGraphGraphics.add(
+                        new RectangleGraphics(widthDiff, heightDiff, Color.BLUE, node.getTopLeftPosition())));
+    }
+
+    private void markArea(Toroidal2DPhysics space, double widthDiff, double heightDiff, Position obstructionPos, double buffer, boolean containsObstruction) {
+        Position topLeft = new Position(obstructionPos.getX() - buffer, obstructionPos.getY() - buffer);
+        Position bottomRight = new Position(obstructionPos.getX() + buffer, obstructionPos.getY() + buffer);
+
+        for (double x = topLeft.getX(); x < bottomRight.getX(); x += widthDiff) {
+            for (double y = topLeft.getY(); y < bottomRight.getY(); y += heightDiff) {
+                Position contained = new Position(x, y);
+                nodeForPosition(space, contained).setContainsObstruction(containsObstruction);
+            }
+        }
+    }
+
+    /**
+     * Return a {@link RouteNode} object for a given position
+     */
+    private RouteNode nodeForPosition(Toroidal2DPhysics space, Position position) {
+        return baseCandidates.get(gridXPosition(space, position.getX())).get(gridYPosition(space, position.getY()));
+    }
+
+    /**
+     * Return which grid an x-position contains
+     */
+    private int gridXPosition(Toroidal2DPhysics space, double input) {
+        return (int)MovementUtil.linearNormalize(0, space.getWidth(), 0, NUM_DIVISIONS_X, doubleRingMod(input, space.getWidth()));
+    }
+
+    /**
+     * Return which grid an y-position contains
+     */
+    private int gridYPosition(Toroidal2DPhysics space, double input) {
+        return (int)MovementUtil.linearNormalize(0, space.getHeight(), 0, NUM_DIVISIONS_Y, doubleRingMod(input, space.getHeight()));
+    }
+
+    /**
+     * Allows us to do modulus with negative numbers
+     * @param num number to mod
+     * @param mod what number to divide by
+     * @return a positive modded number
+     */
+    private int intRingMod(int num, int mod) {
+        num %= mod;
+        while (num < 0) {
+            num += mod;
+        }
+        return num;
+    }
+
+    /**
+     * Allows us to do modulus with negative (double) numbers
+     * @param num number to mod
+     * @param mod what number to divide by
+     * @return a positive modded number
+     */
+    private double doubleRingMod(double num, double mod) {
+        num %= mod;
+        while (num < 0) {
+            num += mod;
+        }
+        return num;
     }
 
     /**
@@ -165,7 +264,7 @@ public abstract class Route {
      *
      * @param searchGraph The graph of positions to search through
      */
-    abstract List<Position> search(Graph<RouteNode> searchGraph);
+    abstract List<Position> search(Toroidal2DPhysics space, Graph<RouteNode> searchGraph);
 
     /**
      * An estimate of the cost to get from the start to end position
@@ -174,7 +273,7 @@ public abstract class Route {
      * @param end   The ending position
      * @return an estimate of the cost to get from start to end position, based on the {@link Route}'s implementation
      */
-    abstract double heuristicCostEstimate(Position start, Position end);
+    abstract double heuristicCostEstimate(Toroidal2DPhysics space, Position start, Position end);
 
     /**
      * Work backwards, adding the nodes to the path
@@ -184,10 +283,10 @@ public abstract class Route {
      */
     List<Position> reconstructPath(RouteNode current) {
         List<Position> path = new ArrayList<>();
-        path.add(current.getPosition());
+        path.add(current.getCenter());
         RouteNode previous = current.getPrevious();
         while (previous != null) {
-            path.add(previous.getPosition());
+            path.add(previous.getCenter());
             previous = previous.getPrevious();
         }
         Collections.reverse(path);
@@ -199,23 +298,22 @@ public abstract class Route {
      *
      * @return the set of graphics our plan created
      */
-    public Set<SpacewarGraphics> getGraphics() {
+    public Set<SpacewarGraphics> getGraphics(Toroidal2DPhysics space) {
         Set<SpacewarGraphics> results = new HashSet<>();
         if (isDone()) {
             return results;
         }
 
-        Position previous = steps.get(0);
-        Position goal = this.goal.getPosition();
-        results.add(new StarGraphics(4, Color.PINK, previous));
-        for (int i = 1; i < steps.size(); ++i) {
+        Position previous = steps.get(nextStep);
+        Position goal = getGoal(space).getPosition();
+        for (int i = nextStep + 1; i < steps.size(); ++i) {
             Position step = steps.get(i);
             if (step.equalsLocationOnly(goal)) {
                 results.add(new TargetGraphics(8, step));
             } else if (step.equalsLocationOnly(getStep())) {
                 results.add(new StarGraphics(4, Color.MAGENTA, step));
             } else {
-                results.add(new StarGraphics(4, Color.PINK, step));
+                results.add(new StarGraphics(4, Color.WHITE, step));
             }
 
             LineGraphics line = new LineGraphics(previous, step, space.findShortestDistanceVector(previous, step));
@@ -232,7 +330,44 @@ public abstract class Route {
      *
      * @return our target that we are trying to reach
      */
-    public AbstractObject getGoal() {
-        return goal;
+    AbstractObject getGoal(Toroidal2DPhysics space) {
+        return space.getObjectById(goal);
+    }
+
+    void updateIfObjectMoved(Toroidal2DPhysics space) {
+        if (space.getCurrentTimestep() % 10 != 0  || steps == null || (steps.size() - 1 - nextStep) <= MIN_LOOK_BEHIND_TO_REPLAN) {
+            return;
+        }
+        int lastPossibleNode = steps.size() - 1;
+
+        Position lastStep = steps.get(lastPossibleNode);
+        Position goalPosition = getGoal(space).getPosition();
+        if (lastStep.equalsLocationOnly(goalPosition) || lastStep.equalsLocationOnly(nodeForPosition(space, goalPosition).getCenter())) {
+            return;
+        }
+
+        int lookBehind = Math.min(LOOK_BEHIND_FROM_GOAL, lastPossibleNode - nextStep);
+        Position starting = steps.get(lastPossibleNode - lookBehind);
+
+        double distanceFromLookback = heuristicCostEstimate(space, starting, goalPosition);
+        double distanceFromShip = heuristicCostEstimate(space, ship.getPosition(), goalPosition);
+        // Recreate/search graph if looking back doesn't help
+        if (distanceFromLookback >= distanceFromShip) {
+            starting = ship.getPosition();
+        }
+
+        Graph<RouteNode> graph = createSearchGraph(space, ship, starting, goalPosition);
+        List<Position> result = search(space, graph);
+
+        if (result != null) {
+            if (distanceFromLookback < distanceFromShip) {
+                List<Position> newList = steps.subList(0, lastPossibleNode - lookBehind);
+                newList.addAll(result);
+                steps = newList;
+            } else {
+                steps = result;
+            }
+            steps.set(lastPossibleNode, getGoal(space).getPosition());
+        }
     }
 }

@@ -86,7 +86,7 @@ class SpaceSearchUtil {
      * @param ship  Ship to use as a basis for determining enemy ships and bases
      * @return The set of obstructions
      */
-    static Set<AbstractObject> getObstructions(Toroidal2DPhysics space, Ship ship) {
+    static Set<AbstractObject> getObstructions(Toroidal2DPhysics space, Ship ship, AbstractObject target) {
         Set<AbstractActionableObject> enemies = getEnemyTargets(space, ship.getTeamName());
         Set<Asteroid> asteroids = getUnmineableAsteroids(space);
         Set<Ship> friendlyShips = getFriendlyShips(space, ship);
@@ -96,6 +96,9 @@ class SpaceSearchUtil {
         obstacles.addAll(asteroids);
         obstacles.addAll(friendlyShips);
         obstacles.addAll(bases);
+        if (target != null) {
+            obstacles.remove(target);
+        }
         return obstacles;
     }
 
