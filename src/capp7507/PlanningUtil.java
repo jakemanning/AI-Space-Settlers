@@ -60,7 +60,7 @@ class PlanningUtil {
                     List<RoleAssignment> resultPath = new ArrayList<>(path);
                     resultPath.add(assignment);
                     paths.put(resultState, resultPath);
-                    if (resultState.getFlagScore() >= initialState.getFlagScore() + 2) {
+                    if (resultState.getFlagScore() >= initialState.getFlagScore() + 1) {
                         return paths.get(resultState);
                     }
                 }

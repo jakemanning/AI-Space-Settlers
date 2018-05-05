@@ -82,8 +82,10 @@ public class JakeTeamClient extends TeamClient {
                             Set<AbstractObject> ourBases = space.getBases().stream()
                                     .filter(this::isOurBase)
                                     .collect(Collectors.toSet());
-                            if (ourBases.size() > 1) {
-                                ourBases.removeAll(otherTargetObjects(space, ship));
+                            Set<AbstractObject> unpopular = new HashSet<>(ourBases);
+                            unpopular.removeAll(otherTargetObjects(space, ship));
+                            if (unpopular.size() != 0) {
+                                ourBases = unpopular;
                             }
                             target = MovementUtil.closest(space, shipPos, ourBases);
                         } else {
@@ -93,15 +95,20 @@ public class JakeTeamClient extends TeamClient {
                         AbstractObject upperFlag = SpaceSearchUtil.getUpperFlagPosition(space, getTeamName());
                         AbstractObject lowerFlag = SpaceSearchUtil.getLowerFlagPosition(space, getTeamName());
                         List<AbstractObject> flags = Arrays.asList(upperFlag, lowerFlag);
-                        flags.removeAll(otherTargetObjects(space, ship));
-                        target = MovementUtil.closest(space, shipPos, flags);
-                        if (space.findShortestDistance(target.getPosition(), shipPos) < 20) {
-                            if (shipPos.getTotalTranslationalVelocity() > 2) {
-                                actions.put(shipId, new MoveAction(space, shipPos, shipPos, Vector2D.ZERO_VECTOR));
-                            } else {
-                                actions.put(shipId, new DoNothingAction());
+                        Flag actualFlag = SpaceSearchUtil.getTargetFlag(space, getTeamName());
+                        AbstractObject alcoveCloserToShip = MovementUtil.closest(space, shipPos, flags);
+                        if (actualFlag.isBeingCarried()) {
+                            target = alcoveCloserToShip;
+                            if (space.findShortestDistance(alcoveCloserToShip.getPosition(), shipPos) < 20) {
+                                if (shipPos.getTotalTranslationalVelocity() > 2) {
+                                    actions.put(shipId, new MoveAction(space, shipPos, shipPos, Vector2D.ZERO_VECTOR));
+                                } else {
+                                    actions.put(shipId, new DoNothingAction());
+                                }
+                                continue;
                             }
-                            continue;
+                        } else {
+                            target = actualFlag;
                         }
                     } else if (role == ShipRole.BASE_PLACER) {
                         target = new MadeUpObject(PlanningUtil.powerupLocation);
@@ -138,7 +145,12 @@ public class JakeTeamClient extends TeamClient {
                 }
 
                 Position nextStep = currentRoute.getNextStep();
-                MoveAction action = getMoveAction(space, shipPos, currentStep, nextStep);
+                MoveAction action;
+                if (currentRoute.getGoal(space) instanceof MadeUpObject && nextStep == null) {
+                    action = new MoveAction(space, shipPos, currentStep, Vector2D.ZERO_VECTOR);
+                } else {
+                    action = getMoveAction(space, shipPos, currentStep, nextStep);
+                }
 
                 // Some configuration to help ships turn/move better
                 if (ship.getEnergy() >= LOW_ENERGY_THRESHOLD) {
@@ -205,8 +217,8 @@ public class JakeTeamClient extends TeamClient {
     /**
      * Determine if there is an obstacle in the way of the ship
      *
-     * @param space        physics
-     * @param ship         The ship we are moving from
+     * @param space physics
+     * @param ship  The ship we are moving from
      * @return true if an obstacle is in the way
      */
     private boolean pathBlocked(Toroidal2DPhysics space, Ship ship, Route currentRoute) {
@@ -326,7 +338,12 @@ public class JakeTeamClient extends TeamClient {
             }
             Position shipPosition = ship.getPosition();
             AbstractObject goal = route.getGoal(space);
-            AbstractObject target = space.getObjectById(goal.getId());
+            AbstractObject target;
+            if (goal == null) {
+                target = null;
+            } else {
+                target = space.getObjectById(goal.getId());
+            }
             if (goal instanceof MadeUpObject) {
                 target = goal;
             }
@@ -352,6 +369,9 @@ public class JakeTeamClient extends TeamClient {
             Position step = route.getStep();
             if (step != null && space.findShortestDistance(shipPosition, step) < ship.getRadius()) {
                 route.completeStep();
+            }
+            if (distance < ship.getRadius()) {
+                routesToRemove.add(shipId);
             }
         }
 

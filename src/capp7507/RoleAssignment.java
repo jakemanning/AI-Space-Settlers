@@ -1,6 +1,9 @@
 package capp7507;
 
-import spacesettlers.objects.*;
+import spacesettlers.objects.AbstractObject;
+import spacesettlers.objects.Asteroid;
+import spacesettlers.objects.Base;
+import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
 
@@ -93,12 +96,6 @@ public class RoleAssignment {
     private boolean validForFlagger(PlanningState state, Map<UUID, ShipRole> otherAssignmentsThisTurn) {
         // pre: AlcoveWaiter(ship) ^ Closest(ship, flag) ^ ~Thirsty(ship) ^ ~Homesick(ship) ^ ~Flagger(s) for all s in ships ^ ~NextBaseBoy(ship)
         if (state.getRole(shipId) != ShipRole.ALCOVE_WAITER) {
-            return false;
-        }
-        Toroidal2DPhysics space = state.getSpace();
-        Flag flag = SpaceSearchUtil.getTargetFlag(space, state.getTeamName());
-        UUID closest = closestToFlag(state, flag.getPosition());
-        if (!shipId.equals(closest)) {
             return false;
         }
 
