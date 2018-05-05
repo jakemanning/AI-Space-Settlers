@@ -31,7 +31,7 @@ public class JakeTeamClient extends TeamClient {
     private static final int SHIP_MAX_RESOURCES = 5000;
     private static final int MAX_ASTEROID_MASS = 2318;
     private static final int MIN_ASTEROID_MASS = 2000;
-    static final double TARGET_SHIP_SPEED = 60;
+    static final double TARGET_SHIP_SPEED = 45;
     private static final int SHIP_ENERGY_VALUE_WEIGHT = 8;
     private static final int SHIP_CARGO_VALUE_WEIGHT = 6;
     private static final double MAX_ANGLE = Math.PI / 2;
@@ -42,6 +42,7 @@ public class JakeTeamClient extends TeamClient {
     private GraphicsUtil graphicsUtil;
     private PowerupUtil powerupUtil;
     private PlanningUtil planningUtil;
+    private int LOW_ENERGY_THRESHOLD = 1500;
 
     /**
      * Called before movement begins. Fill a HashMap with actions depending on the bestValue
@@ -67,7 +68,7 @@ public class JakeTeamClient extends TeamClient {
                 Route currentRoute = currentRoutes.get(actionable.getId());
                 if (currentRoute == null
                         || currentRoute.isDone()
-                        || pathBlocked(space, ship, currentRoute) != -1) {
+                        || pathBlocked(space, ship, currentRoute)) {
                     AbstractObject target;
                     ShipRole role = planningUtil.getRole(ship);
                     if (role == ShipRole.FLAGGER) {
@@ -81,7 +82,7 @@ public class JakeTeamClient extends TeamClient {
                             target = planningUtil.flagTarget(space, ship);
                         }
                     } else {
-                        AbstractObject oldGoal = currentRoute == null ? null : currentRoute.getGoal();
+                        AbstractObject oldGoal = currentRoute == null ? null : currentRoute.getGoal(space);
                         Set<AbstractObject> objectsToEvaluate = space.getAllObjects();
                         objectsToEvaluate.removeAll(planningUtil.otherShipGoals(ship));
                         if (oldGoal != null) {
@@ -90,19 +91,20 @@ public class JakeTeamClient extends TeamClient {
                         planningUtil.setRole(ship, ShipRole.MINER);
                         target = bestValue(space, ship, objectsToEvaluate);
                     }
-                    // Splice here if we want? We'll see.
-                    // There's more important things to do
+
                     currentRoute = AStar.forObject(target, ship, space);
                     currentRoutes.put(shipId, currentRoute);
                 }
+                currentRoute.updateIfObjectMoved(space);
                 Position currentStep = currentRoute.getStep();
                 graphicsUtil.addTargetPreset(shipId, GraphicsUtil.Preset.TARGET, currentStep);
-                currentRoute.getGraphics().forEach(graphicsUtil::addGraphic);
+                currentRoute.getGraphics(space).forEach(graphicsUtil::addGraphic);
 
                 if (currentStep == null) {
-                    System.out.println(space.getCurrentTimestep()
-                            + ": The search failed - guess we better give up for this time step");
-                    actions.put(ship.getId(), new DoNothingAction());
+                    // TODO: How do we solve this?
+                    // Stupid case where a ship starts out on top of another ship
+                    AbstractAction currentAction = new DoNothingAction();
+                    actions.put(shipId, currentAction);
                     continue;
                 }
 
@@ -110,10 +112,12 @@ public class JakeTeamClient extends TeamClient {
                 MoveAction action = getMoveAction(space, shipPos, currentStep, nextStep);
 
                 // Some configuration to help ships turn/move better
-                action.setKvRotational(4);
-                action.setKpRotational(4);
-                action.setKvTranslational(2);
-                action.setKpTranslational(1);
+                if (ship.getEnergy() >= LOW_ENERGY_THRESHOLD) {
+                    action.setKvRotational(4);
+                    action.setKpRotational(4);
+                    action.setKvTranslational(2);
+                    action.setKpTranslational(1);
+                }
                 actions.put(ship.getId(), action);
                 graphicsUtil.removeObstacle(shipId);
             } else if (actionable instanceof Base) {
@@ -132,8 +136,8 @@ public class JakeTeamClient extends TeamClient {
      * @param ship         The ship we are moving from
      * @return true if an obstacle is in the way
      */
-    private int pathBlocked(Toroidal2DPhysics space, Ship ship, Route currentRoute) {
-        Set<AbstractObject> obstructions = SpaceSearchUtil.getObstructions(space, ship, currentRoute.getGoal());
+    private boolean pathBlocked(Toroidal2DPhysics space, Ship ship, Route currentRoute) {
+        Set<AbstractObject> obstructions = SpaceSearchUtil.getObstructions(space, ship, currentRoute.getGoal(space));
         return currentRoute.pathBlockedAtStep(space, ship, obstructions);
     }
 
@@ -172,11 +176,6 @@ public class JakeTeamClient extends TeamClient {
                 }
             } else if (object instanceof Beacon) {
                 value = energyValue(ship);
-            }
-
-            Set<AbstractObject> obstructions = SpaceSearchUtil.getObstructions(space, ship, null);
-            if (!space.isPathClearOfObstructions(ship.getPosition(), object.getPosition(), obstructions, ship.getRadius())) {
-                value *= OBSTRUCTED_PATH_PENALTY; // We should be less likely to go towards objects with obstacles in the way
             }
 
             Position adjustedObjectPosition = MovementUtil.interceptPosition(space, object.getPosition(), ship.getPosition());
@@ -224,7 +223,7 @@ public class JakeTeamClient extends TeamClient {
             magnitude = MovementUtil.linearNormalizeInverse(0, Math.PI, 10, TARGET_SHIP_SPEED, angle);
         } else {
             Vector2D nextTargetVector = space.findShortestDistanceVector(target, nextStep);
-            double nextGoalAngle = Math.abs(targetVector.angleBetween(nextTargetVector));
+            double nextGoalAngle = Math.abs(currentPosition.getTranslationalVelocity().angleBetween(nextTargetVector));
             magnitude = MovementUtil.linearNormalizeInverse(0, Math.PI, 15, TARGET_SHIP_SPEED, nextGoalAngle);
         }
 
@@ -247,7 +246,7 @@ public class JakeTeamClient extends TeamClient {
         for (Map.Entry<UUID, Route> entry : currentRoutes.entrySet()) {
             UUID shipId = entry.getKey();
             Route route = entry.getValue();
-            AbstractObject target = space.getObjectById(route.getGoal().getId());
+            AbstractObject target = space.getObjectById(route.getGoal(space).getId());
             Ship ship = (Ship) space.getObjectById(shipId);
             Position shipPosition = ship.getPosition();
             double distance = space.findShortestDistance(shipPosition, target.getPosition());
@@ -411,7 +410,7 @@ public class JakeTeamClient extends TeamClient {
     @Override
     public void initialize(Toroidal2DPhysics space) {
         graphicsUtil = new GraphicsUtil(DEBUG);
-        powerupUtil = new PowerupUtil(this, space, random);
+        powerupUtil = new PowerupUtil(this, random);
         planningUtil = new PlanningUtil(getTeamName());
     }
 

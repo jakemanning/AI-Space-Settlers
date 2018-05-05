@@ -16,9 +16,12 @@ class AStar extends Route {
     }
 
     private AStar(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
-        super(goal, ship, space);
-        Graph<RouteNode> searchGraph = createSearchGraph(ship, ship.getPosition(), goal.getPosition());
-        steps = search(searchGraph);
+        super(goal.getId(), ship);
+        Graph<RouteNode> searchGraph = createSearchGraph(space, ship, ship.getPosition(), goal.getPosition());
+        steps = search(space, searchGraph);
+        if (steps != null) {
+            steps.set(steps.size() - 1, getGoal(space).getPosition());
+        }
     }
 
     /**
@@ -33,10 +36,9 @@ class AStar extends Route {
      *
      * @param searchGraph The graph of positions to search through
      * @return A list of positions to travel through to reach the target
-     * @see #heuristicCostEstimate(Position, Position) for h(n)
      */
     @Override
-    List<Position> search(Graph<RouteNode> searchGraph) {
+    List<Position> search(Toroidal2DPhysics space, Graph<RouteNode> searchGraph) {
         PriorityQueue<RouteNode> frontier = new PriorityQueue<>(Comparator.comparingDouble(RouteNode::getCost));
         frontier.add(searchGraph.getStart());
 
@@ -67,7 +69,7 @@ class AStar extends Route {
                 if (tentativeGScore >= neighbor.getCurrentPathCost()) {
                     continue;
                 }
-                double distanceToGoal = heuristicCostEstimate(neighbor.getCenter(), searchGraph.getEnd().getCenter());
+                double distanceToGoal = heuristicCostEstimate(space, neighbor.getCenter(), searchGraph.getEnd().getCenter());
                 neighbor.setPrevious(node);
                 neighbor.setCurrentPathCost(tentativeGScore);
                 neighbor.setDistanceToGoal(distanceToGoal);
@@ -77,7 +79,7 @@ class AStar extends Route {
     }
 
     @Override
-    double heuristicCostEstimate(Position start, Position end) {
+    double heuristicCostEstimate(Toroidal2DPhysics space, Position start, Position end) {
         return space.findShortestDistance(start, end);
     }
 }
