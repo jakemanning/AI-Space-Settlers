@@ -1,14 +1,14 @@
 package capp7507;
 
-import spacesettlers.objects.AbstractObject;
-import spacesettlers.objects.Flag;
-import spacesettlers.objects.Ship;
+import spacesettlers.objects.*;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class RoleAssignment {
     private UUID shipId;
@@ -33,18 +33,18 @@ public class RoleAssignment {
      * @param state The PlanningState before this role assignment
      * @return True if role assignment is possible under the preconditions, false otherwise
      */
-    public boolean isValid(PlanningState state) {
+    public boolean isValid(PlanningState state, Map<UUID, ShipRole> otherAssignmentsThisTurn) {
         switch (role) {
             case FLAGGER:
-                return validForFlagger(state);
+                return validForFlagger(state, otherAssignmentsThisTurn);
             case MINER:
                 return validForMiner(state);
             case ALCOVE_WAITER:
-                return validForAlcoveWaiter(state);
+                return validForAlcoveWaiter(state, otherAssignmentsThisTurn);
             case WAITER:
                 return validForWaiter(state);
             case BASE_PLACER:
-                return validForBasePlacer(state);
+                return validForBasePlacer(state, otherAssignmentsThisTurn);
             case DRINKER:
                 return validForDrinker(state);
             case HOMEWARD_BOUND:
@@ -52,68 +52,6 @@ public class RoleAssignment {
             default:
                 return false;
         }
-    }
-
-    private boolean validForFlagger(PlanningState state) {
-        // pre: AlcoveWaiter(ship) ^ Closest(ship, flag) ^ ~Thirsty(ship) ^ ~Homesick(ship) ^ ~Flagger(s) for all s in ships ^ ~NextBaseBoy(ship)
-        if (state.getRoles().get(shipId) != ShipRole.ALCOVE_WAITER) {
-            return false;
-        }
-        Flag flag = SpaceSearchUtil.getTargetFlag(state.getSpace(), state.getTeamName());
-        Set<Ship> ourShips = SpaceSearchUtil.getOurShips(state.getSpace(), state.getTeamName());
-        Ship closest = MovementUtil.closest(state.getSpace(), flag.getPosition(), ourShips);
-        if (!shipId.equals(closest.getId())) {
-            return false;
-        }
-        boolean flagger = false;
-        for (Ship otherShip : SpaceSearchUtil.getOurShips(state.getSpace(), state.getTeamName())) {
-            if (state.getRoles().get(otherShip.getId()) == ShipRole.FLAGGER) {
-                flagger = true;
-            }
-        }
-        return notThirsty(state) && notHomesick(state) && !flagger && !closestToAlcove(state);
-    }
-
-    private boolean validForMiner(PlanningState state) {
-        // pre: Waiter(ship) ^ ~Thirsty(ship) ^ ~Homesick(ship) ^ ~NextBaseBoy(ship)
-        if (state.getRoles().get(shipId) != ShipRole.WAITER) {
-            return false;
-        }
-        return notThirsty(state) && notHomesick(state) && !closestToAlcove(state);
-    }
-
-    private boolean validForAlcoveWaiter(PlanningState state) {
-        // pre: Waiter(ship) ^ Flagger(s) for some other s in ships ^ ~Thirsty(ship) ^ ~Homesick(ship) ^ ~NextBaseBoy(ship)
-        if (state.getRoles().get(shipId) != ShipRole.WAITER) {
-            return false;
-        }
-        boolean flagger = false;
-        for (Ship otherShip : SpaceSearchUtil.getOurShips(state.getSpace(), state.getTeamName())) {
-            if (state.getRoles().get(otherShip.getId()) == ShipRole.FLAGGER) {
-                flagger = true;
-            }
-        }
-        return flagger && notThirsty(state) && notHomesick(state) && !closestToAlcove(state);
-    }
-
-    private boolean validForWaiter(PlanningState state) {
-        return true;
-    }
-
-    private boolean validForBasePlacer(PlanningState state) {
-        // pre: Waiter(ship) ^ NextBaseBoy(ship) ^ ~Thirsty(ship) ^ ~Homesick(ship)
-        return state.getRoles().get(shipId) == ShipRole.WAITER
-                && closestToAlcove(state) && notThirsty(state) && notHomesick(state);
-    }
-
-    private boolean validForDrinker(PlanningState state) {
-        // pre: Waiter(ship)
-        return state.getRoles().get(shipId) == ShipRole.WAITER;
-    }
-
-    private boolean validForHomewardBound(PlanningState state) {
-        // pre: Waiter(ship)
-        return state.getRoles().get(shipId) == ShipRole.WAITER;
     }
 
     /**
@@ -152,42 +90,95 @@ public class RoleAssignment {
         return nextState;
     }
 
+    private boolean validForFlagger(PlanningState state, Map<UUID, ShipRole> otherAssignmentsThisTurn) {
+        // pre: AlcoveWaiter(ship) ^ Closest(ship, flag) ^ ~Thirsty(ship) ^ ~Homesick(ship) ^ ~Flagger(s) for all s in ships ^ ~NextBaseBoy(ship)
+        if (state.getRole(shipId) != ShipRole.ALCOVE_WAITER) {
+            return false;
+        }
+        Toroidal2DPhysics space = state.getSpace();
+        Flag flag = SpaceSearchUtil.getTargetFlag(space, state.getTeamName());
+        UUID closest = closestToFlag(state, flag.getPosition());
+        if (!shipId.equals(closest)) {
+            return false;
+        }
+
+        boolean flagger = false;
+        for (ShipRole role : otherAssignmentsThisTurn.values()) {
+            if (role == ShipRole.FLAGGER) {
+                flagger = true;
+            }
+        }
+        return !thirsty(state) && !homesick(state) && !flagger;
+    }
+
     private PlanningState applyFlaggerAssignment(PlanningState prevState) {
         // effect: Flagger(ship) ^ Energy(ship) -= 1500 ^ FlagScore++ ^ ~Waiter(ship)
         PlanningState.Builder builder = new PlanningState.Builder(prevState);
 
         builder.setFlagScore(prevState.getFlagScore() + 1);
 
-        int energy = prevState.getShipEnergies().get(shipId);
+        double energy = prevState.getShipEnergies().get(shipId);
         builder.setShipEnergy(shipId, energy - 1500);
+
+        Base closestBase = MovementUtil.closest(prevState.getSpace(), prevState.getPosition(shipId),
+                SpaceSearchUtil.getTeamBases(prevState.getSpace(), prevState.getTeamName()));
+        builder.setPosition(shipId, closestBase.getPosition());
 
         builder.setRole(shipId, ShipRole.FLAGGER);
         return builder.build();
+    }
+
+    private boolean validForMiner(PlanningState state) {
+        // pre: Waiter(ship) ^ ~Thirsty(ship) ^ ~Homesick(ship) ^ ~NextBaseBoy(ship)
+        if (state.getRole(shipId) == ShipRole.ALCOVE_WAITER) {
+            return false;
+        }
+        return !thirsty(state) && !homesick(state);
     }
 
     private PlanningState applyMinerAssignment(PlanningState prevState) {
         // effect: Miner(ship) ^ ResourcesInShip(ship) += 1000 ^ Energy(ship) -= 1500 ^ ~Waiter(ship)
         PlanningState.Builder builder = new PlanningState.Builder(prevState);
 
-        int resourcesInShip = prevState.getResourcesAboard().get(shipId);
-        builder.setResourcesAboard(shipId, resourcesInShip + 1000);
+        Asteroid closest = MovementUtil.closest(prevState.getSpace(), prevState.getPosition(shipId),
+                SpaceSearchUtil.getMineableAsteroids(prevState.getSpace()));
 
-        int energy = prevState.getShipEnergies().get(shipId);
+        int resourcesInShip = prevState.getResourcesAboard().get(shipId);
+        builder.setResourcesAboard(shipId, resourcesInShip + closest.getResources().getTotal());
+
+        builder.setPosition(shipId, closest.getPosition());
+
+        double energy = prevState.getShipEnergies().get(shipId);
         builder.setShipEnergy(shipId, energy - 1500);
 
         builder.setRole(shipId, ShipRole.MINER);
         return builder.build();
     }
 
+    private boolean validForAlcoveWaiter(PlanningState state, Map<UUID, ShipRole> otherAssignmentsThisTurn) {
+        // pre: Waiter(ship) ^ AlcoveWaiter(s) for no more than one other s in ships ^ ~Thirsty(ship) ^ ~Homesick(ship) ^ ~NextBaseBoy(ship)
+        int otherAlcoveWaiters = 0;
+        for (ShipRole role : otherAssignmentsThisTurn.values()) {
+            if (role == ShipRole.ALCOVE_WAITER || role == ShipRole.BASE_PLACER) {
+                otherAlcoveWaiters++;
+            }
+        }
+        return !thirsty(state) && !homesick(state) && otherAlcoveWaiters < 2;
+    }
+
     private PlanningState applyAlcoveWaiterAssignment(PlanningState prevState) {
         // effect: AlcoveWaiter(ship) ^ Energy(ship) -= 1500 ^ ~Waiter(ship)
         PlanningState.Builder builder = new PlanningState.Builder(prevState);
 
-        int energy = prevState.getShipEnergies().get(shipId);
+        double energy = prevState.getShipEnergies().get(shipId);
         builder.setShipEnergy(shipId, energy - 1500);
 
         builder.setRole(shipId, ShipRole.ALCOVE_WAITER);
         return builder.build();
+    }
+
+    private boolean validForWaiter(PlanningState state) {
+        return false;
     }
 
     private PlanningState applyWaiterAssignment(PlanningState prevState) {
@@ -196,28 +187,58 @@ public class RoleAssignment {
         return builder.build();
     }
 
+    private boolean validForBasePlacer(PlanningState state, Map<UUID, ShipRole> otherAssignmentsThisTurn) {
+        // pre: Waiter(ship) ^ NextBaseBoy(ship) ^ ~Thirsty(ship) ^ ~Homesick(ship)
+        int otherAlcoveWaiters = 0;
+        for (ShipRole role : otherAssignmentsThisTurn.values()) {
+            if (role == ShipRole.ALCOVE_WAITER || role == ShipRole.BASE_PLACER) {
+                otherAlcoveWaiters++;
+            }
+        }
+        return PlanningUtil.powerupLocation != null && closestToAlcove(state) &&
+                !thirsty(state) && !homesick(state) && otherAlcoveWaiters < 2;
+    }
+
     private PlanningState applyBasePlacerAssignment(PlanningState prevState) {
         // effect: CloseBase++, Energy(ship) -= 1500 ^ ~Waiter(ship)
         PlanningState.Builder builder = new PlanningState.Builder(prevState);
 
         builder.setCloseBases(prevState.getCloseBases() + 1);
 
-        int energy = prevState.getShipEnergies().get(shipId);
+        double energy = prevState.getShipEnergies().get(shipId);
         builder.setShipEnergy(shipId, energy - 1500);
+
+        builder.setPosition(shipId, PlanningUtil.powerupLocation);
 
         builder.setRole(shipId, ShipRole.BASE_PLACER);
         return builder.build();
+    }
+
+    private boolean validForDrinker(PlanningState state) {
+        // pre: Waiter(ship) ^ Thirsty(ship)
+        return thirsty(state);
     }
 
     private PlanningState applyDrinkerAssignment(PlanningState prevState) {
         // effect: Energy(ship) += 1000 ^ ~Waiter(ship)
         PlanningState.Builder builder = new PlanningState.Builder(prevState);
 
-        int energy = prevState.getShipEnergies().get(shipId);
+        double energy = prevState.getShipEnergies().get(shipId);
         builder.setShipEnergy(shipId, energy + 1000);
+
+        Toroidal2DPhysics space = prevState.getSpace();
+        Position prevPosition = prevState.getPosition(shipId);
+        String teamName = prevState.getTeamName();
+        AbstractObject closest = MovementUtil.closest(space, prevPosition, SpaceSearchUtil.getEnergySources(space, teamName));
+        builder.setPosition(shipId, closest.getPosition());
 
         builder.setRole(shipId, ShipRole.DRINKER);
         return builder.build();
+    }
+
+    private boolean validForHomewardBound(PlanningState state) {
+        // pre: Waiter(ship)
+        return homesick(state);
     }
 
     private PlanningState applyHomewardBoundAssignment(PlanningState prevState) {
@@ -235,7 +256,7 @@ public class RoleAssignment {
         builder.setResourcesAboard(shipId, 0);
 
         int closeBases = prevState.getCloseBases();
-        int energy = prevState.getShipEnergies().get(shipId);
+        double energy = prevState.getShipEnergies().get(shipId);
         if (closeBases > 2) {
             energy += 2000;
         } else if (closeBases > 1) {
@@ -247,28 +268,70 @@ public class RoleAssignment {
         }
         builder.setShipEnergy(shipId, energy);
 
+        Toroidal2DPhysics space = prevState.getSpace();
+        Position prevPosition = prevState.getPosition(shipId);
+        String teamName = prevState.getTeamName();
+        AbstractObject closest = MovementUtil.closest(space, prevPosition, SpaceSearchUtil.getTeamBases(space, teamName));
+        builder.setPosition(shipId, closest.getPosition());
+
         builder.setRole(shipId, ShipRole.HOMEWARD_BOUND);
         return builder.build();
     }
 
-    private boolean notThirsty(PlanningState state) {
-        Toroidal2DPhysics space = state.getSpace();
-        Ship ship = (Ship) space.getObjectById(shipId);
-        return ship.getEnergy() > 1500;
+    private UUID closestToFlag(PlanningState state, Position target) {
+        double closest = Double.MAX_VALUE;
+        UUID ship = null;
+        for (Map.Entry<UUID, Position> entry : state.getPositions().entrySet()) {
+            if (state.getRoles().get(entry.getKey()) != ShipRole.ALCOVE_WAITER) {
+                continue;
+            }
+            double distance = state.getSpace().findShortestDistance(entry.getValue(), target);
+            if (distance < closest) {
+                closest = distance;
+                ship = entry.getKey();
+            }
+        }
+        return ship;
     }
 
-    private boolean notHomesick(PlanningState state) {
+    private boolean thirsty(PlanningState state) {
         Toroidal2DPhysics space = state.getSpace();
         Ship ship = (Ship) space.getObjectById(shipId);
-        return ship.getResources().getTotal() < 5000;
+        return ship.getEnergy() < 1500;
+    }
+
+    private boolean homesick(PlanningState state) {
+        Toroidal2DPhysics space = state.getSpace();
+        Ship ship = (Ship) space.getObjectById(shipId);
+        return ship.getResources().getTotal() > 5000;
     }
 
     private boolean closestToAlcove(PlanningState state) {
-        Position alcovePosition = PlanningUtil.powerupLocation;
+        Position lowerFlagPosition = SpaceSearchUtil.getLowerFlagPosition(state.getSpace(), state.getTeamName()).getPosition();
+        Position upperFlagPosition = SpaceSearchUtil.getUpperFlagPosition(state.getSpace(), state.getTeamName()).getPosition();
         Toroidal2DPhysics space = state.getSpace();
-        Set<Ship> ourShips = SpaceSearchUtil.getOurShips(space, state.getTeamName());
-        AbstractObject closest = MovementUtil.closest(space, alcovePosition, ourShips);
-        return shipId.equals(closest.getId());
+        Set<Ship> waiters = SpaceSearchUtil.getOurShips(space, state.getTeamName()).stream()
+                .filter(s -> state.getRole(s.getId()) == ShipRole.WAITER)
+                .collect(Collectors.toSet());
+        if (lowerFlagPosition != null) {
+            AbstractObject lowerClosest = MovementUtil.closest(space, lowerFlagPosition, waiters);
+            if (shipId.equals(lowerClosest.getId())) {
+                return true;
+            }
+        }
+        if (upperFlagPosition != null) {
+            AbstractObject upperClosest = MovementUtil.closest(space, upperFlagPosition, waiters);
+            return shipId.equals(upperClosest.getId());
+        }
+        return false;
+    }
+
+    @Override
+    public String toString() {
+        return "RoleAssignment{" +
+                "shipId=" + shipId +
+                ", role=" + role +
+                '}';
     }
 
     @Override

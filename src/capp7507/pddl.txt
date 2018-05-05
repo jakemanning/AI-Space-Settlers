@@ -24,7 +24,7 @@ pre: Waiter(ship) ^ Flagger(s) for some other s in ships ^ ~Thirsty(ship) ^ ~Hom
 effect: AlcoveWaiter(ship) ^ Energy(ship) -= 1500 ^ ~Waiter(ship)
 
 MakeBaseboy(ship)
-pre: Waiter(ship) ^ NextBaseBoy(ship) ^ ~Thirsty(ship) ^ ~Homesick(ship)
+pre: Waiter(ship) ^ NextBaseBoy(ship) ^ ~Thirsty(ship) ^ ~Homesick(ship) ^ Resources > cost to buy base
 effect: CloseBase++, Energy(ship) -= 1500 ^ ~Waiter(ship)
 
 GoDrink(ship)
@@ -40,5 +40,5 @@ when CloseBases > 0 : Energy(ship) += 1000
 when CloseBases = 0 : Energy(ship) += 500
 
 BuyShip
-pre: Resources > some number
+pre: Resources > cost to buy ship
 effect: ShipCount++

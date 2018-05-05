@@ -2,6 +2,7 @@ package capp7507;
 
 import spacesettlers.actions.PurchaseCosts;
 import spacesettlers.actions.PurchaseTypes;
+import spacesettlers.clients.ImmutableTeamInfo;
 import spacesettlers.objects.AbstractActionableObject;
 import spacesettlers.objects.Base;
 import spacesettlers.objects.Ship;
@@ -27,6 +28,17 @@ public class PowerupUtil {
         this.random = random;
     }
 
+    public static int teamResources(Toroidal2DPhysics space, String teamName) {
+        Set<ImmutableTeamInfo> teamInfos = space.getTeamInfo();
+        for (ImmutableTeamInfo teamInfo : teamInfos) {
+            if (teamName.equals(teamInfo.getTeamName())) {
+                ResourcePile availableResources = teamInfo.getAvailableResources();
+                return availableResources.getTotal();
+            }
+        }
+        return 0;
+    }
+
     public HashMap<UUID, PurchaseTypes> getTeamPurchases(Toroidal2DPhysics space,
                                                          Set<AbstractActionableObject> actionableObjects,
                                                          ResourcePile resourcesAvailable,
@@ -41,8 +53,8 @@ public class PowerupUtil {
                 .collect(Collectors.toSet());
 
         if (space.getCurrentTimestep() < BASE_PURCHASE_PERIOD) {
-            Position lower = SpaceSearchUtil.getLowerFlagPosition(space, client.getTeamName());
-            Position upper = SpaceSearchUtil.getUpperFlagPosition(space, client.getTeamName());
+            Position lower = SpaceSearchUtil.getLowerFlagPosition(space, client.getTeamName()).getPosition();
+            Position upper = SpaceSearchUtil.getUpperFlagPosition(space, client.getTeamName()).getPosition();
 
             ships.forEach(s -> {
                 double distanceToLower = space.findShortestDistance(s.getPosition(), lower);

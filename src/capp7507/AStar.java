@@ -11,12 +11,12 @@ import java.util.PriorityQueue;
 
 class AStar extends Route {
 
-    static AStar forObject(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
-        return new AStar(goal, ship, space);
+    static AStar forObject(AbstractObject goal, Ship ship, ShipRole role, Toroidal2DPhysics space) {
+        return new AStar(goal, ship, role, space);
     }
 
-    private AStar(AbstractObject goal, Ship ship, Toroidal2DPhysics space) {
-        super(goal.getId(), ship);
+    private AStar(AbstractObject goal, Ship ship, ShipRole role, Toroidal2DPhysics space) {
+        super(goal, ship, role);
         Graph<RouteNode> searchGraph = createSearchGraph(space, ship, ship.getPosition(), goal.getPosition());
         steps = search(space, searchGraph);
         if (steps != null) {

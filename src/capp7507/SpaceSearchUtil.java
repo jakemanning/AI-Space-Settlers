@@ -120,7 +120,7 @@ class SpaceSearchUtil {
      * @param space physics
      * @return A set of all the mineable asteroids
      */
-    private static Set<Asteroid> getMineableAsteroids(Toroidal2DPhysics space) {
+    static Set<Asteroid> getMineableAsteroids(Toroidal2DPhysics space) {
         Set<Asteroid> results = new HashSet<>();
         for (Asteroid asteroid : space.getAsteroids()) {
             if (asteroid.isMineable()) {
@@ -190,18 +190,28 @@ class SpaceSearchUtil {
         return results;
     }
 
-    static Position getUpperFlagPosition(Toroidal2DPhysics space, String teamName) {
+    static Set<AbstractObject> getEnergySources(Toroidal2DPhysics space, String teamName) {
+        Set<AbstractObject> sources = new HashSet<>(getTeamBases(space, teamName));
+        sources.addAll(space.getBeacons());
+        return sources;
+    }
+
+    static AbstractObject getUpperFlagPosition(Toroidal2DPhysics space, String teamName) {
         if (upperFlagPosition == null) {
             initFlagPositions(space, teamName);
         }
-        return upperFlagPosition;
+        return fakeFlagObject(upperFlagPosition);
     }
 
-    static Position getLowerFlagPosition(Toroidal2DPhysics space, String teamName) {
+    static AbstractObject getLowerFlagPosition(Toroidal2DPhysics space, String teamName) {
         if (lowerFlagPosition == null) {
             initFlagPositions(space, teamName);
         }
-        return lowerFlagPosition;
+        return fakeFlagObject(lowerFlagPosition);
+    }
+
+    private static AbstractObject fakeFlagObject(final Position position) {
+        return new MadeUpObject(position);
     }
 
     private static void initFlagPositions(Toroidal2DPhysics space, String teamName) {
@@ -210,13 +220,13 @@ class SpaceSearchUtil {
         baseRightHalfPosition = new Position(space.getWidth() * 0.9, space.getHeight() * 0.5);
         targetFlagIsOnLeftSide = space.findShortestDistance(baseLeftHalfPosition, flagPosition) < space.findShortestDistance(baseRightHalfPosition, flagPosition);
         if (flagPosition.getY() > space.getHeight() / 2) {
-            upperFlagPosition = flagPosition;
-            lowerFlagPosition = flagPosition.deepCopy();
-            lowerFlagPosition.setY(flagPosition.getY() + 550);
-        } else {
             lowerFlagPosition = flagPosition;
             upperFlagPosition = flagPosition.deepCopy();
             upperFlagPosition.setY(flagPosition.getY() - 550);
+        } else {
+            upperFlagPosition = flagPosition;
+            lowerFlagPosition = flagPosition.deepCopy();
+            lowerFlagPosition.setY(flagPosition.getY() + 550);
         }
     }
 

@@ -2,11 +2,9 @@ package capp7507;
 
 import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
+import spacesettlers.utilities.Position;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 public class PlanningState {
     private final Toroidal2DPhysics space;
@@ -14,14 +12,16 @@ public class PlanningState {
     private final int shipCount;
     private final int closeBases;
     private final int resourcesAvailable;
-    private final Map<UUID, Integer> shipEnergies;
+    private final Map<UUID, Double> shipEnergies;
     private final Map<UUID, Integer> resourcesAboard;
     private final Map<UUID, ShipRole> roles;
+    private final Map<UUID, Position> positions;
     private final String teamName;
+    private final Set<UUID> shipIds;
 
     public PlanningState(Toroidal2DPhysics space, int flagScore, int shipCount, int closeBases,
-                         int resourcesAvailable, Map<UUID, Integer> shipEnergies, Map<UUID, Integer> resourcesAboard,
-                         Map<UUID, ShipRole> roles) {
+                         int resourcesAvailable, Map<UUID, Double> shipEnergies, Map<UUID, Integer> resourcesAboard,
+                         Map<UUID, ShipRole> roles, Map<UUID, Position> positions) {
         this.space = space;
         this.flagScore = flagScore;
         this.shipCount = shipCount;
@@ -30,9 +30,11 @@ public class PlanningState {
         this.shipEnergies = shipEnergies;
         this.resourcesAboard = resourcesAboard;
         this.roles = roles;
+        this.positions = positions;
 
         Ship ship = (Ship) space.getObjectById(shipEnergies.keySet().iterator().next());
         this.teamName = ship.getTeamName();
+        this.shipIds = new HashSet<>(shipEnergies.keySet());
     }
 
     public Toroidal2DPhysics getSpace() {
@@ -55,7 +57,7 @@ public class PlanningState {
         return resourcesAvailable;
     }
 
-    public Map<UUID, Integer> getShipEnergies() {
+    public Map<UUID, Double> getShipEnergies() {
         return shipEnergies;
     }
 
@@ -67,8 +69,24 @@ public class PlanningState {
         return roles;
     }
 
+    public Map<UUID, Position> getPositions() {
+        return positions;
+    }
+
+    public Position getPosition(UUID shipId) {
+        return positions.get(shipId);
+    }
+
+    public ShipRole getRole(UUID shipId) {
+        return roles.get(shipId);
+    }
+
     public String getTeamName() {
         return teamName;
+    }
+
+    public Set<UUID> getShipIds() {
+        return shipIds;
     }
 
     public PlanningState copy() {
@@ -76,11 +94,11 @@ public class PlanningState {
         int shipCount = this.shipCount;
         int closeBases = this.closeBases;
         int resourcesAvailable = this.resourcesAvailable;
-        Map<UUID, Integer> shipEnergies = new HashMap<>(this.shipEnergies);
+        Map<UUID, Double> shipEnergies = new HashMap<>(this.shipEnergies);
         Map<UUID, Integer> resourcesAboard = new HashMap<>(this.resourcesAboard);
         Map<UUID, ShipRole> roles = new HashMap<>(this.roles);
         return new PlanningState(space, flagScore, shipCount, closeBases, resourcesAvailable, shipEnergies,
-                resourcesAboard, roles);
+                resourcesAboard, roles, positions);
     }
 
     @Override
@@ -109,9 +127,10 @@ public class PlanningState {
         private int shipCount;
         private int closeBases;
         private int resourcesAvailable;
-        private Map<UUID, Integer> shipEnergies;
+        private Map<UUID, Double> shipEnergies;
         private Map<UUID, Integer> resourcesAboard;
         private Map<UUID, ShipRole> roles;
+        private Map<UUID, Position> positions;
         private String teamName;
 
         public Builder(PlanningState prevState) {
@@ -123,6 +142,7 @@ public class PlanningState {
             this.shipEnergies = new HashMap<>(prevState.shipEnergies);
             this.resourcesAboard = new HashMap<>(prevState.resourcesAboard);
             this.roles = new HashMap<>(prevState.roles);
+            this.positions = new HashMap<>(prevState.positions);
             this.teamName = prevState.teamName;
         }
 
@@ -146,7 +166,7 @@ public class PlanningState {
             this.resourcesAvailable = resourcesAvailable;
         }
 
-        public void setShipEnergy(UUID shipId, int energy) {
+        public void setShipEnergy(UUID shipId, double energy) {
             shipEnergies.put(shipId, energy);
         }
 
@@ -158,13 +178,17 @@ public class PlanningState {
             roles.put(shipId, role);
         }
 
+        public void setPosition(UUID shipId, Position position) {
+            positions.put(shipId, position);
+        }
+
         public void setTeamName(String teamName) {
             this.teamName = teamName;
         }
 
         public PlanningState build() {
             return new PlanningState(space, flagScore, shipCount, closeBases, resourcesAvailable, shipEnergies,
-                    resourcesAboard, roles);
+                    resourcesAboard, roles, positions);
         }
     }
 }

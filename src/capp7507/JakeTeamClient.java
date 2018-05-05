@@ -55,6 +55,11 @@ public class JakeTeamClient extends TeamClient {
     public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space,
                                                       Set<AbstractActionableObject> actionableObjects) {
         HashMap<UUID, AbstractAction> actions = new HashMap<>();
+        boolean successfullyPlanned = plan(space);
+        if (!successfullyPlanned) {
+            System.out.println(space.getCurrentTimestep() + ": Planning failed");
+            return new HashMap<>();
+        }
 
         for (AbstractActionableObject actionable : actionableObjects) {
 
@@ -66,36 +71,60 @@ public class JakeTeamClient extends TeamClient {
 
                 // Retrieve ship's current target or pick a new one if needed
                 Route currentRoute = currentRoutes.get(actionable.getId());
-                if (currentRoute == null
-                        || currentRoute.isDone()
-                        || pathBlocked(space, ship, currentRoute)) {
-                    AbstractObject target;
-                    ShipRole role = planningUtil.getRole(ship);
-                    if (role == ShipRole.FLAGGER) {
+                AbstractObject target;
+                ShipRole role = planningUtil.getRole(shipId);
+                if (currentRoute == null || currentRoute.getRole() != role || currentRoute.isDone()
+                    /*|| pathBlocked(space, ship, currentRoute)*/) {
+                    if (role == ShipRole.FLAGGER || ship.isCarryingFlag()) {
+                        role = ShipRole.FLAGGER;
+                        planningUtil.setRole(shipId, ShipRole.FLAGGER);
                         if (ship.isCarryingFlag()) {
                             Set<AbstractObject> ourBases = space.getBases().stream()
                                     .filter(this::isOurBase)
                                     .collect(Collectors.toSet());
-                            ourBases.removeAll(planningUtil.otherShipGoals(ship));
+                            if (ourBases.size() > 1) {
+                                ourBases.removeAll(otherTargetObjects(space, ship));
+                            }
                             target = MovementUtil.closest(space, shipPos, ourBases);
                         } else {
-                            target = planningUtil.flagTarget(space, ship);
+                            target = SpaceSearchUtil.getTargetFlag(space, getTeamName());
                         }
+                    } else if (role == ShipRole.ALCOVE_WAITER) {
+                        AbstractObject upperFlag = SpaceSearchUtil.getUpperFlagPosition(space, getTeamName());
+                        AbstractObject lowerFlag = SpaceSearchUtil.getLowerFlagPosition(space, getTeamName());
+                        List<AbstractObject> flags = Arrays.asList(upperFlag, lowerFlag);
+                        flags.removeAll(otherTargetObjects(space, ship));
+                        target = MovementUtil.closest(space, shipPos, flags);
+                        if (space.findShortestDistance(target.getPosition(), shipPos) < 20) {
+                            if (shipPos.getTotalTranslationalVelocity() > 2) {
+                                actions.put(shipId, new MoveAction(space, shipPos, shipPos, Vector2D.ZERO_VECTOR));
+                            } else {
+                                actions.put(shipId, new DoNothingAction());
+                            }
+                            continue;
+                        }
+                    } else if (role == ShipRole.BASE_PLACER) {
+                        target = new MadeUpObject(PlanningUtil.powerupLocation);
+                    } else if (role == ShipRole.DRINKER) {
+                        Set<AbstractObject> energySources = SpaceSearchUtil.getEnergySources(space, getTeamName());
+                        energySources.removeAll(otherTargetObjects(space, ship));
+                        target = bestValue(space, ship, energySources);
+                    } else if (role == ShipRole.HOMEWARD_BOUND) {
+                        Set<Base> teamBases = SpaceSearchUtil.getTeamBases(space, getTeamName());
+                        teamBases.removeAll(otherTargetObjects(space, ship));
+                        target = bestValue(space, ship, teamBases);
                     } else {
-                        AbstractObject oldGoal = currentRoute == null ? null : currentRoute.getGoal(space);
+                        // role == ShipRole.MINER || role == ShipRole.WAITER
                         Set<AbstractObject> objectsToEvaluate = space.getAllObjects();
-                        objectsToEvaluate.removeAll(planningUtil.otherShipGoals(ship));
-                        if (oldGoal != null) {
-                            objectsToEvaluate.remove(oldGoal);
-                        }
-                        planningUtil.setRole(ship, ShipRole.MINER);
+                        objectsToEvaluate.removeAll(otherTargetObjects(space, ship));
+                        role = ShipRole.MINER;
+                        planningUtil.setRole(shipId, role);
                         target = bestValue(space, ship, objectsToEvaluate);
                     }
-
-                    currentRoute = AStar.forObject(target, ship, space);
-                    currentRoutes.put(shipId, currentRoute);
+                    currentRoute = AStar.forObject(target, ship, role, space);
                 }
                 currentRoute.updateIfObjectMoved(space);
+                currentRoutes.put(shipId, currentRoute);
                 Position currentStep = currentRoute.getStep();
                 graphicsUtil.addTargetPreset(shipId, GraphicsUtil.Preset.TARGET, currentStep);
                 currentRoute.getGraphics(space).forEach(graphicsUtil::addGraphic);
@@ -129,6 +158,50 @@ public class JakeTeamClient extends TeamClient {
         return actions;
     }
 
+    private boolean plan(Toroidal2DPhysics space) {
+        if (anyRoutesDoneOrShipsWaiting(space)) {
+            // We re-plan when everybody is waiting
+            // Everybody should get set to waiting when someone finishes their role
+            PlanningState initialState = planningUtil.currentState(space);
+            List<RoleAssignment> search = planningUtil.search(initialState);
+            if (search == null) {
+                return false;
+            }
+            List<UUID> assigned = new ArrayList<>();
+            for (RoleAssignment roleAssignment : search) {
+                UUID shipId = roleAssignment.getShipId();
+                if (!assigned.contains(shipId)
+                        && (planningUtil.getRole(shipId) == ShipRole.WAITER || !currentRoutes.containsKey(shipId))) {
+                    planningUtil.setRole(shipId, roleAssignment.getRole());
+                    assigned.add(shipId);
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean anyRoutesDoneOrShipsWaiting(Toroidal2DPhysics space) {
+        if (planningUtil.anyWaiting(space)) {
+            return true;
+        }
+        for (Ship ship : SpaceSearchUtil.getOurShips(space, getTeamName())) {
+            if (!currentRoutes.containsKey(ship.getId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Set<AbstractObject> otherTargetObjects(Toroidal2DPhysics space, Ship ship) {
+        Set<AbstractObject> targets = new HashSet<>();
+        for (Map.Entry<UUID, Route> entry : currentRoutes.entrySet()) {
+            if (!ship.getId().equals(entry.getKey())) {
+                targets.add(entry.getValue().getGoal(space));
+            }
+        }
+        return targets;
+    }
+
     /**
      * Determine if there is an obstacle in the way of the ship
      *
@@ -155,7 +228,7 @@ public class JakeTeamClient extends TeamClient {
      * @return best object based on our heuristics (highest total score)
      */
     private AbstractObject bestValue(Toroidal2DPhysics space, Ship ship,
-                                     Collection<AbstractObject> objects) {
+                                     Collection<? extends AbstractObject> objects) {
         Map<UUID, Double> scores = new HashMap<>();
         for (AbstractObject object : objects) {
             double value = 0;
@@ -246,21 +319,38 @@ public class JakeTeamClient extends TeamClient {
         for (Map.Entry<UUID, Route> entry : currentRoutes.entrySet()) {
             UUID shipId = entry.getKey();
             Route route = entry.getValue();
-            AbstractObject target = space.getObjectById(route.getGoal(space).getId());
             Ship ship = (Ship) space.getObjectById(shipId);
+            if (ship == null || !ship.isAlive()) {
+                routesToRemove.add(shipId);
+                continue;
+            }
             Position shipPosition = ship.getPosition();
+            AbstractObject goal = route.getGoal(space);
+            AbstractObject target = space.getObjectById(goal.getId());
+            if (goal instanceof MadeUpObject) {
+                target = goal;
+            }
+            if (target == null) {
+                routesToRemove.add(shipId);
+                continue;
+            }
             double distance = space.findShortestDistance(shipPosition, target.getPosition());
             int targetRadius = target.getRadius();
-            boolean closeEnough = (target instanceof Base) && distance < targetRadius + ship.getRadius() + 10;
-            boolean flagAcquired = (target instanceof Flag) && ship.isCarryingFlag();
+            boolean closeEnough = target instanceof Base && distance < targetRadius + ship.getRadius() + 5;
+            boolean flagAcquired = (target instanceof Flag || target instanceof MadeUpObject) && ship.isCarryingFlag();
 
             // Handle when our target dies
-            if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough || flagAcquired || !ship.isAlive()) {
+            if (!target.isAlive() || closeEnough) {
+                routesToRemove.add(shipId);
+            }
+
+            if (flagAcquired) {
+                planningUtil.incrementFlagScore();
                 routesToRemove.add(shipId);
             }
 
             Position step = route.getStep();
-            if (step != null && space.findShortestDistance(shipPosition, step) < ship.getRadius() * 1.5) {
+            if (step != null && space.findShortestDistance(shipPosition, step) < ship.getRadius()) {
                 route.completeStep();
             }
         }
@@ -268,8 +358,6 @@ public class JakeTeamClient extends TeamClient {
         for (UUID key : routesToRemove) {
             currentRoutes.remove(key);
         }
-
-        planningUtil.assignClosestFlagCollectors(space);
     }
 
     /**

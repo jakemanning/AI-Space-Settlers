@@ -22,13 +22,15 @@ public abstract class Route {
     private static int NUM_DIVISIONS_Y = 60; // Divisible by 1080
     private Set<SpacewarGraphics> searchGraphGraphics = new HashSet<>();
     List<Position> steps;
-    private UUID goal;
+    private AbstractObject goal;
     private static List<List<RouteNode>> baseCandidates;
     private int LOOK_BEHIND_FROM_GOAL = 15;
+    private final ShipRole role;
 
-    Route(UUID goalID, Ship ship) {
-        this.goal = goalID;
+    Route(AbstractObject goal, Ship ship, ShipRole role) {
+        this.goal = goal;
         this.ship = ship;
+        this.role = role;
     }
 
     /**
@@ -331,7 +333,14 @@ public abstract class Route {
      * @return our target that we are trying to reach
      */
     AbstractObject getGoal(Toroidal2DPhysics space) {
-        return space.getObjectById(goal);
+        if (goal instanceof MadeUpObject) {
+            return goal;
+        }
+        return space.getObjectById(goal.getId());
+    }
+
+    public ShipRole getRole() {
+        return role;
     }
 
     void updateIfObjectMoved(Toroidal2DPhysics space) {
