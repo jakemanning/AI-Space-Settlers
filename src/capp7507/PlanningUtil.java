@@ -95,7 +95,7 @@ class PlanningUtil {
     boolean anyWaiting(Toroidal2DPhysics space) {
         for (Ship ship : SpaceSearchUtil.getOurShips(space, teamName)) {
             currentRoles.putIfAbsent(ship.getId(), ShipRole.WAITER);
-            ShipRole role = currentRoles.get(ship.getId());
+            ShipRole role = getRole(ship.getId());
             if (role == ShipRole.WAITER) {
                 return true;
             }
