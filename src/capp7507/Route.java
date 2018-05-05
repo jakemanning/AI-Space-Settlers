@@ -367,7 +367,7 @@ public abstract class Route {
             } else {
                 steps = result;
             }
-            steps.set(lastPossibleNode, getGoal(space).getPosition());
+            steps.set(steps.size() - 1, getGoal(space).getPosition());
         }
     }
 }
