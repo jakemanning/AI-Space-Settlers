@@ -7,16 +7,26 @@ import spacesettlers.utilities.Position;
 import java.util.*;
 
 class PlanningUtil {
-    static Position powerupLocation = null;
     private final String teamName;
     private Map<UUID, ShipRole> currentRoles = new HashMap<>();
     private int flagScore = 0;
     private int SEARCH_LIMIT = 4000;
 
+    /**
+     * Location where the next base should be placed
+     */
+    static Position powerupLocation = null;
+
     PlanningUtil(String teamName) {
         this.teamName = teamName;
     }
 
+    /**
+     * Create a PlanningState object representing the current state of our team given the space
+     *
+     * @param space physics
+     * @return PlanningState of the current state
+     */
     PlanningState currentState(Toroidal2DPhysics space) {
         Set<Ship> ourShips = SpaceSearchUtil.getOurShips(space, teamName);
         int shipCount = ourShips.size();
@@ -43,6 +53,12 @@ class PlanningUtil {
                 shipEnergies, resourcesAboard, currentRoles, positions);
     }
 
+    /**
+     * Forward search from the initial state using breadth first search until a state is found that passes the goal test
+     *
+     * @param initialState The root node of the search graph and the state to start the search from
+     * @return A list of assignments of roles that will result in moving from the initial state to a goal state
+     */
     List<RoleAssignment> search(PlanningState initialState) {
         Queue<PlanningState> statesQueue = new LinkedList<>();
         List<RoleAssignment> allAssignments = allAssignments(initialState);
@@ -70,12 +86,26 @@ class PlanningUtil {
         return null;
     }
 
+    /**
+     * The roles of every ship except for the ship with the given ID
+     *
+     * @param shipId The ID of the ship to be excluded
+     * @param state  The PlanningState object holding the roles that should be returned
+     * @return A map from ship IDs to that ship's role in the state
+     */
     private Map<UUID, ShipRole> rolesOfOtherShips(UUID shipId, PlanningState state) {
         Map<UUID, ShipRole> roles = new HashMap<>(state.getRoles());
         roles.remove(shipId);
         return roles;
     }
 
+    /**
+     * All the role assignments that could be possible given the ships in the state
+     * Note: this does not check the validity of the returned assignments
+     *
+     * @param state The planning state as it exists before any assignments
+     * @return A list of role assignments that could be possible
+     */
     private List<RoleAssignment> allAssignments(PlanningState state) {
         List<RoleAssignment> allAssignments = new ArrayList<>();
         Set<Ship> ourShips = SpaceSearchUtil.getOurShips(state.getSpace(), state.getTeamName());
@@ -88,11 +118,23 @@ class PlanningUtil {
         return allAssignments;
     }
 
+    /**
+     * Returns the current role of the ship with the given ID
+     *
+     * @param shipId ID of the ship
+     * @return That ship's role
+     */
     ShipRole getRole(UUID shipId) {
         ShipRole role = currentRoles.get(shipId);
         return role == null ? ShipRole.WAITER : role;
     }
 
+    /**
+     * Returns whether there are any ships waiting for a role assignment
+     *
+     * @param space physics
+     * @return True if there exists a ship that is waiting, false otherwise
+     */
     boolean anyWaiting(Toroidal2DPhysics space) {
         for (Ship ship : SpaceSearchUtil.getOurShips(space, teamName)) {
             currentRoles.putIfAbsent(ship.getId(), ShipRole.WAITER);
@@ -104,16 +146,19 @@ class PlanningUtil {
         return false;
     }
 
+    /**
+     * Assign the role to the ship with the ID shipId
+     *
+     * @param shipId ID of the ship
+     * @param role   Role to be assigned
+     */
     void setRole(UUID shipId, ShipRole role) {
         currentRoles.put(shipId, role);
     }
 
-    void clearRoles(Toroidal2DPhysics space) {
-        for (Ship ship : SpaceSearchUtil.getOurShips(space, teamName)) {
-            currentRoles.put(ship.getId(), ShipRole.WAITER);
-        }
-    }
-
+    /**
+     * Increase the flag score by one
+     */
     void incrementFlagScore() {
         flagScore++;
     }

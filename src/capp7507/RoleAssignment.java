@@ -275,22 +275,6 @@ public class RoleAssignment {
         return builder.build();
     }
 
-    private UUID closestToFlag(PlanningState state, Position target) {
-        double closest = Double.MAX_VALUE;
-        UUID ship = null;
-        for (Map.Entry<UUID, Position> entry : state.getPositions().entrySet()) {
-            if (state.getRoles().get(entry.getKey()) != ShipRole.ALCOVE_WAITER) {
-                continue;
-            }
-            double distance = state.getSpace().findShortestDistance(entry.getValue(), target);
-            if (distance < closest) {
-                closest = distance;
-                ship = entry.getKey();
-            }
-        }
-        return ship;
-    }
-
     private boolean thirsty(PlanningState state) {
         Toroidal2DPhysics space = state.getSpace();
         Ship ship = (Ship) space.getObjectById(shipId);
