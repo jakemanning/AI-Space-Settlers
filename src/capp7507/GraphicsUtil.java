@@ -52,30 +52,13 @@ public class GraphicsUtil {
         graphics.add(graphic);
     }
 
-    void addTargetGraphic(UUID uuid, SpacewarGraphics graphics) {
-        targetGraphics.put(uuid, graphics);
-    }
-
-    void addObstacleGraphic(UUID uuid, SpacewarGraphics graphics) {
-        obstacleGraphics.put(uuid, graphics);
-    }
-
     void removeObstacle(UUID uuid) {
         obstacleGraphics.remove(uuid);
     }
     // endregion
 
-    //region Preset
-    void addGraphicPreset(Preset preset, Position position) {
-        graphics.add(getPreset(preset, position));
-    }
-
-    void addTargetPreset(UUID uuid, Preset preset, Position position) {
-        targetGraphics.put(uuid, getPreset(preset, position));
-    }
-
-    void addObstaclePreset(UUID uuid, Preset preset, Position position) {
-        obstacleGraphics.put(uuid, getPreset(preset, position));
+    void addTargetPreset(UUID uuid, Position position) {
+        targetGraphics.put(uuid, getPreset(Preset.TARGET, position));
     }
 
     /**

@@ -4,6 +4,10 @@ import spacesettlers.utilities.Position;
 
 import java.util.Objects;
 
+/**
+ * A Grid in our space that has a top left position (which represents our grid location)
+ * as well as a center position (which is where ships will travel through)
+ */
 public class RouteNode {
     private final Position center;
     private Position topLeftPosition;
@@ -44,10 +48,6 @@ public class RouteNode {
         this.currentPathCost = currentPathCost;
     }
 
-    public double getDistanceToGoal() {
-        return distanceToGoal;
-    }
-
     void setDistanceToGoal(double distanceToGoal) {
         this.distanceToGoal = distanceToGoal;
     }
@@ -76,6 +76,9 @@ public class RouteNode {
         this.containsObstruction = containsObstruction;
     }
 
+    /**
+     * Reset our node to default state
+     */
     void resetState() {
         this.cameFrom = null;
         this.containsObstruction = false;

@@ -12,13 +12,13 @@ import java.util.stream.Collectors;
 
 import static capp7507.MovementUtil.interceptPosition;
 
+/**
+ * A collection of helpful utilities concerning fetching objects
+ */
 class SpaceSearchUtil {
     private static final int MAX_OBSTRUCTION_DETECTION = 150;
     private static Position upperFlagPosition;
     private static Position lowerFlagPosition;
-    static Position baseLeftHalfPosition;
-    static Position baseRightHalfPosition;
-    static Boolean targetFlagIsOnLeftSide;
 
     /**
      * Check to see if following a straight line path between two given locations would result in a collision with a provided set of obstructions
@@ -137,7 +137,7 @@ class SpaceSearchUtil {
      * @param teamName The name of the team whose ships and bases are not enemy targets
      * @return all enemies
      */
-    static Set<AbstractActionableObject> getEnemyTargets(Toroidal2DPhysics space, String teamName) {
+    private static Set<AbstractActionableObject> getEnemyTargets(Toroidal2DPhysics space, String teamName) {
         Set<AbstractActionableObject> enemies = new HashSet<>();
         // get enemy ships
         for (Ship ship : space.getShips()) {
@@ -172,7 +172,6 @@ class SpaceSearchUtil {
         return results;
     }
 
-
     /**
      * Get all the bases that belong to the team with the given team name
      *
@@ -196,6 +195,12 @@ class SpaceSearchUtil {
         return sources;
     }
 
+    /**
+     * Approximately where our upper flag is
+     * @param space physics
+     * @param teamName team name
+     * @return a {@link MadeUpObject} containing our upper flag position
+     */
     static AbstractObject getUpperFlagPosition(Toroidal2DPhysics space, String teamName) {
         if (upperFlagPosition == null) {
             initFlagPositions(space, teamName);
@@ -203,6 +208,12 @@ class SpaceSearchUtil {
         return fakeFlagObject(upperFlagPosition);
     }
 
+    /**
+     * Approximately where our lower flag is
+     * @param space physics
+     * @param teamName team name
+     * @return a {@link MadeUpObject} containing our lower flag position
+     */
     static AbstractObject getLowerFlagPosition(Toroidal2DPhysics space, String teamName) {
         if (lowerFlagPosition == null) {
             initFlagPositions(space, teamName);
@@ -210,26 +221,40 @@ class SpaceSearchUtil {
         return fakeFlagObject(lowerFlagPosition);
     }
 
+    /**
+     * Wraps our flag in an {@link MadeUpObject}
+     * @param position position to wrap
+     * @return wrapped {@link Position}
+     */
     private static AbstractObject fakeFlagObject(final Position position) {
         return new MadeUpObject(position);
     }
 
+    /**
+     * Initialize where our upper/lower flag positions are estimated to be
+     * @param space physics
+     * @param teamName team name
+     */
     private static void initFlagPositions(Toroidal2DPhysics space, String teamName) {
         Position flagPosition = getTargetFlag(space, teamName).getPosition();
-        baseLeftHalfPosition = new Position(space.getWidth() * 0.1, space.getHeight() * 0.5);
-        baseRightHalfPosition = new Position(space.getWidth() * 0.9, space.getHeight() * 0.5);
-        targetFlagIsOnLeftSide = space.findShortestDistance(baseLeftHalfPosition, flagPosition) < space.findShortestDistance(baseRightHalfPosition, flagPosition);
+        int offset = 550;
         if (flagPosition.getY() > space.getHeight() / 2) {
             lowerFlagPosition = flagPosition;
             upperFlagPosition = flagPosition.deepCopy();
-            upperFlagPosition.setY(flagPosition.getY() - 550);
+            upperFlagPosition.setY(flagPosition.getY() - offset);
         } else {
             upperFlagPosition = flagPosition;
             lowerFlagPosition = flagPosition.deepCopy();
-            lowerFlagPosition.setY(flagPosition.getY() + 550);
+            lowerFlagPosition.setY(flagPosition.getY() + offset);
         }
     }
 
+    /**
+     * Find our flag in space
+     * @param space physics
+     * @param teamName team name
+     * @return Our {@link Flag} object
+     */
     static Flag getTargetFlag(Toroidal2DPhysics space, String teamName) {
         return space.getFlags().stream()
                 .filter(f -> !f.getTeamName().equals(teamName))
@@ -237,6 +262,12 @@ class SpaceSearchUtil {
                 .orElseThrow(() -> new IllegalStateException("Multiple flags belonging to other teams"));
     }
 
+    /**
+     * All of our ships in space
+     * @param space physics
+     * @param teamName team name
+     * @return Set of all of the ships on our team
+     */
     static Set<Ship> getOurShips(Toroidal2DPhysics space, String teamName) {
         return space.getShips().stream()
                 .filter(s -> s.getTeamName().equals(teamName))

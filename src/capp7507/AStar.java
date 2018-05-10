@@ -9,6 +9,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 
+/**
+ * A* search from a Start {@link Position} to a goal {@link Position}
+ */
 class AStar extends Route {
 
     static AStar forObject(AbstractObject goal, Ship ship, ShipRole role, Toroidal2DPhysics space) {

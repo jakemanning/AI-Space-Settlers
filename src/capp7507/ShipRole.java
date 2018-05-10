@@ -7,5 +7,5 @@ public enum ShipRole {
     WAITER,
     BASE_PLACER,
     DRINKER,
-    HOMEWARD_BOUND
+    GOING_HOME
 }

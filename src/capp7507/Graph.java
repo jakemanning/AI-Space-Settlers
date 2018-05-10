@@ -46,7 +46,7 @@ public class Graph<T> {
      * @param parent The node whose adjacent nodes should be returned
      * @return A set of nodes that are adjacent to parent
      */
-    public Set<T> adjacentNodes(T parent) {
+    Set<T> adjacentNodes(T parent) {
         return edges.get(parent);
     }
 

@@ -17,7 +17,7 @@ public class RoleAssignment {
     private UUID shipId;
     private ShipRole role;
 
-    public RoleAssignment(UUID shipId, ShipRole role) {
+    RoleAssignment(UUID shipId, ShipRole role) {
         this.shipId = shipId;
         this.role = role;
     }
@@ -26,7 +26,7 @@ public class RoleAssignment {
         return shipId;
     }
 
-    public ShipRole getRole() {
+    ShipRole getRole() {
         return role;
     }
 
@@ -36,7 +36,7 @@ public class RoleAssignment {
      * @param state The PlanningState before this role assignment
      * @return True if role assignment is possible under the preconditions, false otherwise
      */
-    public boolean isValid(PlanningState state, Map<UUID, ShipRole> otherAssignmentsThisTurn) {
+    boolean isValid(PlanningState state, Map<UUID, ShipRole> otherAssignmentsThisTurn) {
         switch (role) {
             case FLAGGER:
                 return validForFlagger(state, otherAssignmentsThisTurn);
@@ -50,7 +50,7 @@ public class RoleAssignment {
                 return validForBasePlacer(state, otherAssignmentsThisTurn);
             case DRINKER:
                 return validForDrinker(state);
-            case HOMEWARD_BOUND:
+            case GOING_HOME:
                 return validForHomewardBound(state);
             default:
                 return false;
@@ -63,7 +63,7 @@ public class RoleAssignment {
      * @param prevState The PlanningState before this role assignment
      * @return The PlanningState after this role assignment
      */
-    public PlanningState nextState(PlanningState prevState) {
+    PlanningState nextState(PlanningState prevState) {
         PlanningState nextState;
         switch (role) {
             case FLAGGER:
@@ -84,7 +84,7 @@ public class RoleAssignment {
             case DRINKER:
                 nextState = applyDrinkerAssignment(prevState);
                 break;
-            case HOMEWARD_BOUND:
+            case GOING_HOME:
                 nextState = applyHomewardBoundAssignment(prevState);
                 break;
             default:
@@ -271,7 +271,7 @@ public class RoleAssignment {
         AbstractObject closest = MovementUtil.closest(space, prevPosition, SpaceSearchUtil.getTeamBases(space, teamName));
         builder.setPosition(shipId, closest.getPosition());
 
-        builder.setRole(shipId, ShipRole.HOMEWARD_BOUND);
+        builder.setRole(shipId, ShipRole.GOING_HOME);
         return builder.build();
     }
 

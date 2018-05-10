@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 
 /**
- * A model-based reflex agent for controlling a spacesettlers team client
+ * Planning: Multi-agent coordination
  * <p>
  * The ships use the bestValue function while keeping track of targets between
  * calls to getMovementStart. It assigns values based on distance from a ship to a target,
@@ -27,7 +27,6 @@ import java.util.stream.Collectors;
  */
 public class JakeTeamClient extends TeamClient {
     private static final boolean DEBUG = true;
-    private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
     private static final int SHIP_MAX_RESOURCES = 5000;
     private static final int MAX_ASTEROID_MASS = 2318;
     private static final int MIN_ASTEROID_MASS = 2000;
@@ -82,11 +81,6 @@ public class JakeTeamClient extends TeamClient {
                             Set<AbstractObject> ourBases = space.getBases().stream()
                                     .filter(this::isOurBase)
                                     .collect(Collectors.toSet());
-//                            Set<AbstractObject> unpopular = new HashSet<>(ourBases);
-//                            unpopular.removeAll(otherTargetObjects(space, ship));
-//                            if (unpopular.size() != 0) {
-//                                ourBases = unpopular;
-//                            }
                             target = MovementUtil.closest(space, shipPos, ourBases);
                         } else {
                             target = SpaceSearchUtil.getTargetFlag(space, getTeamName());
@@ -116,7 +110,7 @@ public class JakeTeamClient extends TeamClient {
                         Set<AbstractObject> energySources = SpaceSearchUtil.getEnergySources(space, getTeamName());
                         energySources.removeAll(otherTargetObjects(space, ship));
                         target = bestValue(space, ship, energySources);
-                    } else if (role == ShipRole.HOMEWARD_BOUND) {
+                    } else if (role == ShipRole.GOING_HOME) {
                         Set<Base> teamBases = SpaceSearchUtil.getTeamBases(space, getTeamName());
                         teamBases.removeAll(otherTargetObjects(space, ship));
                         target = bestValue(space, ship, teamBases);
@@ -133,12 +127,10 @@ public class JakeTeamClient extends TeamClient {
                 currentRoute.updateIfObjectMoved(space);
                 currentRoutes.put(shipId, currentRoute);
                 Position currentStep = currentRoute.getStep();
-                graphicsUtil.addTargetPreset(shipId, GraphicsUtil.Preset.TARGET, currentStep);
+                graphicsUtil.addTargetPreset(shipId, currentStep);
                 currentRoute.getGraphics(space).forEach(graphicsUtil::addGraphic);
 
                 if (currentStep == null) {
-                    // TODO: How do we solve this?
-                    // Stupid case where a ship starts out on top of another ship
                     AbstractAction currentAction = new DoNothingAction();
                     actions.put(shipId, currentAction);
                     continue;
@@ -170,6 +162,13 @@ public class JakeTeamClient extends TeamClient {
         return actions;
     }
 
+    /**
+     * Creates a representation of the current 'state' of our space,
+     * search through all possible states/actions
+     * Choose the best possible {@link RoleAssignment}
+     * @param space physics
+     * @return whether search was successful or not
+     */
     private boolean plan(Toroidal2DPhysics space) {
         if (anyRoutesDoneOrShipsWaiting(space)) {
             // We re-plan when everybody is waiting
@@ -192,6 +191,13 @@ public class JakeTeamClient extends TeamClient {
         return true;
     }
 
+
+    /**
+     * Whether any ships are have the Alcove_Waiter role,
+     * and can pick up a flag
+     * @param space physics
+     * @return true if ships are waiting, or finished with their roles
+     */
     private boolean anyRoutesDoneOrShipsWaiting(Toroidal2DPhysics space) {
         if (planningUtil.anyWaiting(space)) {
             return true;
@@ -204,7 +210,13 @@ public class JakeTeamClient extends TeamClient {
         return false;
     }
 
-    Set<AbstractObject> otherTargetObjects(Toroidal2DPhysics space, Ship ship) {
+    /**
+     * All target objects minus our current ship
+     * @param space physics
+     * @param ship which ship
+     * @return All Route targets minus our ship
+     */
+    private Set<AbstractObject> otherTargetObjects(Toroidal2DPhysics space, Ship ship) {
         Set<AbstractObject> targets = new HashSet<>();
         for (Map.Entry<UUID, Route> entry : currentRoutes.entrySet()) {
             if (!ship.getId().equals(entry.getKey())) {
@@ -496,7 +508,7 @@ public class JakeTeamClient extends TeamClient {
                                                      ResourcePile resourcesAvailable,
                                                      PurchaseCosts purchaseCosts) {
         // We need to do some more before we can actually purchase some stuff
-        return powerupUtil.getTeamPurchases(space, actionableObjects, resourcesAvailable, purchaseCosts);
+        return powerupUtil.getTeamPurchases(space, actionableObjects);
     }
 
     /**
@@ -511,7 +523,7 @@ public class JakeTeamClient extends TeamClient {
      */
     public Map<UUID, SpaceSettlersPowerupEnum> getPowerups(Toroidal2DPhysics space,
                                                            Set<AbstractActionableObject> actionableObjects) {
-        return powerupUtil.getPowerups(space, actionableObjects);
+        return powerupUtil.getPowerups(actionableObjects);
     }
 
     // region Boilerplate

@@ -7,16 +7,17 @@ import spacesettlers.utilities.Position;
 import java.util.*;
 
 class PlanningUtil {
-    public static Position powerupLocation = null;
+    static Position powerupLocation = null;
     private final String teamName;
     private Map<UUID, ShipRole> currentRoles = new HashMap<>();
     private int flagScore = 0;
+    private int SEARCH_LIMIT = 4000;
 
     PlanningUtil(String teamName) {
         this.teamName = teamName;
     }
 
-    public PlanningState currentState(Toroidal2DPhysics space) {
+    PlanningState currentState(Toroidal2DPhysics space) {
         Set<Ship> ourShips = SpaceSearchUtil.getOurShips(space, teamName);
         int shipCount = ourShips.size();
         Position flagPosition = SpaceSearchUtil.getTargetFlag(space, teamName).getPosition();
@@ -48,7 +49,7 @@ class PlanningUtil {
         Map<PlanningState, List<RoleAssignment>> paths = new HashMap<>();
         statesQueue.add(initialState);
         paths.put(initialState, new ArrayList<>());
-        while (!statesQueue.isEmpty() && paths.size() < 4000) {
+        while (!statesQueue.isEmpty() && paths.size() < SEARCH_LIMIT) {
             PlanningState state = statesQueue.poll();
             for (RoleAssignment assignment : allAssignments) {
                 List<RoleAssignment> path = paths.get(state);
@@ -113,7 +114,7 @@ class PlanningUtil {
         }
     }
 
-    public void incrementFlagScore() {
+    void incrementFlagScore() {
         flagScore++;
     }
 }

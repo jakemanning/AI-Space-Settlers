@@ -15,8 +15,7 @@ import java.util.List;
  */
 public abstract class Route {
     private final Ship ship;
-    private final int MIN_LOOK_BEHIND_TO_REPLAN = 2;
-    private int nextStep = 0;
+    private int nextStep = 0; // The next step we will head to (our current step)
     private static int LOOK_AHEAD_FROM_SHIP = 5;
     private static int NUM_DIVISIONS_X = 100; // Divisible by 1600
     private static int NUM_DIVISIONS_Y = 60; // Divisible by 1080
@@ -24,7 +23,6 @@ public abstract class Route {
     List<Position> steps;
     private AbstractObject goal;
     private static List<List<RouteNode>> baseCandidates;
-    private int LOOK_BEHIND_FROM_GOAL = 15;
     private final ShipRole role;
 
     Route(AbstractObject goal, Ship ship, ShipRole role) {
@@ -94,8 +92,9 @@ public abstract class Route {
 
     /**
      * Creates a search graph by creating a grid of {@link RouteNode} objects {@value NUM_DIVISIONS_X} wide,
-     * and {@value NUM_DIVISIONS_Y} high. Each {@link RouteNode} will not be included if it has an obstruction in its grid.
+     * and {@value NUM_DIVISIONS_Y} high. Each {@link RouteNode} will not be included if it has an obstruction contained in its grid.
      * Finally for each node, we look at the 8 surrounding nodes and connect if no obstacles in those grids.
+     * If an object spans several grids, we block off the entire rectangular area.
      * We construct a graph based off of these nodes/connections
      *
      * @return the completed {@link Graph}
@@ -139,6 +138,7 @@ public abstract class Route {
         rootNode.setDistanceToGoal(heuristicCostEstimate(space, initialShipPosition, goalPosition));
 
         // Mark nodes as invalid if contains an obstruction
+        double shipBuffer = ship.getRadius() * 1.3;
         for (AbstractObject obstruction : obstructions) {
             if (obstruction.getPosition().equalsLocationOnly(goalPosition)) {
                 continue;
@@ -146,13 +146,13 @@ public abstract class Route {
             Position obstructionPos = obstruction.getPosition();
             double buffer = obstruction.getRadius();
             if (!obstruction.isMoveable()) {
-                buffer += ship.getRadius() * 1.3;
+                buffer += shipBuffer;
             }
             markArea(space, widthDiff, heightDiff, obstructionPos, buffer, true);
         }
 
-        markArea(space, widthDiff, heightDiff, ship.getPosition(), ship.getRadius() * 1.3, false);
-        markArea(space, widthDiff, heightDiff, getGoal(space).getPosition(), getGoal(space).getRadius(), false);
+        markArea(space, widthDiff, heightDiff, ship.getPosition(), shipBuffer, false); // Mark the area around ship as valid to prevent disconnected graphs
+        markArea(space, widthDiff, heightDiff, getGoal(space).getPosition(), getGoal(space).getRadius(), false); // Mark the area around goal as valid
 
         // Look at the 8 adjacent locations to find a connection
         for (int x = 0; x < baseCandidates.size(); ++x) { // Skip every other row
@@ -162,18 +162,18 @@ public abstract class Route {
                 edges.put(me, neighbors);
                 nodes.add(me);
                 if (me.containsObstruction()) {
-                    continue;
+                    continue; // We don't want to connect neighbor nodes
                 }
 
                 RouteNode arr[] = {
                         baseCandidates.get(intRingMod(x - 1, NUM_DIVISIONS_X)).get(intRingMod(y - 1, NUM_DIVISIONS_Y)), // northwest
-                        baseCandidates.get(x).get(intRingMod(y - 1, NUM_DIVISIONS_Y)),                                     // north
+                        baseCandidates.get(x).get(intRingMod(y - 1, NUM_DIVISIONS_Y)),                                          // north
                         baseCandidates.get(intRingMod(x + 1, NUM_DIVISIONS_X)).get(intRingMod(y - 1, NUM_DIVISIONS_Y)), // northeast
-                        baseCandidates.get(intRingMod(x + 1, NUM_DIVISIONS_X)).get(y),                                     // east
+                        baseCandidates.get(intRingMod(x + 1, NUM_DIVISIONS_X)).get(y),                                          // east
                         baseCandidates.get(intRingMod(x + 1, NUM_DIVISIONS_X)).get(intRingMod(y + 1, NUM_DIVISIONS_Y)), // southeast
-                        baseCandidates.get(x).get(intRingMod(y + 1, NUM_DIVISIONS_Y)),                                     // south
+                        baseCandidates.get(x).get(intRingMod(y + 1, NUM_DIVISIONS_Y)),                                           // south
                         baseCandidates.get(intRingMod(x - 1, NUM_DIVISIONS_X)).get(intRingMod(y + 1, NUM_DIVISIONS_Y)), // southwest
-                        baseCandidates.get(intRingMod(x - 1, NUM_DIVISIONS_X)).get(y)                                      // west
+                        baseCandidates.get(intRingMod(x - 1, NUM_DIVISIONS_X)).get(y)                                            // west
                 };
 
                 for (RouteNode neighbor : arr) {
@@ -190,7 +190,7 @@ public abstract class Route {
     }
 
     /**
-     * Shows which areas are blocked off
+     * Shows which areas are blocked off (disconnected)
      * WARNING: Slows project considerably
      */
     private void displayBlockedAreas(Set<RouteNode> nodes, int widthDiff, int heightDiff) {
@@ -200,6 +200,15 @@ public abstract class Route {
                         new RectangleGraphics(widthDiff, heightDiff, Color.BLUE, node.getTopLeftPosition())));
     }
 
+    /**
+     * Marks an area on the graph as valid or invalid (connected/disconnected)
+     * @param space physics
+     * @param widthDiff How wide the grids are
+     * @param heightDiff How high the grids are
+     * @param obstructionPos Where we want to mark off
+     * @param buffer How much extra we want to block off
+     * @param containsObstruction marks an area as invalid if true
+     */
     private void markArea(Toroidal2DPhysics space, double widthDiff, double heightDiff, Position obstructionPos, double buffer, boolean containsObstruction) {
         Position topLeft = new Position(obstructionPos.getX() - buffer, obstructionPos.getY() - buffer);
         Position bottomRight = new Position(obstructionPos.getX() + buffer, obstructionPos.getY() + buffer);
@@ -220,14 +229,14 @@ public abstract class Route {
     }
 
     /**
-     * Return which grid an x-position contains
+     * Return which grid a x-position will be in
      */
     private int gridXPosition(Toroidal2DPhysics space, double input) {
         return (int)MovementUtil.linearNormalize(0, space.getWidth(), 0, NUM_DIVISIONS_X, doubleRingMod(input, space.getWidth()));
     }
 
     /**
-     * Return which grid an y-position contains
+     * Return which grid a y-position will be in
      */
     private int gridYPosition(Toroidal2DPhysics space, double input) {
         return (int)MovementUtil.linearNormalize(0, space.getHeight(), 0, NUM_DIVISIONS_Y, doubleRingMod(input, space.getHeight()));
@@ -278,7 +287,7 @@ public abstract class Route {
     abstract double heuristicCostEstimate(Toroidal2DPhysics space, Position start, Position end);
 
     /**
-     * Work backwards, adding the nodes to the path
+     * Work backwards from the goal, adding the nodes to the path
      *
      * @param current The node to work backwards from
      * @return The correctly ordered a* search path from start to current node
@@ -328,22 +337,31 @@ public abstract class Route {
     }
 
     /**
-     * Our goal to reach
+     * Our target we want to reach
      *
      * @return our target that we are trying to reach
      */
     AbstractObject getGoal(Toroidal2DPhysics space) {
-        if (goal instanceof MadeUpObject) {
+        if (goal instanceof MadeUpObject) { // MadeUpObject won't exist in space.getObjById
             return goal;
         }
         return space.getObjectById(goal.getId());
     }
 
-    public ShipRole getRole() {
+    /**
+     * @return what role the current ship has on our Route
+     */
+    ShipRole getRole() {
         return role;
     }
 
+    /**
+     * If our object moved, look behind several steps
+     * @param space physics
+     */
     void updateIfObjectMoved(Toroidal2DPhysics space) {
+        int MIN_LOOK_BEHIND_TO_REPLAN = 2;
+        // Replan every 10 timesteps, or if search fails and we're not close to our target
         if (space.getCurrentTimestep() % 10 != 0  || steps == null || (steps.size() - 1 - nextStep) <= MIN_LOOK_BEHIND_TO_REPLAN) {
             return;
         }
@@ -351,11 +369,13 @@ public abstract class Route {
 
         Position lastStep = steps.get(lastPossibleNode);
         Position goalPosition = getGoal(space).getPosition();
+        // If the goal position hasn't changed, return
         if (lastStep.equalsLocationOnly(goalPosition) || lastStep.equalsLocationOnly(nodeForPosition(space, goalPosition).getCenter())) {
             return;
         }
 
-        int lookBehind = Math.min(LOOK_BEHIND_FROM_GOAL, lastPossibleNode - nextStep);
+        int LOOK_BEHIND_FROM_GOAL = 15; // # of nodes from end to replan from (we don't want to replan our entire route)
+        int lookBehind = Math.min(LOOK_BEHIND_FROM_GOAL, lastPossibleNode - nextStep); // If our entire path is shorter than 15
         Position starting = steps.get(lastPossibleNode - lookBehind);
 
         double distanceFromLookback = heuristicCostEstimate(space, starting, goalPosition);
@@ -369,13 +389,16 @@ public abstract class Route {
         List<Position> result = search(space, graph);
 
         if (result != null) {
+            // Splice improved path into our route
             if (distanceFromLookback < distanceFromShip) {
                 List<Position> newList = steps.subList(0, lastPossibleNode - lookBehind);
                 newList.addAll(result);
                 steps = newList;
             } else {
+                // This will be the entire recalculated path
                 steps = result;
             }
+            // Update our goal position
             steps.set(steps.size() - 1, getGoal(space).getPosition());
         }
     }
