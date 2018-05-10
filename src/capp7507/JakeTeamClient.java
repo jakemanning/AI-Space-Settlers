@@ -42,7 +42,7 @@ public class JakeTeamClient extends TeamClient {
     private GraphicsUtil graphicsUtil;
     private PowerupUtil powerupUtil;
     private PlanningUtil planningUtil;
-    private int LOW_ENERGY_THRESHOLD = 1500;
+    private int LOW_ENERGY_THRESHOLD = 2500;
 
     /**
      * Called before movement begins. Fill a HashMap with actions depending on the bestValue
@@ -71,10 +71,10 @@ public class JakeTeamClient extends TeamClient {
 
                 // Retrieve ship's current target or pick a new one if needed
                 Route currentRoute = currentRoutes.get(actionable.getId());
-                AbstractObject target;
+                AbstractObject target = null;
                 ShipRole role = planningUtil.getRole(shipId);
                 if (currentRoute == null || currentRoute.getRole() != role || currentRoute.isDone()
-                    /*|| pathBlocked(space, ship, currentRoute)*/) {
+                    || pathBlocked(space, ship, currentRoute)) {
                     if (role == ShipRole.FLAGGER || ship.isCarryingFlag()) {
                         role = ShipRole.FLAGGER;
                         planningUtil.setRole(shipId, ShipRole.FLAGGER);
@@ -82,11 +82,11 @@ public class JakeTeamClient extends TeamClient {
                             Set<AbstractObject> ourBases = space.getBases().stream()
                                     .filter(this::isOurBase)
                                     .collect(Collectors.toSet());
-                            Set<AbstractObject> unpopular = new HashSet<>(ourBases);
-                            unpopular.removeAll(otherTargetObjects(space, ship));
-                            if (unpopular.size() != 0) {
-                                ourBases = unpopular;
-                            }
+//                            Set<AbstractObject> unpopular = new HashSet<>(ourBases);
+//                            unpopular.removeAll(otherTargetObjects(space, ship));
+//                            if (unpopular.size() != 0) {
+//                                ourBases = unpopular;
+//                            }
                             target = MovementUtil.closest(space, shipPos, ourBases);
                         } else {
                             target = SpaceSearchUtil.getTargetFlag(space, getTeamName());
@@ -153,7 +153,7 @@ public class JakeTeamClient extends TeamClient {
                 }
 
                 // Some configuration to help ships turn/move better
-                if (ship.getEnergy() >= LOW_ENERGY_THRESHOLD) {
+                if (ship.getEnergy() >= LOW_ENERGY_THRESHOLD || target instanceof Flag && target.getPosition().getTotalTranslationalVelocity() != 0) {
                     action.setKvRotational(4);
                     action.setKpRotational(4);
                     action.setKvTranslational(2);
@@ -353,7 +353,7 @@ public class JakeTeamClient extends TeamClient {
             }
             double distance = space.findShortestDistance(shipPosition, target.getPosition());
             int targetRadius = target.getRadius();
-            boolean closeEnough = target instanceof Base && distance < targetRadius + ship.getRadius() + 5;
+            boolean closeEnough = target instanceof Base && distance <= targetRadius + ship.getRadius() + 10;
             boolean flagAcquired = (target instanceof Flag || target instanceof MadeUpObject) && ship.isCarryingFlag();
 
             // Handle when our target dies

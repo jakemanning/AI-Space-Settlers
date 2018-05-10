@@ -72,7 +72,7 @@ public abstract class Route {
      *  the next {@value LOOK_AHEAD_FROM_SHIP} nodes is blocked
      */
     boolean pathBlockedAtStep(Toroidal2DPhysics space, Ship ship, Set<AbstractObject> obstructions) {
-        for (int i = nextStep + 1, count = 0; i < steps.size() - 1 && count < LOOK_AHEAD_FROM_SHIP; ++i, ++count) {
+        for (int i = nextStep + 1, count = 0; i < steps.size() - 3 && count < LOOK_AHEAD_FROM_SHIP; ++i, ++count) {
             Position currentStep = steps.get(i - 1);
             Position nextStep = steps.get(i);
 

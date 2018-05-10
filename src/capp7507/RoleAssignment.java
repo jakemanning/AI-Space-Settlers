@@ -300,7 +300,7 @@ public class RoleAssignment {
     private boolean homesick(PlanningState state) {
         Toroidal2DPhysics space = state.getSpace();
         Ship ship = (Ship) space.getObjectById(shipId);
-        return ship.getResources().getTotal() > 5000;
+        return ship.getResources().getTotal() > 1500;
     }
 
     private boolean closestToAlcove(PlanningState state) {

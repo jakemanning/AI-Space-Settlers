@@ -4,6 +4,7 @@ import spacesettlers.actions.PurchaseCosts;
 import spacesettlers.actions.PurchaseTypes;
 import spacesettlers.clients.ImmutableTeamInfo;
 import spacesettlers.objects.AbstractActionableObject;
+import spacesettlers.objects.AbstractObject;
 import spacesettlers.objects.Base;
 import spacesettlers.objects.Ship;
 import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
@@ -51,27 +52,69 @@ public class PowerupUtil {
         Set<AbstractActionableObject> bases = actionableObjects.stream()
                 .filter(o -> o instanceof Base)
                 .collect(Collectors.toSet());
+        Position lower = SpaceSearchUtil.getLowerFlagPosition(space, client.getTeamName()).getPosition();
+        Position upper = SpaceSearchUtil.getUpperFlagPosition(space, client.getTeamName()).getPosition();
 
-        if (space.getCurrentTimestep() < BASE_PURCHASE_PERIOD) {
-            Position lower = SpaceSearchUtil.getLowerFlagPosition(space, client.getTeamName()).getPosition();
-            Position upper = SpaceSearchUtil.getUpperFlagPosition(space, client.getTeamName()).getPosition();
+
+        int lowBaseCount = 0;
+        int highBaseCount = 0;
+        for (AbstractActionableObject basis : bases) {
+            double distanceToLower = space.findShortestDistance(basis.getPosition(), lower);
+            double distanceToUpper = space.findShortestDistance(basis.getPosition(), upper);
+            if (MIN_BASE_DISTANCE < distanceToLower && distanceToLower < MAX_BASE_DISTANCE) {
+                lowBaseCount++;
+            } else if (MIN_BASE_DISTANCE < distanceToUpper && distanceToUpper < MAX_BASE_DISTANCE) {
+                highBaseCount++;
+            }
+        }
+
+        if (lowBaseCount < 2 || highBaseCount < 2) {
+            int finalLowBaseCount = lowBaseCount;
+            int finalHighBaseCount = highBaseCount;
 
             ships.forEach(s -> {
+                Ship ship = (Ship) s;
+                AbstractObject lowerObj = new MadeUpObject(lower);
+                AbstractObject upperObj = new MadeUpObject(upper);
+                Set<AbstractObject> lowerObstructions = SpaceSearchUtil.getObstructions(space, (Ship)s, lowerObj);
+                Set<AbstractObject> upperObstructions = SpaceSearchUtil.getObstructions(space, (Ship)s, upperObj);
                 double distanceToLower = space.findShortestDistance(s.getPosition(), lower);
                 double distanceToUpper = space.findShortestDistance(s.getPosition(), upper);
-                if (MIN_BASE_DISTANCE < distanceToLower && distanceToLower < MAX_BASE_DISTANCE || MIN_BASE_DISTANCE < distanceToUpper && distanceToUpper < MAX_BASE_DISTANCE) {
+
+                if (finalLowBaseCount < 2 && MIN_BASE_DISTANCE < distanceToLower && distanceToLower < MAX_BASE_DISTANCE && space.isPathClearOfObstructions(s.getPosition(), lower, lowerObstructions, s.getRadius())) {
+                    purchases.put(s.getId(), PurchaseTypes.BASE);
+                } else if (finalHighBaseCount < 2 && MIN_BASE_DISTANCE < distanceToUpper && distanceToUpper < MAX_BASE_DISTANCE && space.isPathClearOfObstructions(s.getPosition(), upper, upperObstructions, s.getRadius())) {
                     purchases.put(s.getId(), PurchaseTypes.BASE);
                 }
             });
         } else {
             if (random.nextBoolean()) {
-                ships.forEach(s -> purchases.put(s.getId(), PurchaseTypes.BASE));
-            }
+                long baseCount = actionableObjects.stream()
+                        .filter(o -> o instanceof Base)
+                        .count();
+                // leave some wiggle room about how far away the ship needs to be to buy a base
+                final double baseDistanceFactor = 0.8;
+                final double baseBuyingDistance = baseDistanceFactor * MovementUtil.maxDistance(space) / baseCount;
 
-            if (random.nextBoolean() && ships.size() < client.getMaxNumberShips()) {
-                for (AbstractActionableObject actionableObject : bases) {
-                    Base base = (Base) actionableObject;
-                    purchases.put(base.getId(), PurchaseTypes.SHIP);
+                for (AbstractActionableObject actionableObject : actionableObjects) {
+                    if (actionableObject instanceof Ship) {
+                        Ship ship = (Ship) actionableObject;
+
+                        // how far away is this ship to a base of my team?
+                        double minDistance = Double.MAX_VALUE;
+                        for (AbstractActionableObject obj : bases) {
+                            Base base = (Base) obj;
+                            double distance = space.findShortestDistance(ship.getPosition(), base.getPosition());
+                            if (distance < minDistance) {
+                                minDistance = distance;
+                            }
+                        }
+
+                        if (minDistance > baseBuyingDistance) {
+                            purchases.put(ship.getId(), PurchaseTypes.BASE);
+                            break;
+                        }
+                    }
                 }
             }
 
