@@ -38,7 +38,7 @@ class KnowledgeUtil {
     private final String KNOWLEDGE_FILE;
     private static final String COLLECTION_FILE = "capp7507/knowledge_collection.xml.gz";
     private Map<UUID, SessionCollection> sessions;
-    private static final int POPULATION_SIZE = 100; // Prof: no lower than a hundred
+    private static final int POPULATION_SIZE = 200; // Prof: no lower than a hundred
     private XStream xStream;
 
     KnowledgeUtil(String knowledgeFile) {
@@ -68,6 +68,9 @@ class KnowledgeUtil {
             populationCollection.add(population.deepCopy());
             population.makeNextGeneration();
             currentPolicy = population.getNextMember();
+            System.out.printf("GENERATION %d COMPLETE\n", populationCollection.size());
+        } else {
+            System.out.printf("GENERATION %d, GAME %d\n", populationCollection.size() + 1, population.getCurrentPopulationCounter());
         }
         sessions.clear();
     }

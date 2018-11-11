@@ -1,10 +1,13 @@
 package capp7507;
 
+import org.apache.logging.log4j.Logger;
 import spacesettlers.objects.AbstractObject;
 import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
 
+
 import java.util.Stack;
+
 
 /**
  * A collection of {@link AvoidSession}s
@@ -12,6 +15,7 @@ import java.util.Stack;
  */
 public class SessionCollection {
     private Stack<AvoidSession> sessions;
+    private final int RELEVANT_THRESHOLD = 20;
 
     SessionCollection() {
         this.sessions = new Stack<>();
@@ -23,6 +27,10 @@ public class SessionCollection {
 
     public AvoidSession add(AvoidSession session) {
         return sessions.push(session);
+    }
+
+    public boolean lastSessionWasSuccessful() {
+        return sessions.empty() || sessions.peek().isSessionComplete();
     }
 
     /**
@@ -40,11 +48,16 @@ public class SessionCollection {
         }
         AvoidSession lastSession = sessions.peek();
         int timeStepsSinceLastSession = space.getCurrentTimestep() - lastSession.getTimestepStarted();
-        if (timeStepsSinceLastSession > 20) {
+
+        if (!sessionIsRelevant(timeStepsSinceLastSession)) {
             // time since last session is too long to be relevant
             return false;
         }
         return obstacle.equals(lastSession.getObstacle(space));
+    }
+
+    boolean sessionIsRelevant(int timeStepsSinceLastSession) {
+        return timeStepsSinceLastSession < RELEVANT_THRESHOLD;
     }
 
     void completeLastSession(Toroidal2DPhysics space, Ship ship) {

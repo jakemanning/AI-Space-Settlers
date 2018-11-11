@@ -34,7 +34,7 @@ import static capp7507.TrainingPowerupUtil.MAX_SHOOT_DISTANCE;
  */
 public class JakeTeamClient extends TeamClient {
     private static final boolean DEBUG = true;
-    static final boolean TRAINING_GA = false;
+    static final boolean TRAINING_GA = true;
     static final boolean TRAINING_TREE = false;
     private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
     private static final int SHIP_MAX_RESOURCES = 5000;
@@ -104,6 +104,7 @@ public class JakeTeamClient extends TeamClient {
                     if (TRAINING_GA && !sessionCollection.lastSessionWasComplete()) {
                         // end the last avoid session since we're no longer avoiding
                         sessionCollection.completeLastSession(space, ship);
+                        System.out.printf("Session complete: %s\n", sessionCollection.lastSessionWasSuccessful() ? "Success" : "Failure");
                     }
 
                     if (target instanceof AbstractActionableObject && !isOurBase((AbstractActionableObject) target)) {
@@ -165,6 +166,8 @@ public class JakeTeamClient extends TeamClient {
             if (!space.isPathClearOfObstructions(ship.getPosition(), object.getPosition(), obstructions, ship.getRadius())) {
                 if (!TRAINING_GA) {
                     value *= OBSTRUCTED_PATH_PENALTY; // We should be less likely to go towards objects with obstacles in the way
+                } else {
+                    value *= 1.2; // We are trying to have more instances of avoiding, to train our ship
                 }
             }
 
@@ -280,12 +283,20 @@ public class JakeTeamClient extends TeamClient {
         if (TRAINING_GA) {
             SessionCollection currentSession = knowledge.getSessionsFor(ship.getId());
 
+            if (currentSession.lastSessionWasComplete()) {
+
+            } else {
+
+            }
+
+
             if (currentSession.lastSessionWasFor(space, obstacle)) {
                 currentSession.markLastSessionIncomplete();
             }
             if (currentSession.lastSessionWasComplete()) {
                 AvoidSession newAvoidSession = new AvoidSession(space, ship, target, obstacle);
                 currentSession.add(newAvoidSession);
+                System.out.println("New session");
             }
             KnowledgeState state = KnowledgeState.build(space, ship, obstacle, target, graphicsUtil);
             return knowledge.getCurrentPolicy().getCurrentAction(space, ship, state);
@@ -360,6 +371,7 @@ public class JakeTeamClient extends TeamClient {
             if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
                 if (TRAINING_GA && (abstractAction instanceof AvoidAction) && !closeEnough) {
                     currentSession.invalidateLastSession();
+                    System.out.println("Session invalidated: target lost");
                 }
                 targetsToRemove.add(shipId);
             }
@@ -373,8 +385,9 @@ public class JakeTeamClient extends TeamClient {
                     int totalRadius = ship.getRadius() + obstacle.getRadius();
                     if (space.findShortestDistance(shipPosition, obstaclePosition) < totalRadius) {
                         currentSession.markAvoidanceAsUnsuccessful(space, obstacle);
+                        System.out.println("Session unsuccessful");
                     }
-                    // Check if ship is collides with an obstacle that is NOT our obstacle or target
+                    // Check if ship collides with an obstacle that is NOT our obstacle or target
                     for (AbstractObject object : space.getAllObjects()) {
                         if (!object.isAlive()) {
                             continue;
@@ -393,6 +406,7 @@ public class JakeTeamClient extends TeamClient {
 
                         if (goingThe < (ship.getRadius() + object.getRadius())) {
                             currentSession.invalidateLastSession();
+                            System.out.println("Session invalidated: collided with unkown object");
                         }
                     }
                 }
@@ -403,6 +417,7 @@ public class JakeTeamClient extends TeamClient {
                     AvoidAction action = (AvoidAction) abstractAction;
                     AbstractObject obstacle = action.getObstacle();
                     currentSession.invalidateLastSession();
+                    System.out.println("Session invalidated: ship died");
                 }
             }
         }

@@ -19,7 +19,7 @@ public class KnowledgeChromosome {
         Random rand = new Random();
         // randomly choose coefficients for the raw action
         if (coefficients == null) {
-            coefficients = new double[KnowledgeState.ANGLE_NUMBER_OF_DIVISIONS + KnowledgeState.TRAJECTORY_NUMBER_OF_DIVISIONS];
+            coefficients = new double[KnowledgeState.ANGLE_NUMBER_OF_DIVISIONS];
             for (int i = 0; i < coefficients.length; i++) {
                 coefficients[i] = resetCoefficient(i, rand);
             }
@@ -96,7 +96,7 @@ public class KnowledgeChromosome {
         double angleToObstacle = state.getObstacleLocationAngle();
         double angleToObstacleMovement = state.getObstacleTrajectoryAngle();
 
-        double angle = a * angleToObstacle + b * angleToObstacleMovement;
+        double angle = a * angleToObstacle;// + b * angleToObstacleMovement;
 
         return AvoidAction.build(space, ship.getPosition(), angle, 1, state.getObstacle());
     }

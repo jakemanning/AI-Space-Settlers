@@ -30,3 +30,5 @@ out/
 dist/
 
 .DS_Store
+*.xml.gz
+target/

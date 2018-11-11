@@ -1,5 +1,6 @@
 package spacesettlers.objects;
 
+import java.util.Random;
 import java.util.UUID;
 
 import spacesettlers.graphics.SpacewarGraphics;

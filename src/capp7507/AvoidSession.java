@@ -40,6 +40,7 @@ public class AvoidSession {
     private int timestepCompleted = Integer.MAX_VALUE;
     private UUID obstacleId;
     private UUID targetId;
+    private final double MINIMUM_DIFFICULTY_POSSIBLE;
 
     AvoidSession(Toroidal2DPhysics space, Ship ship, AbstractObject target, AbstractObject obstacle) {
         this.successfullyAvoided = true;
@@ -60,9 +61,16 @@ public class AvoidSession {
         // Higher difficulty means lower penalty
         // Least hard: penalty = 3
         // Most hard: penalty = 0
-        difficulty = MovementUtil.linearNormalize(0, MovementUtil.maxDistance(space), 0, 1.0, distanceFromObstacleToTarget); // The closer the obstacle is to the target, the harder it is to avoid
-        difficulty += MovementUtil.linearNormalize(0, MovementUtil.maxDistance(space), 0, 1.0, space.findShortestDistance(ship.getPosition(), intercept)); // The closer we are to the obstacle, the harder it is
-        difficulty += MovementUtil.linearNormalize(0, Math.PI / 2, 0, 1.0, Math.abs(obstacleLocationAngle)); // The higher the angle, the easier it is
+
+        double distanceToObstaclePenalty = 1.0;
+        double distanceFromGoalPenalty = 1.0;
+        double obstacleAngleFromShipPenalty = 1.0;
+
+        difficulty = MovementUtil.linearNormalize(0, MovementUtil.maxDistance(space), 0, distanceToObstaclePenalty, distanceFromObstacleToTarget); // The closer the obstacle is to the target, the harder it is to avoid
+        difficulty += MovementUtil.linearNormalize(0, MovementUtil.maxDistance(space), 0, distanceFromGoalPenalty, space.findShortestDistance(ship.getPosition(), intercept)); // The closer we are to the obstacle, the harder it is
+        difficulty += MovementUtil.linearNormalize(0, Math.PI / 2, 0, obstacleAngleFromShipPenalty, Math.abs(obstacleLocationAngle)); // The higher the angle, the easier it is
+
+        MINIMUM_DIFFICULTY_POSSIBLE = distanceToObstaclePenalty + distanceFromGoalPenalty + obstacleAngleFromShipPenalty;
     }
 
     /**
@@ -168,10 +176,16 @@ public class AvoidSession {
             double fitness = 0;
             if (!successfullyAvoided) {
                 fitness -= difficulty;
+                System.out.printf("Failure! Fitness: %f\n", fitness);
             } else {
-                fitness += difficulty;
+                // We should reward successfully avoiding by
+                // Removing the difficulty from the lowest difficulty (highest possible number: 3.0)
+                // And adding 1.0 as a bonus for successfully avoiding
+                double BONUS_FOR_SUCCESS = 1.0;
+                fitness += (MINIMUM_DIFFICULTY_POSSIBLE - difficulty) + BONUS_FOR_SUCCESS;
+                System.out.printf("Succcess! Fitness: %f\n", fitness);
             }
-            fitness += distanceChange / initialDistance;
+
             return fitness;
         }
     }

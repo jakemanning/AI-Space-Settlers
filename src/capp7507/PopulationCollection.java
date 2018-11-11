@@ -17,4 +17,8 @@ public class PopulationCollection {
     public void add(KnowledgePopulation population) {
         populations.add(population);
     }
+
+    public int size() {
+        return populations.size();
+    }
 }

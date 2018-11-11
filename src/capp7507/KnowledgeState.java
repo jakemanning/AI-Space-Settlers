@@ -36,7 +36,7 @@ public class KnowledgeState implements Serializable {
         this.obstacleTrajectoryAngle = obstacleTrajectoryAngle;
         this.obstacle = obstacle;
         this.target = target;
-        this.trajectoryCategory = getTrajectoryCategory(obstacleTrajectoryAngle);
+        this.trajectoryCategory = -1;// getTrajectoryCategory(obstacleTrajectoryAngle);
         this.angleCategory = getAngleCategory(obstacleLocationAngle);
     }
 
