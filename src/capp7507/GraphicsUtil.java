@@ -1,8 +1,10 @@
 package capp7507;
 
 import spacesettlers.graphics.CircleGraphics;
+import spacesettlers.graphics.LineGraphics;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.graphics.TargetGraphics;
+import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
 
 import java.awt.*;
@@ -50,6 +52,10 @@ public class GraphicsUtil {
     // region AnyGraphics
     void addGraphic(SpacewarGraphics graphic) {
         graphics.add(graphic);
+    }
+
+    void addLineGraphic(Toroidal2DPhysics space, Position start, Position end) {
+        graphics.add(new LineGraphics(start, end, space.findShortestDistanceVector(start, end)));
     }
 
     void addTargetGraphic(UUID uuid, SpacewarGraphics graphics) {

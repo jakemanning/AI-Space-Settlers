@@ -3,12 +3,10 @@ package capp7507;
 import spacesettlers.objects.AbstractObject;
 import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
-import spacesettlers.utilities.Movement;
 import spacesettlers.utilities.Position;
 import spacesettlers.utilities.Vector2D;
 
 import java.util.UUID;
-import java.util.Vector;
 
 /**
  * Used when training GA. An Avoid Session is created whenever a ship begins avoiding.
@@ -31,16 +29,27 @@ public class AvoidSession {
     private double energyAtAvoidEnd;
     private double difficulty;
 
-    public boolean isSuccessfullyAvoided() {
-        return successfullyAvoided;
-    }
-
     private boolean successfullyAvoided;
     private int timestepStarted;
     private int timestepCompleted = Integer.MAX_VALUE;
     private UUID obstacleId;
     private UUID targetId;
     private final double MINIMUM_DIFFICULTY_POSSIBLE;
+
+    UUID getObstacleId() {
+        return obstacleId;
+    }
+
+    boolean isSuccessfullyAvoided() {
+        return successfullyAvoided;
+    }
+
+    boolean sessionWasLongEnough() {
+        int sessionLength = getTimestepCompleted() - getTimestepStarted();
+        return sessionLength > 10;
+    }
+
+    int getTimestepCompleted() { return timestepCompleted; }
 
     AvoidSession(Toroidal2DPhysics space, Ship ship, AbstractObject target, AbstractObject obstacle) {
         this.successfullyAvoided = true;
@@ -104,7 +113,7 @@ public class AvoidSession {
         return space.getObjectById(targetId);
     }
 
-    boolean isSessionComplete() {
+    boolean isComplete() {
         return timestepCompleted != Integer.MAX_VALUE;
     }
 
@@ -181,8 +190,7 @@ public class AvoidSession {
                 // We should reward successfully avoiding by
                 // Removing the difficulty from the lowest difficulty (highest possible number: 3.0)
                 // And adding 1.0 as a bonus for successfully avoiding
-                double BONUS_FOR_SUCCESS = 1.0;
-                fitness += (MINIMUM_DIFFICULTY_POSSIBLE - difficulty) + BONUS_FOR_SUCCESS;
+                fitness += (MINIMUM_DIFFICULTY_POSSIBLE - difficulty);
                 System.out.printf("Succcess! Fitness: %f\n", fitness);
             }
 

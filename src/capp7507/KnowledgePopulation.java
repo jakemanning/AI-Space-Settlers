@@ -1,6 +1,7 @@
 package capp7507;
 
 import java.util.*;
+import java.util.logging.Logger;
 import java.util.stream.DoubleStream;
 
 
@@ -8,11 +9,11 @@ import java.util.stream.DoubleStream;
  * Stores a whole population of individuals for genetic algorithms / evolutionary computation
  */
 public class KnowledgePopulation {
+    private Logger logger = Logger.getLogger(KnowledgePopulation.class.getName());
     private Random random;
     private KnowledgeChromosome[] population;
     private final static int ELITES_TO_TAKE = 5;
-    private final static double MUTATION_RATE = 0.1;
-    private final static double MIN_FITNESS_POSSIBLE = 0.1;
+    private final static double MUTATION_RATE = 0.05;
 
     private int currentPopulationCounter;
     private double[] fitnessScores;
@@ -42,12 +43,12 @@ public class KnowledgePopulation {
      * Evaluates fitness using all of our avoid sessions
      * @param sessions all of our avoid sessions
      */
-    public void evaluateFitnessForCurrentMember(Collection<SessionCollection> sessions) {
+    void evaluateFitnessForCurrentMember(Collection<SessionCollection> sessions) {
         double fitness = sessions.stream()
                 .mapToDouble(SessionCollection::averageFitness)
                 .average()
                 .orElse(0);
-        System.out.println("eval: " + fitness);
+        logger.info(String.format("fitness: %f", fitness));
         fitnessScores[currentPopulationCounter] = fitness;
     }
 
@@ -145,14 +146,18 @@ public class KnowledgePopulation {
      */
     private double[] shiftMinToZero(double[] fitnessScores) {
         double min = Double.MAX_VALUE;
+        double sum = 0;
         for (double fitness : fitnessScores) {
             if (fitness < min) {
                 min = fitness;
             }
+            sum += fitness;
         }
+        double minFitnessPossible = sum * 0.01; // A 1% chance of being picked
+
         double[] result = new double[fitnessScores.length];
         for (int i = 0; i < fitnessScores.length; i++) {
-            result[i] = fitnessScores[i] - min + MIN_FITNESS_POSSIBLE;
+            result[i] = fitnessScores[i] - min + minFitnessPossible;
         }
         return result;
     }
