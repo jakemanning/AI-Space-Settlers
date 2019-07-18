@@ -9,7 +9,6 @@ import java.util.stream.DoubleStream;
  * Stores a whole population of individuals for genetic algorithms / evolutionary computation
  */
 public class KnowledgePopulation {
-    private Logger logger = Logger.getLogger(KnowledgePopulation.class.getName());
     private Random random;
     private KnowledgeChromosome[] population;
     private final static int ELITES_TO_TAKE = 5;
@@ -46,9 +45,8 @@ public class KnowledgePopulation {
     void evaluateFitnessForCurrentMember(Collection<SessionCollection> sessions) {
         double fitness = sessions.stream()
                 .mapToDouble(SessionCollection::averageFitness)
-                .average()
-                .orElse(0);
-        logger.info(String.format("fitness: %f", fitness));
+                .sum();
+        System.out.println(String.format("eval: %f", fitness));
         fitnessScores[currentPopulationCounter] = fitness;
     }
 
@@ -111,8 +109,8 @@ public class KnowledgePopulation {
      *
      * @return
      */
-    KnowledgeChromosome getFirstMember() {
-        return population[0];
+    KnowledgeChromosome getCurrentMember() {
+        return population[currentPopulationCounter];
     }
 
     /**
@@ -196,7 +194,7 @@ public class KnowledgePopulation {
         for (KnowledgeChromosome chromosome : newPopulation) {
             for (int j = 0; j < chromosome.getCoefficients().length; j++) {
                 if (random.nextDouble() < MUTATION_RATE) {
-                    chromosome.getCoefficients()[j] = chromosome.resetCoefficient(j, random);
+                    chromosome.getCoefficients()[j] = chromosome.modifyCoefficient(j, random);
                 }
             }
         }
@@ -225,21 +223,23 @@ public class KnowledgePopulation {
     /**
      * @return Which chromosome out of our population is actual best
      */
-    KnowledgeChromosome getBestMember() {
+    ChromosomeFitness getBestMember() {
         KnowledgeChromosome best = population[0];
-        double highestFitness = Double.MIN_VALUE;
-        for (int i = 0; i < population.length; i++) {
+        double highestFitness = fitnessScores[0];
+        int number = 0;
+        for (int i = 1; i < population.length; i++) {
             KnowledgeChromosome chromosome = population[i];
             double fitness = fitnessScores[i];
             if (fitness > highestFitness) {
                 best = chromosome;
                 highestFitness = fitness;
+                number = i;
             }
         }
-        return best;
+        return new ChromosomeFitness(best, highestFitness, number);
     }
 
-    private class ChromosomeFitness {
+     class ChromosomeFitness {
         KnowledgeChromosome chromosome;
         double fitnessScore;
         int index;

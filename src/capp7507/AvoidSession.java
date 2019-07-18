@@ -35,6 +35,7 @@ public class AvoidSession {
     private UUID obstacleId;
     private UUID targetId;
     private final double MINIMUM_DIFFICULTY_POSSIBLE;
+    private double score;
 
     UUID getObstacleId() {
         return obstacleId;
@@ -46,7 +47,7 @@ public class AvoidSession {
 
     boolean sessionWasLongEnough() {
         int sessionLength = getTimestepCompleted() - getTimestepStarted();
-        return sessionLength > 10;
+        return sessionLength > 3;
     }
 
     int getTimestepCompleted() { return timestepCompleted; }
@@ -60,6 +61,7 @@ public class AvoidSession {
         timestepStarted = space.getCurrentTimestep();
         energyAtAvoidBeginning = ship.getEnergy();
         distanceAtAvoidBeginning = space.findShortestDistance(ship.getPosition(), target.getPosition());
+
 
         Vector2D goalVector = space.findShortestDistanceVector(ship.getPosition(), target.getPosition());
         Position intercept = MovementUtil.interceptPosition(space, obstacle.getPosition(), ship.getPosition());
@@ -87,15 +89,11 @@ public class AvoidSession {
      * @param space physics
      * @param ship which ship to complete
      */
-    void completeSession(Toroidal2DPhysics space, Ship ship) {
-//        AbstractObject target = target(space);
-//        if (target == null) {
-//            invalidate();
-//            return;
-//        }
+    void completeSession(Toroidal2DPhysics space, Ship ship, double score) {
         distanceAtAvoidEnd = space.findShortestDistance(ship.getPosition(), originalPosition);
         energyAtAvoidEnd = ship.getEnergy();
         timestepCompleted = space.getCurrentTimestep();
+        this.score = score;
     }
 
     /**
@@ -106,7 +104,7 @@ public class AvoidSession {
         double distanceChange = distanceAtAvoidBeginning - distanceAtAvoidEnd;
         double energySpent = energyAtAvoidBeginning - energyAtAvoidEnd;
         int timeSpent = timestepCompleted - timestepStarted;
-        return new AvoidResult(successfullyAvoided, distanceChange, distanceAtAvoidBeginning, energySpent, timeSpent, difficulty);
+        return new AvoidResult(successfullyAvoided, distanceChange, distanceAtAvoidBeginning, energySpent, timeSpent, difficulty, score);
     }
 
     private AbstractObject target(Toroidal2DPhysics space) {
@@ -154,15 +152,17 @@ public class AvoidSession {
         private double distanceChange;
         private double energySpent;
         private int timeSpent;
+        private double score;
         private double initialDistance;
 
-        private AvoidResult(boolean successfullyAvoided, double distanceChange, double initialDistance, double energySpent, int timeSpent, double difficulty) {
+        private AvoidResult(boolean successfullyAvoided, double distanceChange, double initialDistance, double energySpent, int timeSpent, double difficulty, double score) {
             this.successfullyAvoided = successfullyAvoided;
             this.distanceChange = distanceChange;
             this.initialDistance = initialDistance;
             this.timeSpent = timeSpent;
             this.energySpent = energySpent;
             this.difficulty = difficulty;
+            this.score = score;
         }
 
         public boolean successfullyAvoided() {
@@ -182,19 +182,19 @@ public class AvoidSession {
         }
 
         double evaluate() {
+            // FIXME: Get smaht with this please. Right now, obviously there's no difference if you successfully avoid or not
             double fitness = 0;
             if (!successfullyAvoided) {
                 fitness -= difficulty;
                 System.out.printf("Failure! Fitness: %f\n", fitness);
+                return fitness;
             } else {
                 // We should reward successfully avoiding by
                 // Removing the difficulty from the lowest difficulty (highest possible number: 3.0)
-                // And adding 1.0 as a bonus for successfully avoiding
                 fitness += (MINIMUM_DIFFICULTY_POSSIBLE - difficulty);
-                System.out.printf("Succcess! Fitness: %f\n", fitness);
+                System.out.printf("Success! Fitness: %f\n", fitness);
+                return fitness;
             }
-
-            return fitness;
         }
     }
 }

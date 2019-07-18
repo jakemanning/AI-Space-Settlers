@@ -42,7 +42,7 @@ public class Asteroid extends AbstractObject {
 		setAlive(true);
 		isMineable = mineable;
 		graphic = new AsteroidGraphics(this);
-		this.isMoveable = false;
+		this.isMoveable = moveable;
 		this.fuelProportion = fuel;
 		this.waterProportion = water;
 		this.metalsProportion = metals;

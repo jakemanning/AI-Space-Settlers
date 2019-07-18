@@ -1,6 +1,7 @@
 package capp7507;
 
 import spacesettlers.actions.*;
+import spacesettlers.clients.ImmutableTeamInfo;
 import spacesettlers.clients.TeamClient;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.*;
@@ -17,8 +18,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static capp7507.MovementUtil.*;
-import static capp7507.SpaceSearchUtil.getObstructions;
-import static capp7507.SpaceSearchUtil.obstructionInPath;
+import static capp7507.SpaceSearchUtil.*;
 import static capp7507.TrainingPowerupUtil.MAX_SHOOT_DISTANCE;
 
 /**
@@ -37,9 +37,9 @@ import static capp7507.TrainingPowerupUtil.MAX_SHOOT_DISTANCE;
  */
 public class JakeTeamClient extends TeamClient {
 
-    private static Level LOG_LEVEL = Level.FINE;
+    private static Level LOG_LEVEL = Level.INFO;
     private static final boolean DEBUG_GRAPHIC = true;
-    static final boolean TRAINING_GA = true;
+    private static final boolean TRAINING_GA = false;
     static final boolean TRAINING_TREE = false;
     private static final double OBSTRUCTED_PATH_PENALTY = 0.5;
     private static final int SHIP_MAX_RESOURCES = 5000;
@@ -108,7 +108,9 @@ public class JakeTeamClient extends TeamClient {
 
                     if (TRAINING_GA) {
                         // We aren't avoiding anything anymore. We done'
-                        sessionCollection.completeAllSessions(space, ship);
+                        ImmutableTeamInfo currentInfo = getTeamInfo(space, getTeamName());
+                        double score = currentInfo == null ? 0.0 : currentInfo.getScore();
+                        sessionCollection.completeAllSessions(space, ship, score);
                     }
 
                     if (target instanceof AbstractActionableObject && !isOurBase((AbstractActionableObject) target)) {
@@ -183,6 +185,7 @@ public class JakeTeamClient extends TeamClient {
 
             Position adjustedObjectPosition = interceptPosition(space, object.getPosition(), ship.getPosition());
             double rawDistance = space.findShortestDistance(ship.getPosition(), adjustedObjectPosition);
+            // We want a small scaled distance (closer to zero) to be more important (dividing a smaller number increases value)
             double scaledDistance = scaleDistance(space, rawDistance) + angleValue(space, ship, object);
             double score = value / scaledDistance;
             scores.put(object.getId(), score);
@@ -287,7 +290,9 @@ public class JakeTeamClient extends TeamClient {
         if (TRAINING_GA) {
             SessionCollection currentSession = knowledge.getSessionsFor(ship.getId());
             UUID obstacleUUID = obstacle.getId();
-            if (currentSession.shouldCreateNewSession(space, ship, obstacleUUID)) {
+            ImmutableTeamInfo currentInfo = getTeamInfo(space, getTeamName());
+            double score = currentInfo == null ? 0.0 : currentInfo.getScore();
+            if (currentSession.shouldCreateNewSession(space, ship, obstacleUUID, score)) {
                 AvoidSession newAvoidSession = new AvoidSession(space, ship, target, obstacle);
                 currentSession.add(newAvoidSession);
                 logger.fine(String.format("New session for: %s", obstacleUUID));
@@ -353,7 +358,6 @@ public class JakeTeamClient extends TeamClient {
             Ship ship = (Ship) space.getObjectById(shipId);
             AbstractAction abstractAction = ship.getCurrentAction();
             boolean currentlyAvoiding = abstractAction instanceof AvoidAction;
-            boolean currentlyAvoidingRaw = abstractAction instanceof AvoidActionRaw;
 
             Position shipPosition = ship.getPosition();
             double distance = space.findShortestDistance(shipPosition, target.getPosition());
@@ -367,17 +371,17 @@ public class JakeTeamClient extends TeamClient {
             // Handle when our target dies
             if (!target.isAlive() || space.getObjectById(target.getId()) == null || closeEnough) {
                 if (TRAINING_GA && currentlyAvoiding && !closeEnough) {
-                    AvoidAction action = (AvoidAction) abstractAction;
-                    currentSession.invalidateLastSessionFor(action.getObstacle().getId(), "target is gone");
+                    AbstractObject obstacle = getObstacleForAvoidAction(abstractAction);
+                    currentSession.invalidateLastSessionFor(obstacle.getId(), "target is gone");
                 }
                 targetsToRemove.add(shipId);
             }
 
             if (ship.isAlive() && TRAINING_GA) {
                 // Mark avoid actions unsuccessful if we get too close to the obstacle
-                if (abstractAction instanceof AvoidAction) {
+                if (currentlyAvoiding) {
                     AvoidAction action = (AvoidAction) abstractAction;
-                    AbstractObject obstacle = action.getObstacle();
+                    AbstractObject obstacle = getObstacleForAvoidAction(action);
                     Position obstaclePosition = obstacle.getPosition();
                     int totalRadius = ship.getRadius() + obstacle.getRadius();
                     if (space.findShortestDistance(shipPosition, obstaclePosition) < totalRadius) {
@@ -408,9 +412,8 @@ public class JakeTeamClient extends TeamClient {
             } else {
                 // Ship is ded :(
                 targetsToRemove.add(ship.getId());
-                if (TRAINING_GA && abstractAction instanceof AvoidAction) {
-                    AvoidAction action = (AvoidAction) abstractAction;
-                    AbstractObject obstacle = action.getObstacle();
+                if (TRAINING_GA && currentlyAvoiding) {
+                    AbstractObject obstacle = getObstacleForAvoidAction(abstractAction);
                     currentSession.invalidateLastSessionFor(obstacle.getId(), "ship died");
                 }
             }
@@ -418,6 +421,16 @@ public class JakeTeamClient extends TeamClient {
 
         for (UUID key : targetsToRemove) {
             currentTargets.remove(key);
+        }
+    }
+
+    private AbstractObject getObstacleForAvoidAction(AbstractAction abstractAction) {
+        if (abstractAction instanceof AvoidAction) {
+            return ((AvoidAction) abstractAction).getObstacle();
+        } else if (abstractAction instanceof AvoidActionRaw) {
+            return ((AvoidActionRaw) abstractAction).getObstacle();
+        } else {
+            return null;
         }
     }
 
@@ -435,7 +448,7 @@ public class JakeTeamClient extends TeamClient {
 
     /**
      * Linearly normalizes the distance from 0 to 1
-     *
+     * (The further away we are, the closer to 1)
      * @param space       physics
      * @param rawDistance Input distance to convert
      * @return normalized distance, preserving ratio from 0 to 1

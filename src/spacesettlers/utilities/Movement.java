@@ -39,17 +39,10 @@ public final class Movement {
 	 */
 	public void setTranslationalAcceleration(Vector2D translationalAcceleration) {
 		this.translationalAcceleration = translationalAcceleration;
-		
-		if (translationalAcceleration.getXValue() > MAX_TRANSLATIONAL_ACCELERATION) {
-			this.translationalAcceleration.setX(MAX_TRANSLATIONAL_ACCELERATION);
-		} else if (translationalAcceleration.getXValue() < -MAX_TRANSLATIONAL_ACCELERATION) {
-			this.translationalAcceleration.setX(-MAX_TRANSLATIONAL_ACCELERATION);
-		}
-		
-		if (translationalAcceleration.getYValue() > MAX_TRANSLATIONAL_ACCELERATION) {
-			this.translationalAcceleration.setY(MAX_TRANSLATIONAL_ACCELERATION);
-		} else if (translationalAcceleration.getYValue() < -MAX_TRANSLATIONAL_ACCELERATION) {
-			this.translationalAcceleration.setY(-MAX_TRANSLATIONAL_ACCELERATION);
+
+		if (translationalAcceleration.getMagnitude() > MAX_TRANSLATIONAL_ACCELERATION) {
+			double ratio = translationalAcceleration.getMagnitude() / MAX_TRANSLATIONAL_ACCELERATION;
+			this.translationalAcceleration = this.translationalAcceleration.multiply(1 / ratio);
 		}
 	}
 
@@ -59,6 +52,7 @@ public final class Movement {
 
 	/**
 	 * Set the acceleration and respect the max/mins
+
 	 * @param orientationAccleration
 	 */
 	public void setAngularAccleration(double angularAccleration) {

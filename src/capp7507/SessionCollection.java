@@ -48,11 +48,11 @@ public class SessionCollection {
      * @param obstacleUUID Candidate obstacle
      * @return True if we should create a new session (FOR NOW)
      */
-    boolean shouldCreateNewSession(Toroidal2DPhysics space, Ship ship, UUID obstacleUUID) {
+    boolean shouldCreateNewSession(Toroidal2DPhysics space, Ship ship, UUID obstacleUUID, double score) {
         Stack<AvoidSession> sessionsForObstacle = getSessionsFor(obstacleUUID);
         if (sessionsForObstacle.empty()) {
             // We're avoiding a new obstacle. Complete all the previous sessions
-            completeAllSessions(space, ship);
+            completeAllSessions(space, ship, score);
             logger.fine("Session is empty");
             return true;
         }
@@ -82,14 +82,14 @@ public class SessionCollection {
         return timeStepsSinceLastSession < RELEVANT_THRESHOLD;
     }
 
-    void completeAllSessions(Toroidal2DPhysics space, Ship ship) {
+    void completeAllSessions(Toroidal2DPhysics space, Ship ship, double score) {
         sessionMap.values().stream()
                 .filter(collection -> !collection.empty())
                 .map(Stack::peek)
                 .filter(session -> !session.isComplete())
                 .forEach(session -> {
                     logger.fine(String.format("Completing session for %s", session.getObstacleId().toString()));
-                    session.completeSession(space, ship);
+                    session.completeSession(space, ship, score);
                 });
     }
 
@@ -144,7 +144,6 @@ public class SessionCollection {
                 .filter(AvoidSession::isComplete)
                 .filter(AvoidSession::sessionWasLongEnough)
                 .mapToDouble(session -> session.result().evaluate())
-                .average()
-                .orElse(0);
+                .sum();
     }
 }

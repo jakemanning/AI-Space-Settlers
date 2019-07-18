@@ -21,4 +21,8 @@ public class PopulationCollection {
     public int size() {
         return populations.size();
     }
+
+    public KnowledgePopulation getPopulation(int i) {
+        return populations.get(i);
+    }
 }

@@ -1,6 +1,6 @@
 package capp7507;
 
-import spacesettlers.actions.MoveAction;
+import spacesettlers.actions.RawAction;
 import spacesettlers.objects.AbstractObject;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
@@ -10,9 +10,8 @@ import spacesettlers.utilities.Vector2D;
  * Action that takes a ship's location, angle to move to, and how far to move to
  * Stores obstacle as state as well
  */
-class AvoidAction extends MoveAction {
+class AvoidActionRaw extends RawAction {
     private AbstractObject obstacle;
-
 
     /**
      *
@@ -22,8 +21,8 @@ class AvoidAction extends MoveAction {
      * @param targetVelocity the velocity the ship should be at when it reaches its target location
      * @param obstacle
      */
-    AvoidAction(Toroidal2DPhysics space, Position currentLocation, Position targetLocation, Vector2D targetVelocity, AbstractObject obstacle) {
-        super(space, currentLocation, targetLocation, targetVelocity);
+    AvoidActionRaw(Vector2D targetLocation, double rotAccel, AbstractObject obstacle) {
+        super(targetLocation, rotAccel);
         this.obstacle = obstacle;
     }
 
@@ -36,14 +35,12 @@ class AvoidAction extends MoveAction {
      * @param obstacle which obstacle are we heading to?
      * @return the avoid action with all of this built in.
      */
-    static AvoidAction build(Toroidal2DPhysics space, Position currentLocation, double avoidAngle, double avoidDistance, AbstractObject obstacle) {
+    static AvoidActionRaw build(Toroidal2DPhysics space, Position currentLocation, double avoidAngle, double avoidDistance, AbstractObject obstacle) {
         // Instead of MoveAction I should use RawAction so I don't have to deal with PD which leads to strange results
 
         Vector2D currentVector = new Vector2D(currentLocation);
-        Vector2D targetVector = currentVector.add(Vector2D.fromAngle(avoidAngle, avoidDistance));
-        Position target = new Position(targetVector);
-        Vector2D targetVelocity = Vector2D.fromAngle(avoidAngle, JakeTeamClient.TARGET_SHIP_SPEED);
-        return new AvoidAction(space, currentLocation, target, targetVelocity, obstacle);
+        Vector2D targetVector = Vector2D.fromAngle(avoidAngle, avoidDistance);
+        return new AvoidActionRaw(targetVector, 0, obstacle);
     }
 
     AbstractObject getObstacle() {

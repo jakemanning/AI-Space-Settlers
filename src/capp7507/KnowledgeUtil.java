@@ -2,12 +2,12 @@ package capp7507;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.XStreamException;
-import spacesettlers.simulator.Toroidal2DPhysics;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -26,6 +26,7 @@ class KnowledgeUtil {
     /**
      * The current policy for the team
      */
+    private KnowledgeChromosome bestPolicy;
     private KnowledgeChromosome currentPolicy;
 
     /**
@@ -38,7 +39,7 @@ class KnowledgeUtil {
     private final String KNOWLEDGE_FILE;
     private static final String COLLECTION_FILE = "capp7507/knowledge_collection.xml.gz";
     private Map<UUID, SessionCollection> sessions;
-    private static final int POPULATION_SIZE = 200; // Prof: no lower than a hundred
+    private static final int POPULATION_SIZE = 50; // Prof: no lower than a hundred
     private XStream xStream;
 
     KnowledgeUtil(String knowledgeFile) {
@@ -84,7 +85,7 @@ class KnowledgeUtil {
         } catch (XStreamException | FileNotFoundException e) {
             // if you get an error, handle it other than a null pointer because
             // the error will happen the first time you run
-            System.out.println("No existing population found - starting a new one from scratch");
+            System.err.println("No existing population found - starting a new one from scratch");
             population = new KnowledgePopulation(POPULATION_SIZE);
         } catch (IOException e) {
             e.printStackTrace();
@@ -95,13 +96,13 @@ class KnowledgeUtil {
         } catch (XStreamException | FileNotFoundException e) {
             // if you get an error, handle it other than a null pointer because
             // the error will happen the first time you run
-            System.out.println("No existing population collection found - starting a new one from scratch");
+            System.err.println("No existing population collection found - starting a new one from scratch");
             populationCollection = new PopulationCollection();
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        currentPolicy = population.getFirstMember();
+        currentPolicy = population.getCurrentMember();
     }
 
     private KnowledgePopulation loadFile(XStream xStream) throws IOException {
@@ -126,7 +127,7 @@ class KnowledgeUtil {
             createCollectionFile(xStream, populationCollection);
         } catch (XStreamException | FileNotFoundException e) {
             // if you get an error, handle it somehow as it means your knowledge didn't save
-            System.out.println("Can't save knowledge file in shutdown");
+            System.err.println("Can't save knowledge file in shutdown");
             System.out.println(e.getMessage());
         } catch (IOException e) {
             e.printStackTrace();
@@ -154,6 +155,23 @@ class KnowledgeUtil {
     }
 
     KnowledgeChromosome bestPolicy() {
-        return population.getBestMember();
+        if (bestPolicy == null) {
+            KnowledgeChromosome bestChromosome = null;
+            double bestFitness = Integer.MIN_VALUE;
+            int generationNo = -1;
+            int chromNumber = -1;
+            for (int i = 0; i < populationCollection.size(); ++i) {
+                KnowledgePopulation population = populationCollection.getPopulation(i);
+                KnowledgePopulation.ChromosomeFitness chromosomeFitness = population.getBestMember();
+                if (chromosomeFitness.fitnessScore > bestFitness) {
+                    bestChromosome = chromosomeFitness.chromosome;
+                    bestFitness = chromosomeFitness.fitnessScore;
+                    generationNo = i + 1;
+                    chromNumber = chromosomeFitness.index;
+                }
+            }
+            bestPolicy = bestChromosome;
+        }
+        return bestPolicy;
     }
 }

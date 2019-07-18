@@ -1,5 +1,6 @@
 package capp7507;
 
+import spacesettlers.clients.ImmutableTeamInfo;
 import spacesettlers.objects.*;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
@@ -181,5 +182,14 @@ class SpaceSearchUtil {
             }
         }
         return results;
+    }
+
+    static ImmutableTeamInfo getTeamInfo(Toroidal2DPhysics space, String teamName) {
+        for (ImmutableTeamInfo teamInfo : space.getTeamInfo()) {
+            if (teamInfo.getTeamName().equals(teamName)) {
+                return teamInfo;
+            }
+        }
+        return null;
     }
 }

@@ -2,6 +2,7 @@ package capp7507;
 
 import spacesettlers.objects.Ship;
 import spacesettlers.simulator.Toroidal2DPhysics;
+import sun.jvm.hotspot.debugger.win32.coff.MachineTypes;
 
 import java.util.Arrays;
 import java.util.Random;
@@ -54,6 +55,14 @@ public class KnowledgeChromosome {
         return coeff;
     }
 
+    double modifyCoefficient(double currentCoefficient, Random rand) {
+        final double modificationVariance = 0.07; // Equates to about 4 degrees change 66% of the time
+        double modification = getGaussian(rand, 0.0, modificationVariance);
+        double convertedToDegrees = modification * (180 / Math.PI);
+        System.out.printf("We modified the coefficient by %f\n", convertedToDegrees);
+        return modification;
+    }
+
     /**
      * We want most (68%) our coefficients to be between 2/3 * variance
      * @param rand random
@@ -92,11 +101,10 @@ public class KnowledgeChromosome {
         double a = coefficients[state.getAngleCategory()]; // Angle to obstacle
         double b = coefficients[state.getTrajectoryCategory() + KnowledgeState.ANGLE_NUMBER_OF_DIVISIONS]; // offset to account for first coefficients (angle to obstacle)
 
-//        double distanceToObstacle = state.getDistanceToObstacle();
         double angleToObstacle = state.getObstacleLocationAngle();
         double angleToObstacleMovement = state.getObstacleTrajectoryAngle();
 
-        double angle = a * angleToObstacle;// + b * angleToObstacleMovement;
+        double angle = a; // + b * angleToObstacleMovement;
 
         return AvoidAction.build(space, ship.getPosition(), angle, 1, state.getObstacle());
     }

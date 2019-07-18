@@ -88,22 +88,6 @@ public class Position {
 	public void setOrientation(double orientation) {
 		this.orientation = orientation;
 	}
-	
-	public double getxVelocity() {
-		return velocity.getXValue();
-	}
-
-	public void setxVelocity(double xVelocity) {
-		velocity.setX(xVelocity);
-	}
-
-	public double getyVelocity() {
-		return velocity.getYValue();
-	}
-
-	public void setyVelocity(double yVelocity) {
-		velocity.setY(yVelocity);
-	}
 
 	public void setAngularVelocity(double angularVelocity) {
 		this.angularVelocity = angularVelocity;
